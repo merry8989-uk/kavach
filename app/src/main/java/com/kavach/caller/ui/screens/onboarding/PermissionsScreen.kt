@@ -3,77 +3,208 @@ package com.kavach.caller.ui.screens.onboarding
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.delay
 
-/**
- * Permissions that must be granted for the core features to function at all:
- * contacts (identity), call log (history), phone state (SIM + screening).
- */
+private data class PermGroup(val title: String, val rationale: String, val permissions: List<String>)
+
+private data class RoleItem(
+    val title: String,
+    val rationale: String,
+    val role: String,
+    val required: Boolean,
+)
+
+/** Permissions without which the app cannot do anything useful. */
 private val corePermissions = listOf(
     Manifest.permission.READ_CONTACTS,
     Manifest.permission.READ_CALL_LOG,
     Manifest.permission.READ_PHONE_STATE,
 )
 
-fun hasCorePermissions(context: Context): Boolean = corePermissions.all {
-    ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+fun hasCorePermissions(context: Context): Boolean = corePermissions.all { isGranted(context, it) }
+
+private fun isGranted(context: Context, permission: String): Boolean =
+    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+private fun isRoleHeld(context: Context, role: String): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+    val manager = context.getSystemService(RoleManager::class.java) ?: return false
+    return manager.isRoleAvailable(role) && manager.isRoleHeld(role)
 }
 
-private fun allRuntimePermissions(): Array<String> = buildList {
-    addAll(corePermissions)
-    add(Manifest.permission.WRITE_CONTACTS)
-    add(Manifest.permission.WRITE_CALL_LOG)
-    add(Manifest.permission.CALL_PHONE)
-    add(Manifest.permission.READ_SMS)
-    add(Manifest.permission.SEND_SMS)
-    add(Manifest.permission.RECEIVE_SMS)
-    add(Manifest.permission.RECORD_AUDIO)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        add(Manifest.permission.ANSWER_PHONE_CALLS)
-        add(Manifest.permission.READ_PHONE_NUMBERS)
-    }
+private fun permissionGroups(): List<PermGroup> = buildList {
+    add(
+        PermGroup(
+            "Contacts",
+            "Identify callers and show rich profiles",
+            listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS),
+        )
+    )
+    add(
+        PermGroup(
+            "Phone & call log",
+            "Power the dialer, SIM picker and call history",
+            buildList {
+                add(Manifest.permission.READ_PHONE_STATE)
+                add(Manifest.permission.READ_CALL_LOG)
+                add(Manifest.permission.WRITE_CALL_LOG)
+                add(Manifest.permission.CALL_PHONE)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    add(Manifest.permission.READ_PHONE_NUMBERS)
+                    add(Manifest.permission.ANSWER_PHONE_CALLS)
+                }
+            },
+        )
+    )
+    add(
+        PermGroup(
+            "Messages",
+            "Threads, smart replies and spam SMS filtering",
+            listOf(
+                Manifest.permission.READ_SMS,
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.RECEIVE_SMS,
+            ),
+        )
+    )
+    add(
+        PermGroup(
+            "Microphone",
+            "Call recording and the AI assistant",
+            listOf(Manifest.permission.RECORD_AUDIO),
+        )
+    )
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        add(Manifest.permission.POST_NOTIFICATIONS)
+        add(
+            PermGroup(
+                "Notifications",
+                "Call briefs, missed-call digest and update alerts",
+                listOf(Manifest.permission.POST_NOTIFICATIONS),
+            )
+        )
     }
-}.toTypedArray()
+}
+
+private fun roleItems(): List<RoleItem> = listOf(
+    RoleItem(
+        "Default dialer",
+        "Replaces the stock dialer — in-call screen, dual-SIM, recording",
+        RoleManager.ROLE_DIALER,
+        required = true,
+    ),
+    RoleItem(
+        "Caller ID & spam",
+        "Identifies and blocks callers before the phone rings",
+        RoleManager.ROLE_CALL_SCREENING,
+        required = true,
+    ),
+    RoleItem(
+        "SMS app",
+        "Read, reply and filter messages (optional)",
+        RoleManager.ROLE_SMS,
+        required = false,
+    ),
+)
+
+private fun allPermissions(): Array<String> =
+    permissionGroups().flatMap { it.permissions }.toTypedArray()
 
 /**
- * First-run onboarding: runtime permissions + the system roles Kavach needs
- * (call screening, default dialer, default SMS). Without this screen the app
- * looked broken because nothing was ever granted.
+ * First-run setup. Asks for every permission Kavach needs plus the system roles
+ * it depends on: **default dialer** and **caller ID / call screening** (the
+ * "call identity" role), with the SMS role as optional.
+ *
+ * A live status list ticks as the user grants things, and the primary button
+ * always performs the next outstanding step, so a non-technical user can just
+ * keep tapping it.
  */
 @Composable
-fun PermissionsScreen(onDone: () -> Unit) {
+fun PermissionsScreen(
+    onFinished: () -> Unit,
+    onSkip: () -> Unit,
+) {
     val context = LocalContext.current
+    val groups = remember { permissionGroups() }
+    val roles = remember { roleItems() }
+
+    var permStatus by remember { mutableStateOf(List(groups.size) { false }) }
+    var roleStatus by remember { mutableStateOf(List(roles.size) { false }) }
+
+    // The permission and role dialogs are owned by the OS and run outside our
+    // process, so we poll while this screen is visible instead of relying on a
+    // result callback that may never fire for role requests.
+    LaunchedEffect(Unit) {
+        while (true) {
+            permStatus = groups.map { group -> group.permissions.all { isGranted(context, it) } }
+            roleStatus = roles.map { isRoleHeld(context, it.role) }
+            delay(800)
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { onDone() }
+    ) { }
 
     val roleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { }
 
     fun requestRole(role: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val rm = context.getSystemService(RoleManager::class.java)
-            if (rm != null && rm.isRoleAvailable(role) && !rm.isRoleHeld(role)) {
-                roleLauncher.launch(rm.createRequestRoleIntent(role))
-            }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val manager = context.getSystemService(RoleManager::class.java) ?: return
+        if (manager.isRoleAvailable(role) && !manager.isRoleHeld(role)) {
+            roleLauncher.launch(manager.createRequestRoleIntent(role))
+        }
+    }
+
+    fun openAppSettings() {
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", context.packageName, null),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+    }
+
+    val grantedGroups = permStatus.count { it }
+    val heldRoles = roleStatus.count { it }
+    val missingGroup = groups.indices.firstOrNull { !permStatus[it] }
+    val missingRole = roles.indices.firstOrNull { roles[it].required && !roleStatus[it] }
+
+    val primaryLabel: String
+    val primaryAction: () -> Unit
+    when {
+        missingGroup != null -> {
+            primaryLabel = "Grant all permissions"
+            primaryAction = { permissionLauncher.launch(allPermissions()) }
+        }
+        missingRole != null -> {
+            primaryLabel = "Set as ${roles[missingRole].title}"
+            primaryAction = { requestRole(roles[missingRole].role) }
+        }
+        else -> {
+            primaryLabel = "Finish setup"
+            primaryAction = onFinished
         }
     }
 
@@ -88,53 +219,104 @@ fun PermissionsScreen(onDone: () -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Kavach needs a few permissions to identify callers, block spam and record calls. You can change any of these later.",
+            "Kavach works best as your dialer and caller-ID app. Grant the permissions below and set " +
+                "the two roles, then you're ready. Everything can be changed later in Settings.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "$grantedGroups of ${groups.size} permission groups · $heldRoles of ${roles.size} roles set",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = primaryAction, modifier = Modifier.fillMaxWidth()) {
+            Text(primaryLabel)
+        }
+
         Spacer(Modifier.height(20.dp))
-        Button(
-            onClick = { permissionLauncher.launch(corePermissions.toTypedArray()) },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Grant core permissions") }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = { permissionLauncher.launch(allRuntimePermissions()) },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Grant all permissions") }
-
-        Spacer(Modifier.height(24.dp))
-        Text("Roles", style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(4.dp))
-        RoleRow("Call screening", "Block and identify calls before they ring") {
-            requestRole(RoleManager.ROLE_CALL_SCREENING)
-        }
-        RoleRow("Default dialer", "Powers the built-in dialer and in-call screen") {
-            requestRole(RoleManager.ROLE_DIALER)
-        }
-        RoleRow("Default SMS app", "Enables smart replies and spam SMS filtering") {
-            requestRole(RoleManager.ROLE_SMS)
+        SectionLabel("Permissions")
+        groups.forEachIndexed { index, group ->
+            StatusRow(
+                title = group.title,
+                subtitle = group.rationale,
+                ok = permStatus[index],
+                actionLabel = "Grant",
+                onAction = { permissionLauncher.launch(group.permissions.toTypedArray()) },
+            )
         }
 
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
-        TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
+        Spacer(Modifier.height(16.dp))
+        SectionLabel("Roles")
+        roles.forEachIndexed { index, role ->
+            StatusRow(
+                title = role.title,
+                subtitle = role.rationale,
+                ok = roleStatus[index],
+                actionLabel = "Set",
+                onAction = { requestRole(role.role) },
+            )
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Role requests need Android 10 or newer. On older versions, set Kavach as the default " +
+                    "dialer from the system Settings app.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+        TextButton(onClick = { openAppSettings() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Open app settings")
+        }
+        OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+            Text("Skip for now")
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun RoleRow(title: String, subtitle: String, onRequest: () -> Unit) {
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(vertical = 6.dp),
+    )
+}
+
+@Composable
+private fun StatusRow(
+    title: String,
+    subtitle: String,
+    ok: Boolean,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = if (ok) Icons.Filled.Check else Icons.Filled.Close,
+            contentDescription = if (ok) "Granted" else "Not granted",
+            tint = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        TextButton(onClick = onRequest) { Text("Enable") }
+        if (!ok) TextButton(onClick = onAction) { Text(actionLabel) }
     }
 }

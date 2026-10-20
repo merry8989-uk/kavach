@@ -1,5 +1,6 @@
 package com.kavach.caller.ui.nav
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -58,22 +59,42 @@ private val tabs = listOf(
     Tab("settings", "Settings", Icons.Filled.Settings),
 )
 
+/**
+ * Entry point. Shows the first-run setup until it has been completed (or
+ * skipped) *and* the core permissions are held — then hands off to [KavachMain].
+ */
 @Composable
 fun KavachNav() {
     val context = LocalContext.current
-    // Gate the app behind the permission onboarding until the core permissions
-    // are granted — otherwise every feature silently returns empty.
-    var onboardingPassed by remember { mutableStateOf(hasCorePermissions(context)) }
-    if (!onboardingPassed) {
-        PermissionsScreen(onDone = { onboardingPassed = true })
+    val settingsVm: SettingsViewModel = hiltViewModel()
+    val appSettings by settingsVm.settings.collectAsState()
+    val settingsLoaded by settingsVm.loaded.collectAsState()
+    var setupSkipped by remember { mutableStateOf(false) }
+
+    // Wait for persisted settings before deciding, so the setup screen never
+    // flashes on a launch where it has already been done.
+    if (!settingsLoaded) {
+        Box(Modifier.fillMaxSize())
         return
     }
 
-    val nav = rememberNavController()
-    val backStack by nav.currentBackStackEntryAsState()
-    val current = backStack?.destination
+    val needsSetup = !appSettings.onboardingDone || !hasCorePermissions(context)
+    if (needsSetup && !setupSkipped) {
+        PermissionsScreen(
+            onFinished = {
+                settingsVm.setOnboardingDone(true)
+                setupSkipped = true
+            },
+            onSkip = { setupSkipped = true },
+        )
+        return
+    }
 
-    val settingsVm: SettingsViewModel = hiltViewModel()
+    KavachMain(settingsVm)
+}
+
+@Composable
+private fun KavachMain(settingsVm: SettingsViewModel) {
     val appSettings by settingsVm.settings.collectAsState()
     val updateVm: UpdateViewModel = hiltViewModel()
     val updateState by updateVm.state.collectAsState()
@@ -84,6 +105,10 @@ fun KavachNav() {
             updateVm.check(BuildConfig.VERSION_NAME)
         }
     }
+
+    val nav = rememberNavController()
+    val backStack by nav.currentBackStackEntryAsState()
+    val current = backStack?.destination
 
     Scaffold(
         bottomBar = {

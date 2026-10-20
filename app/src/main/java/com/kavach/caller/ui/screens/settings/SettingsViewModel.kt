@@ -6,6 +6,7 @@ import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,6 +22,15 @@ class SettingsViewModel @Inject constructor(
         AppSettings(),
     )
 
+    /**
+     * True once DataStore has produced its first real value. The nav graph waits
+     * on this so the onboarding screen never flashes on a launch where setup is
+     * already complete.
+     */
+    val loaded = repo.settings
+        .map { true }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     fun setThemePack(value: String) = viewModelScope.launch { repo.setThemePack(value) }
     fun setAnnouncerMode(value: String) = viewModelScope.launch { repo.setAnnouncerMode(value) }
     fun setAnnounceSpamVerdict(value: Boolean) = viewModelScope.launch { repo.setAnnounceSpamVerdict(value) }
@@ -28,4 +38,5 @@ class SettingsViewModel @Inject constructor(
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
     fun setRecordAll(value: Boolean) = viewModelScope.launch { repo.setRecordAll(value) }
     fun setAutoCheckUpdates(value: Boolean) = viewModelScope.launch { repo.setAutoCheckUpdates(value) }
+    fun setOnboardingDone(value: Boolean) = viewModelScope.launch { repo.setOnboardingDone(value) }
 }

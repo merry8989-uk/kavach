@@ -138,6 +138,13 @@ Still integration points (marked in code): the cloud ASR/LLM backend
 - The downloader only accepts URLs under Kavach's own GitHub release path, so a spoofed API response can't push an arbitrary APK.
 - Added a unit test for the version comparison.
 
+### Added in 0.5.0
+
+- **First-run setup is now a guided flow.** On first install Kavach asks for every permission group (Contacts, Phone & call log, Messages, Microphone, Notifications) *and* the two roles it depends on: **Default dialer** and **Caller ID & spam** (call screening) — with the SMS role offered as optional.
+- Each item shows a live tick as it's granted, and one primary button always performs the next outstanding step: *Grant all permissions* → *Set as Default dialer* → *Set as Caller ID & spam* → *Finish setup*.
+- Setup completion is remembered, so the flow appears on first install (or if the core permissions are later revoked) rather than every launch — the nav graph waits for settings to load so it never flashes.
+- *Skip for now* dismisses it for the session, and an *Open app settings* shortcut helps with permissions the user has permanently denied.
+
 ## Legal & ethics
 
 Kavach does **not** reverse-engineer, scrape, or reuse any competitor's app,
