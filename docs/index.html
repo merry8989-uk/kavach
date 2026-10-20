@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kavach — AI Call Intelligence for Android</title>
+<meta name="description" content="Kavach (कवच) is an Indian-first, AI-native caller intelligence app for Android. Smart dialer, spam defence, and an AI call assistant that answers, transcribes, texts the caller and briefs you." />
+<meta name="theme-color" content="#07090f" />
+<meta property="og:title" content="Kavach — Armour for your phone calls" />
+<meta property="og:description" content="AI-native caller intelligence. Answer smarter, block spam, and never miss what a call was about." />
+<meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e5ff'/%3E%3Cstop offset='1' stop-color='%23b14aff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M50 6 84 22v26c0 22-14 36-34 46C30 84 16 70 16 48V22z' fill='url(%23g)'/%3E%3Cpath d='M50 6 84 22v26c0 22-14 36-34 46' fill='none' stroke='%2307090f' stroke-width='4'/%3E%3C/svg%3E" />
+<style>
+/* ============================================================
+   KAVACH — Design system
+   Aurora / neon glass / carbon. Vanilla CSS, no build step.
+   ============================================================ */
+:root{
+  --bg:#07090f;
+  --bg-2:#0a0d16;
+  --ink:#eef2ff;
+  --muted:#9aa6c4;
+  --muted-2:#6d7899;
+  --line:rgba(255,255,255,.09);
+  --line-2:rgba(255,255,255,.16);
+  --glass:rgba(18,22,36,.55);
+  --glass-2:rgba(22,27,44,.72);
+  --cyan:#00e5ff;
+  --violet:#8b5cff;
+  --magenta:#ff3d9a;
+  --lime:#7CFFB2;
+  --amber:#ffcb57;
+  --danger:#ff5c7a;
+  --radius:22px;
+  --radius-sm:14px;
+  --shadow:0 30px 80px -30px rgba(0,0,0,.9);
+  --ring:0 0 0 1px rgba(255,255,255,.06), 0 0 40px -12px rgba(0,229,255,.35);
+  --maxw:1180px;
+  --font:"Space Grotesk","Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  --font-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:16px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+h1,h2,h3,h4,.brand-name,.btn{font-family:var(--font)}
+img{max-width:100%}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(139,92,255,.4)}
+.wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ---------- animated aurora background ---------- */
+.bg-fx{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+.bg-fx .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;mix-blend-mode:screen;animation:float 22s ease-in-out infinite}
+.blob.b1{width:52vw;height:52vw;left:-12vw;top:-14vw;background:radial-gradient(circle at 30% 30%,#00e5ff,transparent 62%)}
+.blob.b2{width:46vw;height:46vw;right:-10vw;top:2vw;background:radial-gradient(circle at 60% 40%,#8b5cff,transparent 62%);animation-delay:-6s}
+.blob.b3{width:44vw;height:44vw;left:18vw;bottom:-18vw;background:radial-gradient(circle at 50% 50%,#ff3d9a,transparent 62%);animation-delay:-11s}
+.blob.b4{width:30vw;height:30vw;right:6vw;bottom:-8vw;background:radial-gradient(circle at 50% 50%,#7CFFB2,transparent 65%);animation-delay:-16s;opacity:.32}
+@keyframes float{0%,100%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(4vw,3vw,0) scale(1.12)}66%{transform:translate3d(-3vw,2vw,0) scale(.94)}}
+.bg-grid{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 20%,transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 20%,transparent 78%);
+}
+.noise{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---------- shared bits ---------- */
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--font);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:#cdd6f2;
+  padding:7px 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--glass);backdrop-filter:blur(12px)}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.7)}}
+.grad-text{background:linear-gradient(100deg,var(--cyan),var(--violet) 46%,var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+.section{padding:96px 0;position:relative}
+.section-head{max-width:760px;margin-bottom:52px}
+.section-head h2{font-size:clamp(28px,4.2vw,46px);line-height:1.08;margin:16px 0 14px;letter-spacing:-.02em}
+.section-head p{color:var(--muted);font-size:clamp(15.5px,1.7vw,18px);margin:0}
+.kicker{color:var(--cyan)}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);backdrop-filter:blur(16px);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(140deg,rgba(255,255,255,.18),transparent 40%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.7}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:15px;padding:14px 22px;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:transform .18s ease,box-shadow .25s ease,background .25s ease;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn-primary{color:#04060c;background:linear-gradient(100deg,var(--cyan),var(--violet));box-shadow:0 12px 40px -12px rgba(0,229,255,.7)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 50px -12px rgba(139,92,255,.75)}
+.btn-ghost{color:var(--ink);background:rgba(255,255,255,.05);border-color:var(--line-2);backdrop-filter:blur(10px)}
+.btn-ghost:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
+.btn-ig{color:#fff;background:linear-gradient(100deg,#f9ce34,#ee2a7b 52%,#6228d7);box-shadow:0 12px 40px -14px rgba(238,42,123,.8)}
+.btn-ig:hover{transform:translateY(-2px)}
+.btn svg{width:18px;height:18px;flex:none}
+
+/* ---------- nav ---------- */
+header.nav{position:sticky;top:0;z-index:60;backdrop-filter:blur(18px);background:rgba(7,9,15,.62);border-bottom:1px solid transparent;transition:border-color .3s,background .3s}
+header.nav.scrolled{border-bottom-color:var(--line);background:rgba(7,9,15,.86)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;height:70px}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--font)}
+.brand-mark{width:36px;height:36px;flex:none;filter:drop-shadow(0 0 14px rgba(0,229,255,.55))}
+.brand-name{display:block;font-weight:700;font-size:19px;letter-spacing:.02em;line-height:1.1}
+.brand-sub{display:block;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted-2);margin-top:1px}
+.nav-links{display:flex;align-items:center;gap:6px}
+.nav-links a{font-size:14.5px;color:var(--muted);padding:9px 13px;border-radius:999px;transition:color .2s,background .2s}
+.nav-links a:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+.nav-cta{display:flex;align-items:center;gap:10px}
+.nav-cta .btn{padding:11px 18px;font-size:14px}
+.burger{display:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line-2);background:var(--glass);color:var(--ink);cursor:pointer;align-items:center;justify-content:center}
+.burger svg{width:22px;height:22px}
+.mobile-menu{display:none;flex-direction:column;gap:4px;padding:12px 0 20px}
+.mobile-menu a{padding:13px 16px;border-radius:14px;color:var(--muted);font-size:16px}
+.mobile-menu a:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+@media(max-width:960px){
+  .nav-links{display:none}
+  .nav-cta .btn.hide-sm{display:none}
+  .burger{display:flex}
+  .mobile-menu.open{display:flex}
+}
+@media(max-width:600px){
+  .nav-cta .btn-primary{display:none}
+  .nav-inner{height:64px}
+}
+
+/* ---------- hero ---------- */
+.hero{padding:70px 0 40px;position:relative}
+.hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:56px;align-items:center}
+.hero h1{font-size:clamp(40px,6.6vw,76px);line-height:1.02;letter-spacing:-.03em;margin:22px 0 18px;font-weight:700}
+.hero .tagline{font-size:clamp(16px,2vw,19.5px);color:var(--muted);max-width:560px}
+.hero .tagline b{color:var(--ink);font-weight:600}
+.hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+.hero-stats{display:flex;flex-wrap:wrap;gap:26px;margin-top:38px}
+.stat b{display:block;font-family:var(--font);font-size:24px;letter-spacing:-.01em}
+.stat span{font-size:12.5px;color:var(--muted-2)}
+.hero-note{margin-top:22px;font-size:13px;color:var(--muted-2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#cdd6f2;border:1px solid var(--line);background:rgba(255,255,255,.04);padding:5px 11px;border-radius:999px}
+.chip svg{width:14px;height:14px;flex:none;stroke:var(--cyan);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ig-pills .chip svg{stroke:#ff6aa9}
+@media(max-width:920px){.hero-grid{grid-template-columns:1fr;gap:40px}.hero{padding-top:44px}}
+
+/* ---------- phone frame (CSS mockups) ---------- */
+.phone{width:300px;max-width:86vw;aspect-ratio:9/19;border-radius:42px;padding:11px;position:relative;
+  background:linear-gradient(160deg,#20263a,#0b0e18 55%,#161a2a);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 0 0 1px rgba(255,255,255,.08);
+  margin:0 auto}
+.phone::before{content:"";position:absolute;top:20px;left:50%;transform:translateX(-50%);width:88px;height:22px;background:#05070c;border-radius:999px;z-index:5;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.screen{position:absolute;inset:11px;border-radius:32px;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#131a2e,#080b14 70%);display:flex;flex-direction:column;color:var(--ink)}
+.screen .status{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#aeb8d6;padding:11px 18px 4px;letter-spacing:.02em}
+.screen .status .sig{display:flex;gap:4px;align-items:center}
+.screen .status .sig i{display:block;width:3px;background:#aeb8d6;border-radius:2px}
+.screen .status .sig i:nth-child(1){height:5px}.screen .status .sig i:nth-child(2){height:8px}.screen .status .sig i:nth-child(3){height:11px}
+.screen-body{flex:1;display:flex;flex-direction:column;padding:10px 18px 18px;min-height:0}
+.phone-glow{position:absolute;inset:0;border-radius:42px;pointer-events:none;box-shadow:var(--ring);opacity:.9}
+.mock-label{text-align:center;margin-top:16px;font-size:12.5px;color:var(--muted-2);letter-spacing:.04em}
+
+/* dialer */
+.dial-num{text-align:center;font-family:var(--font);font-size:26px;letter-spacing:.06em;min-height:38px;margin-top:8px}
+.dial-name{text-align:center;font-size:12.5px;color:var(--cyan);min-height:18px;margin-bottom:6px}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:auto}
+.key{border:1px solid var(--line);background:rgba(255,255,255,.045);border-radius:16px;padding:9px 0;text-align:center;cursor:pointer;transition:background .15s,transform .1s;user-select:none}
+.key:active{transform:scale(.95);background:rgba(0,229,255,.16)}
+.key b{display:block;font-family:var(--font);font-size:19px;line-height:1.1}
+.key span{font-size:8.5px;letter-spacing:.16em;color:var(--muted-2)}
+.key.call{background:linear-gradient(120deg,var(--cyan),var(--violet));border-color:transparent}
+.key.call b{color:#04060c}
+.key.del b{font-size:15px}
+.dualsim{display:flex;gap:6px;justify-content:center;margin:8px 0 4px}
+.dualsim span{font-size:10px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.dualsim span.on{background:rgba(0,229,255,.14);border-color:rgba(0,229,255,.5);color:var(--ink)}
+.incoming{text-align:center;padding-top:6px}
+.incoming .avatar-lg{width:74px;height:74px;border-radius:50%;margin:6px auto 12px;background:linear-gradient(140deg,var(--violet),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:26px;color:#06070d}
+.incoming .who{font-family:var(--font);font-size:19px}
+.incoming .sub{font-size:12px;color:var(--muted)}
+.incoming .tagline-sm{margin-top:10px;display:inline-block;font-size:11px;padding:5px 12px;border-radius:999px;background:rgba(124,255,178,.14);color:var(--lime);border:1px solid rgba(124,255,178,.35)}
+.callbtns{display:flex;justify-content:center;gap:34px;margin-top:auto;padding-bottom:6px}
+.cbtn{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}
+.cbtn.dec{background:linear-gradient(140deg,#ff5c7a,#c11f4c)}
+.cbtn.acc{background:linear-gradient(140deg,#7CFFB2,#1fae6b);color:#04140c}
+.cbtn.ai{background:linear-gradient(140deg,var(--cyan),var(--violet));color:#04060c}
+
+/* contact profile */
+.prof-top{text-align:center;padding-top:6px}
+.prof-av{width:72px;height:72px;border-radius:22px;margin:0 auto 10px;background:linear-gradient(140deg,var(--magenta),var(--violet));display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:26px}
+.prof-name{font-family:var(--font);font-size:18px}
+.prof-role{font-size:11.5px;color:var(--muted)}
+.prof-tags{display:flex;gap:6px;justify-content:center;margin:9px 0 12px;flex-wrap:wrap}
+.prof-tags span{font-size:9.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.prof-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:12px}
+.prof-row .k{color:var(--muted-2);width:70px;flex:none}
+.prof-row .v{color:var(--ink)}
+.prof-row .v small{display:block;color:var(--muted-2);font-size:9.5px}
+
+/* call log list */
+.log-filter{display:flex;gap:6px;overflow:hidden;padding:2px 0 10px;flex-wrap:wrap}
+.log-filter span{font-size:9.5px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.log-filter span.on{background:rgba(139,92,255,.2);border-color:rgba(139,92,255,.55);color:var(--ink)}
+.log-item{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.log-item:first-of-type{border-top:0}
+.log-av{width:34px;height:34px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-family:var(--font)}
+.log-main{flex:1;min-width:0}
+.log-main b{font-size:12.5px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-main small{font-size:10px;color:var(--muted-2)}
+.log-badge{font-size:8.5px;padding:3px 7px;border-radius:999px;white-space:nowrap}
+.b-missed{background:rgba(255,92,122,.16);color:#ff9db0;border:1px solid rgba(255,92,122,.35)}
+.b-spam{background:rgba(255,203,87,.15);color:var(--amber);border:1px solid rgba(255,203,87,.35)}
+.b-ai{background:rgba(0,229,255,.15);color:#8ef2ff;border:1px solid rgba(0,229,255,.4)}
+.b-rec{background:rgba(139,92,255,.16);color:#c9b4ff;border:1px solid rgba(139,92,255,.4)}
+
+/* blocklist */
+.rule{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line);font-size:12px}
+.rule:first-of-type{border-top:0}
+.rule .mode{margin-left:auto;font-size:8.5px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.rule .mode.blk{color:#ff9db0;border-color:rgba(255,92,122,.4);background:rgba(255,92,122,.12)}
+.rule .mode.sil{color:var(--amber);border-color:rgba(255,203,87,.4);background:rgba(255,203,87,.1)}
+.rule .mode.ai{color:#8ef2ff;border-color:rgba(0,229,255,.4);background:rgba(0,229,255,.1)}
+.pattern{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.04);padding:2px 7px;border-radius:6px;border:1px solid var(--line)}
+
+/* AI brief */
+.brief-head{display:flex;align-items:center;gap:9px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.brief-head .ai-dot{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:pulse 1.8s infinite}
+.brief-head b{font-size:13px;font-family:var(--font)}
+.brief-head small{margin-left:auto;font-size:9.5px;color:var(--muted-2)}
+.brief-block{padding:9px 0;border-bottom:1px solid var(--line)}
+.brief-block .lbl{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
+.brief-block .txt{font-size:11.5px;margin-top:3px;color:#dfe5f8}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.pill{font-size:9.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line)}
+.pill.intent{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.4);color:#8ef2ff}
+.pill.sent{background:rgba(124,255,178,.12);border-color:rgba(124,255,178,.4);color:var(--lime)}
+.pill.risk{background:rgba(255,92,122,.12);border-color:rgba(255,92,122,.4);color:#ff9db0}
+.wave{display:flex;align-items:center;gap:2.5px;height:30px;margin-top:8px}
+.wave i{flex:1;background:linear-gradient(180deg,var(--cyan),var(--violet));border-radius:2px;animation:wv 1.1s ease-in-out infinite}
+@keyframes wv{0%,100%{height:22%}50%{height:100%}}
+.player{display:flex;align-items:center;gap:9px;margin-top:9px;font-size:10.5px;color:var(--muted)}
+.player .pbtn{width:30px;height:30px;border-radius:50%;background:linear-gradient(120deg,var(--cyan),var(--violet));display:flex;align-items:center;justify-content:center;color:#04060c;flex:none}
+.transcript{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.55;max-height:96px;overflow:hidden;position:relative}
+.transcript b{color:#dfe5f8}
+
+/* announcer */
+.announcer{text-align:center;padding-top:8px}
+.radar{width:150px;height:150px;margin:8px auto 4px;position:relative;border-radius:50%;background:radial-gradient(circle,rgba(0,229,255,.09),transparent 68%);border:1px solid rgba(0,229,255,.22)}
+.radar::before,.radar::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid rgba(0,229,255,.18)}
+.radar::before{inset:26px}.radar::after{inset:52px}
+.radar .sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(0,229,255,.55),transparent 30%);animation:sweep 2.6s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+.radar .blip{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--magenta);box-shadow:0 0 12px var(--magenta);top:34px;left:96px;animation:blip 2.6s ease-in-out infinite}
+@keyframes blip{0%,100%{opacity:.35}40%{opacity:1}}
+.speak{font-family:var(--font);font-size:15px;margin-top:2px}
+.speak .q{color:var(--cyan)}
+.voice-bars{display:flex;gap:3px;justify-content:center;align-items:flex-end;height:26px;margin-top:10px}
+.voice-bars i{width:3px;background:linear-gradient(180deg,var(--cyan),var(--magenta));border-radius:3px;animation:wv 1.3s ease-in-out infinite}
+.ann-modes{display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.ann-modes span{font-size:9.5px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.ann-modes span.on{background:rgba(0,229,255,.14);border-color:rgba(0,229,255,.45);color:var(--ink)}
+
+/* gauge widget */
+.gauge-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.gauge{width:150px;height:150px;border-radius:50%;flex:none;position:relative;
+  background:conic-gradient(var(--danger) 0 62%,var(--amber) 62% 78%,var(--lime) 78% 100%);
+  -webkit-mask:radial-gradient(farthest-side,transparent 62%,#000 63%);
+  mask:radial-gradient(farthest-side,transparent 62%,#000 63%);
+  animation:spin-in 1.4s ease}
+@keyframes spin-in{from{transform:rotate(-120deg);opacity:0}to{transform:rotate(0);opacity:1}}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-center b{font-family:var(--font);font-size:30px}
+.gauge-center span{font-size:10px;color:var(--muted-2);letter-spacing:.12em;text-transform:uppercase}
+
+/* ---------- generic feature grid ---------- */
+.group{margin-top:64px}
+.group-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:26px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.group-head .idx{font-family:var(--font);font-size:13px;color:var(--cyan);border:1px solid rgba(0,229,255,.4);background:rgba(0,229,255,.08);padding:4px 11px;border-radius:999px}
+.group-head h3{font-size:clamp(20px,2.6vw,27px);margin:0;letter-spacing:-.01em}
+.group-head p{margin:0;color:var(--muted);font-size:14.5px;flex:1;min-width:220px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.fcard{padding:24px;transition:transform .25s ease,box-shadow .3s ease,border-color .3s}
+.fcard:hover{transform:translateY(-4px);border-color:var(--line-2);box-shadow:0 34px 70px -30px rgba(0,229,255,.28)}
+.ficon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:15px;
+  background:linear-gradient(140deg,rgba(0,229,255,.16),rgba(139,92,255,.16));border:1px solid var(--line-2)}
+.ficon svg{width:23px;height:23px;stroke:var(--cyan);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.fcard h4{margin:0 0 7px;font-size:17.5px;letter-spacing:-.01em}
+.fcard p{margin:0 0 12px;color:var(--muted);font-size:14px}
+.flist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.flist li{position:relative;padding-left:20px;font-size:13.2px;color:#c3cbe4}
+.flist li::before{content:"";position:absolute;left:2px;top:8px;width:7px;height:7px;border-radius:2px;background:linear-gradient(120deg,var(--cyan),var(--violet))}
+.tag{display:inline-block;font-size:10.5px;letter-spacing:.05em;color:var(--muted-2);border:1px solid var(--line);padding:3px 9px;border-radius:999px;margin:2px 4px 0 0}
+
+/* mockup showcase rows */
+.mock-row{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;margin:56px 0}
+.mock-row.flip .mock-text{order:2}
+.mock-text h3{font-size:clamp(22px,3vw,31px);margin:0 0 12px;letter-spacing:-.02em}
+.mock-text p{color:var(--muted);font-size:15.5px;margin:0 0 18px}
+.mock-text .flist li{font-size:14px}
+@media(max-width:860px){.mock-row{grid-template-columns:1fr;gap:34px}.mock-row.flip .mock-text{order:0}}
+
+/* theme switcher demo */
+.theme-switch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.theme-switch button{font-family:var(--font);font-size:12.5px;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--line);padding:8px 14px;border-radius:999px;cursor:pointer;transition:.2s}
+.theme-switch button.on{color:var(--ink);border-color:var(--line-2);background:rgba(255,255,255,.1)}
+.theme-demo .screen{transition:background .5s ease}
+.theme-demo[data-theme="aurora"] .screen{background:radial-gradient(120% 90% at 50% 0%,#0f2a3a,#080b14 72%)}
+.theme-demo[data-theme="carbon"] .screen{background:radial-gradient(120% 90% at 50% 0%,#1a1c22,#08090c 72%)}
+.theme-demo[data-theme="daylight"] .screen{background:radial-gradient(120% 90% at 50% 0%,#eef2ff,#dfe6ff 72%);color:#111632}
+.theme-demo[data-theme="daylight"] .status,.theme-demo[data-theme="daylight"] .muted-demo{color:#5b648a}
+.theme-demo[data-theme="neon"] .screen{background:radial-gradient(120% 90% at 50% 0%,#2a0b3a,#0b0512 72%)}
+
+/* ---------- comparison ---------- */
+.cmp-scroll{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px)}
+table.cmp{width:100%;border-collapse:collapse;min-width:660px}
+table.cmp th,table.cmp td{padding:16px 18px;text-align:left;font-size:14px;border-bottom:1px solid var(--line);vertical-align:top}
+table.cmp thead th{font-family:var(--font);font-size:13.5px;letter-spacing:.02em;position:sticky;top:0;background:rgba(12,15,24,.96);backdrop-filter:blur(10px)}
+table.cmp thead th .colh{display:flex;flex-direction:column;gap:3px}
+table.cmp thead th small{font-weight:400;color:var(--muted-2);font-size:11.5px}
+table.cmp tbody tr:hover{background:rgba(255,255,255,.028)}
+table.cmp td:first-child{color:var(--ink);font-weight:500}
+.yes{color:var(--lime);font-weight:600}
+.no{color:var(--muted-2)}
+.part{color:var(--amber)}
+.price-tag{display:inline-flex;align-items:baseline;gap:5px;font-family:var(--font)}
+.price-tag b{font-size:20px}
+.badge-pro{display:inline-block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#04060c;background:linear-gradient(100deg,var(--cyan),var(--violet));padding:3px 9px;border-radius:999px;font-weight:700}
+.cmp-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:24px}
+.cmp-note{padding:20px}
+.cmp-note h4{margin:0 0 6px;font-size:15.5px}
+.cmp-note p{margin:0;font-size:13.5px;color:var(--muted)}
+
+/* ---------- roadmap ---------- */
+.road{position:relative;padding-left:34px;margin-top:14px}
+.road::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--cyan),var(--violet),var(--magenta));opacity:.55}
+.phase{position:relative;padding:0 0 34px}
+.phase::before{content:"";position:absolute;left:-33px;top:5px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:2px solid var(--cyan);box-shadow:0 0 16px rgba(0,229,255,.6)}
+.phase.now::before{background:var(--cyan);border-color:var(--cyan);animation:pulse 2s infinite}
+.phase .ptop{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.phase h4{margin:0;font-size:18px}
+.phase .when{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);border:1px solid var(--line);padding:3px 10px;border-radius:999px}
+.phase .when.live{color:var(--lime);border-color:rgba(124,255,178,.4);background:rgba(124,255,178,.08)}
+.phase p{margin:0 0 10px;color:var(--muted);font-size:14.5px}
+.phase .tags{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ---------- faq ---------- */
+.faq{display:flex;flex-direction:column;gap:12px;max-width:900px;margin:0 auto}
+details.q{border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--glass);backdrop-filter:blur(12px);overflow:hidden;transition:border-color .25s}
+details.q[open]{border-color:var(--line-2)}
+details.q summary{list-style:none;cursor:pointer;padding:19px 22px;font-family:var(--font);font-size:16.5px;display:flex;align-items:center;gap:14px;justify-content:space-between}
+details.q summary::-webkit-details-marker{display:none}
+details.q summary .plus{width:26px;height:26px;flex:none;border-radius:8px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;transition:transform .25s,background .25s}
+details.q[open] summary .plus{transform:rotate(45deg);background:rgba(0,229,255,.14)}
+details.q .ans{padding:0 22px 20px;color:var(--muted);font-size:14.7px}
+
+/* ---------- instagram CTA ---------- */
+.ig-section{padding:90px 0}
+.ig-card{padding:clamp(26px,4vw,52px);text-align:center;position:relative;overflow:hidden;
+  background:linear-gradient(150deg,rgba(249,206,52,.10),rgba(238,42,123,.12) 45%,rgba(98,40,215,.16));border-color:rgba(255,255,255,.14)}
+.ig-card::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,rgba(238,42,123,.22),transparent 40%);animation:sweep 14s linear infinite;pointer-events:none}
+.ig-inner{position:relative}
+.ig-badge{width:78px;height:78px;border-radius:24px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#f9ce34,#ee2a7b 55%,#6228d7);box-shadow:0 20px 50px -16px rgba(238,42,123,.8)}
+.ig-badge svg{width:40px;height:40px;stroke:#fff;fill:none;stroke-width:2}
+.ig-card h2{font-size:clamp(26px,4vw,42px);margin:0 0 14px;letter-spacing:-.02em}
+.ig-card p{color:#e7e2f4;max-width:640px;margin:0 auto 12px;font-size:16.5px}
+.handle{font-family:var(--font);font-weight:700;background:linear-gradient(100deg,#f9ce34,#ee2a7b 55%,#a86bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ig-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.ig-pills{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.ig-pills .chip{background:rgba(255,255,255,.08)}
+
+/* ---------- floating IG ---------- */
+.float-ig{position:fixed;right:22px;bottom:22px;z-index:70;display:flex;align-items:center;gap:10px;
+  padding:13px 18px 13px 14px;border-radius:999px;background:linear-gradient(100deg,#f9ce34,#ee2a7b 52%,#6228d7);
+  color:#fff;font-family:var(--font);font-weight:600;font-size:14px;box-shadow:0 18px 44px -14px rgba(238,42,123,.85);
+  transition:transform .2s,box-shadow .3s}
+.float-ig:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 24px 60px -14px rgba(238,42,123,.95)}
+.float-ig svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;flex:none}
+.float-ig .pulse-dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:pulse 1.8s infinite}
+@media(max-width:600px){.float-ig{padding:14px;font-size:0;gap:0;right:16px;bottom:16px}.float-ig .pulse-dot{display:none}.float-ig svg{width:26px;height:26px}}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line);padding:60px 0 34px;background:rgba(6,8,13,.6)}
+.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:36px}
+.foot-grid h5{font-family:var(--font);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);margin:0 0 14px}
+.foot-grid a,.foot-grid p{color:var(--muted);font-size:14px;display:block;margin:0 0 9px}
+.foot-grid a:hover{color:var(--ink)}
+.foot-brand{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.foot-legal{margin-top:40px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--muted-2);font-size:12.5px}
+.legal-note{margin-top:22px;padding:18px 20px;border-radius:var(--radius-sm);border:1px solid var(--line);background:rgba(255,255,255,.025);color:var(--muted);font-size:12.8px;line-height:1.7}
+.legal-note b{color:#c9d2ea;font-weight:600}
+@media(max-width:820px){.foot-grid{grid-template-columns:1fr 1fr;gap:28px}}
+@media(max-width:520px){.foot-grid{grid-template-columns:1fr}}
+
+/* ---------- reveal ---------- */
+.js .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.js .reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  .js .reveal{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+
+/* ---------- marquee ticker ---------- */
+.ticker{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(255,255,255,.02);padding:14px 0;margin-top:20px}
+.ticker-track{display:flex;gap:44px;white-space:nowrap;animation:scroll 32s linear infinite;width:max-content}
+.ticker span{font-family:var(--font);font-size:14px;color:var(--muted);letter-spacing:.04em;display:inline-flex;align-items:center;gap:10px}
+.ticker span i{width:7px;height:7px;border-radius:50%;background:var(--violet);display:inline-block}
+@keyframes scroll{to{transform:translateX(-50%)}}
+
+/* value cards */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:10px}
+.vcard{padding:26px}
+.vcard .num{font-family:var(--font);font-size:13px;color:var(--cyan);margin-bottom:12px}
+.vcard h3{margin:0 0 8px;font-size:19px}
+.vcard p{margin:0;color:var(--muted);font-size:14.3px}
+.promise{display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:var(--radius-sm);border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:14px;color:#c9d2ea}
+.promise svg{width:20px;height:20px;flex:none;stroke:var(--lime);fill:none;stroke-width:2;margin-top:2px}
+</style>
+<script>document.documentElement.className += ' js';</script>
+</head>
+<body>
+
+<div class="bg-fx" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+</div>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="noise" aria-hidden="true"></div>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#top" class="brand" aria-label="Kavach home">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <defs><linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#b14aff"/></linearGradient></defs>
+        <path d="M50 6 84 22v26c0 22-14 36-34 46C30 84 16 70 16 48V22z" fill="url(#bg1)"/>
+        <path d="M50 6 84 22v26c0 22-14 36-34 46" fill="none" stroke="#07090f" stroke-width="4" opacity=".7"/>
+        <path d="M36 50l9 9 19-20" fill="none" stroke="#07090f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>
+        <span class="brand-name">Kavach</span>
+        <span class="brand-sub">Call Intelligence</span>
+      </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#provides">Overview</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Free vs Pro</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#faq">FAQ</a>
+      <a href="#feedback">Feedback</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost hide-sm" href="#pricing">See plans</a>
+      <a class="btn btn-primary" href="#feedback">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
+        Request a feature
+      </a>
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#provides">Overview</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Free vs Pro</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#faq">FAQ</a>
+      <a href="#feedback">Feedback &amp; feature requests</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="dot"></span> Indian-first · AI-native · Android</span>
+      <h1><span class="grad-text">Kavach</span><br>armour for every call.</h1>
+      <p class="tagline">
+        <b>कवच</b> means armour. Kavach is a modern caller-intelligence app that answers
+        the calls you don't want to pick up, shields you from spam, and hands you the
+        gist of every conversation. <b>Your AI call assistant answers, transcribes,
+        texts the caller back, and sends you a brief</b> — with the recording and full transcript.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#features">
+          Explore the prototype
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="#feedback">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
+          Send feedback
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b>4</b><span>theme packs</span></div>
+        <div class="stat"><b>6</b><span>intent classes</span></div>
+        <div class="stat"><b>2</b><span>SIMs, one dialer</span></div>
+        <div class="stat"><b>₹0</b><span>for the core</span></div>
+      </div>
+      <div class="hero-note">
+        <span class="chip"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>On-device first</span>
+        <span class="chip"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>Consent-gated recording</span>
+        <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg>Indian-language voices</span>
+        <span class="chip"><svg viewBox="0 0 24 24"><path d="M5 4h14v11H8l-3 3z"/><path d="M9 8l6 6M15 8l-6 6"/></svg>Works offline</span>
+      </div>
+    </div>
+
+    <!-- Hero phone: interactive dialer -->
+    <div class="reveal">
+      <div class="phone">
+        <div class="phone-glow"></div>
+        <div class="screen">
+          <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Kavach · SIM 1</span></div>
+          <div class="screen-body">
+            <div class="dial-num" id="dialNum" aria-live="polite">+91 98•••</div>
+            <div class="dial-name" id="dialName">Start typing — caller ID previews live</div>
+            <div class="dualsim"><span class="on">SIM 1</span><span>SIM 2</span><span>Auto</span></div>
+            <div class="keypad" id="keypad">
+              <div class="key" data-d="1"><b>1</b><span>&nbsp;</span></div>
+              <div class="key" data-d="2"><b>2</b><span>ABC</span></div>
+              <div class="key" data-d="3"><b>3</b><span>DEF</span></div>
+              <div class="key" data-d="4"><b>4</b><span>GHI</span></div>
+              <div class="key" data-d="5"><b>5</b><span>JKL</span></div>
+              <div class="key" data-d="6"><b>6</b><span>MNO</span></div>
+              <div class="key" data-d="7"><b>7</b><span>PQRS</span></div>
+              <div class="key" data-d="8"><b>8</b><span>TUV</span></div>
+              <div class="key" data-d="9"><b>9</b><span>WXYZ</span></div>
+              <div class="key" data-d="+"><b>+</b><span>&nbsp;</span></div>
+              <div class="key" data-d="0"><b>0</b><span>+</span></div>
+              <div class="key del" data-d="del"><b>⌫</b><span>&nbsp;</span></div>
+              <div class="key call" style="grid-column:1 / -1;display:flex;align-items:center;justify-content:center;gap:8px" data-d="call"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#04060c;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg><b>Call</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="mock-label">Prototype mockup · tap the keypad to try the live caller-ID preview</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <span><i></i>AI Call Assistant</span><span><i></i>Spam Shield</span><span><i></i>Live Transcription</span><span><i></i>Caller Announcer</span><span><i></i>Auto-SMS to Caller</span><span><i></i>Call Recording</span><span><i></i>Dual-SIM Dialer</span><span><i></i>Rich Contacts</span><span><i></i>Regex Blocklist</span>
+        <span><i></i>AI Call Assistant</span><span><i></i>Spam Shield</span><span><i></i>Live Transcription</span><span><i></i>Caller Announcer</span><span><i></i>Auto-SMS to Caller</span><span><i></i>Call Recording</span><span><i></i>Dual-SIM Dialer</span><span><i></i>Rich Contacts</span><span><i></i>Regex Blocklist</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHAT KAVACH PROVIDES ============ -->
+<section class="section" id="provides">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><span class="dot"></span> New here? Start with this</span>
+      <h2>What <span class="grad-text">Kavach</span> provides</h2>
+      <p>Kavach replaces your dialer, your contacts, your call log and your spam blocker with one fast, good-looking app — then adds something no ordinary dialer has: an AI that can actually pick up and talk for you.</p>
+    </div>
+
+    <div class="vgrid">
+      <div class="card vcard reveal">
+        <div class="num">01 — Know who's calling</div>
+        <h3>Never answer blind again</h3>
+        <p>Every incoming call is checked against an on-device database first, then the cloud — so you see a real name, a business, a crowd-sourced spam tag and a risk score before you decide to pick up.</p>
+      </div>
+      <div class="card vcard reveal">
+        <div class="num">02 — Stay unreachable to spam</div>
+        <h3>Block by pattern, not by accident</h3>
+        <p>Block exact numbers, prefixes, wildcards, regex ranges or whole countries. Silence unknown callers, auto-screen them with AI, or let them ring through — you set the rule, once.</p>
+      </div>
+      <div class="card vcard reveal">
+        <div class="num">03 — Let AI take the call</div>
+        <h3>Your assistant answers and briefs you</h3>
+        <p>When a call comes in and you're busy, Kavach's AI answers, greets the caller, streams a transcript, works out what they want, texts them back, and sends you a short brief — recording and transcript included.</p>
+      </div>
+      <div class="card vcard reveal">
+        <div class="num">04 — Keep everything together</div>
+        <h3>Contacts, logs, SMS, in one place</h3>
+        <p>Rich contact profiles with multiple numbers and tags, a unified call log with smart filters, and SMS threads with auto-reply rules — all searchable, all yours, all backed up encrypted.</p>
+      </div>
+      <div class="card vcard reveal">
+        <div class="num">05 — Made for India</div>
+        <h3>₹ pricing, UPI-style ease, local voices</h3>
+        <p>Indian-English interface, rupee pricing, UPI-friendly billing, and announcer voices in Indian languages. Built to feel native on the phone you actually use every day.</p>
+      </div>
+      <div class="card vcard reveal">
+        <div class="num">06 — Private by design</div>
+        <h3>On-device first, consent-gated always</h3>
+        <p>Intelligence runs on your phone wherever possible. Recording and AI-answering are consent-gated, region-aware, and clearly announced to the caller.</p>
+      </div>
+    </div>
+
+    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:34px">
+      <div class="promise reveal">
+        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <span><b>Free core, forever.</b> Dialer, contacts, logs, blocking and caller ID cost ₹0. You only pay for the AI assistant and business features.</span>
+      </div>
+      <div class="promise reveal">
+        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <span><b>No account needed to start.</b> Use it as a dialer first. Sign in only when you want encrypted backup, sync or the Pro AI tier.</span>
+      </div>
+      <div class="promise reveal">
+        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <span><b>Everything exportable.</b> Contacts as vCard/CSV, blocklists as rules — your data leaves with you whenever you want.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURE SHOWCASE ============ -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><span class="dot"></span> Prototype walkthrough</span>
+      <h2>Every feature, drawn as a <span class="grad-text">working prototype</span></h2>
+      <p>Below is the full Kavach feature set, grouped by what you're trying to do. Where it helps, we've hand-built the actual screen as a CSS phone mockup — no screenshots, no images, just code.</p>
+    </div>
+  </div>
+
+  <!-- ---------- GROUP A ---------- -->
+  <div class="wrap">
+    <div class="group">
+      <div class="group-head reveal">
+        <span class="idx">A</span>
+        <h3>Communication core</h3>
+        <p>The everyday surfaces: dialer, contacts, call logs and messaging.</p>
+      </div>
+
+      <!-- Dialer mockup row -->
+      <div class="mock-row reveal">
+        <div class="mock-text">
+          <h3>A dialer that thinks ahead</h3>
+          <p>Type and caller ID appears instantly. Paste a number and it's normalised to +E.164. Two SIMs, one clean pad. Search by name with T9, and reach favourites with speed dial.</p>
+          <ul class="flist">
+            <li>Number pad with smart paste → +E.164 normalisation</li>
+            <li>Dual-SIM selector with per-call SIM choice</li>
+            <li>In-call screen with mute, hold, keypad and AI handoff</li>
+            <li>T9 name search, speed dial and caller-ID preview while typing</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Dialer</span></div>
+              <div class="screen-body">
+                <div class="incoming">
+                  <div class="avatar-lg">S</div>
+                  <div class="who">Sharma Traders</div>
+                  <div class="sub">+91 98110 ••••• · Verified business</div>
+                  <div class="tagline-sm">✓ Not spam · 4.6★ crowd rating</div>
+                </div>
+                <div class="callbtns">
+                  <div class="cbtn dec">✕</div>
+                  <div class="cbtn ai">AI</div>
+                  <div class="cbtn acc">✓</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Incoming call with live business resolution + AI handoff</p>
+        </div>
+      </div>
+
+      <div class="fgrid">
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="3"/><path d="M8 6h8M12 10v4M10 12h4"/></svg></div>
+          <h4>Dialer</h4>
+          <p>A fast, beautiful keypad that knows more than just digits.</p>
+          <ul class="flist">
+            <li>Number pad with haptic-friendly keys</li>
+            <li>Smart paste + automatic +E.164 formatting</li>
+            <li>Dual-SIM selector &amp; auto-SIM rules</li>
+            <li>Full in-call screen (mute, hold, keypad, transfer)</li>
+            <li>T9 search, speed dial, caller-ID preview while typing</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">Default-dialer role</span><span class="tag">Works offline</span></div>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+          <h4>Contacts</h4>
+          <p>Profiles that actually hold everything you know about a person.</p>
+          <ul class="flist">
+            <li>Name, multiple numbers, company &amp; job title</li>
+            <li>Notes, custom tags and profile image</li>
+            <li>Merged identity — one card, many sources</li>
+            <li>Import / export as vCard and CSV</li>
+            <li>Duplicate detection &amp; merge suggestions</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">vCard / CSV</span><span class="tag">Merge</span></div>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></div>
+          <h4>Call logs</h4>
+          <p>One unified log that merges with your system call history.</p>
+          <ul class="flist">
+            <li>System call-log merge (no data left behind)</li>
+            <li>Filters: missed, incoming, outgoing, spam, recorded, AI-answered</li>
+            <li>Per-entry actions: call back, message, block, add contact</li>
+            <li>Search &amp; date grouping (Today / Yesterday / Earlier)</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">Filter chips</span><span class="tag">Search</span></div>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <h4>Messaging</h4>
+          <p>SMS with a brain — replies, rules and a spam filter.</p>
+          <ul class="flist">
+            <li>SMS threads in a clean, searchable inbox</li>
+            <li>Smart replies generated from context</li>
+            <li>Auto-reply rules (by contact, keyword or time)</li>
+            <li>AI auto-text for screened / missed calls</li>
+            <li>Spam-SMS filter with report &amp; block</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">Smart replies</span><span class="tag">Auto-reply</span></div>
+        </div>
+      </div>
+
+      <!-- Call log mockup -->
+      <div class="mock-row flip reveal">
+        <div class="mock-text">
+          <h3>Your whole call history, finally readable</h3>
+          <p>Kavach merges the system log with its own intelligence. Filter by exactly what you need, and each row tells you at a glance whether a call was missed, spam, recorded or handled by AI.</p>
+          <ul class="flist">
+            <li>Badges for missed · spam · recorded · AI-answered</li>
+            <li>Tap any entry for actions without leaving the list</li>
+            <li>Grouped by date so today never drowns in last month</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Call log</span></div>
+              <div class="screen-body">
+                <div class="log-filter">
+                  <span class="on">All</span><span>Missed</span><span>Spam</span><span>Recorded</span><span>AI</span>
+                </div>
+                <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#00e5ff,#8b5cff);color:#04060c">S</div><div class="log-main"><b>Sharma Traders</b><small>Outgoing · 2:14 pm · 4m 12s</small></div><span class="log-badge b-rec">REC</span></div>
+                <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#ff3d9a,#8b5cff);color:#fff">+9</div><div class="log-main"><b>+91 88000 •••••</b><small>Missed · 1:02 pm</small></div><span class="log-badge b-missed">MISSED</span></div>
+                <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#ffcb57,#ff5c7a);color:#241000">!</div><div class="log-main"><b>Unknown · Loan offer</b><small>AI-answered · 12:48 pm</small></div><span class="log-badge b-ai">AI</span></div>
+                <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#7CFFB2,#00e5ff);color:#04140c">A</div><div class="log-main"><b>Amma</b><small>Incoming · 11:30 am · 9m 03s</small></div><span class="log-badge b-rec">REC</span></div>
+                <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#ff5c7a,#c11f4c);color:#fff">✕</div><div class="log-main"><b>+91 79000 •••••</b><small>Blocked · 10:15 am</small></div><span class="log-badge b-spam">SPAM</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Unified call log with filter chips and status badges</p>
+        </div>
+      </div>
+
+      <!-- Contact profile mockup -->
+      <div class="mock-row reveal">
+        <div class="mock-text">
+          <h3>A contact card with room to breathe</h3>
+          <p>Multiple numbers, a job title, a company, tags and notes — everything in one place, with a merged identity that pulls together duplicates.</p>
+          <ul class="flist">
+            <li>Primary + secondary numbers, each labelled</li>
+            <li>Company, job title, tags and free-form notes</li>
+            <li>Profile image and custom per-contact rules</li>
+            <li>Per-contact overrides for blocking and AI-answering</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Contact</span></div>
+              <div class="screen-body">
+                <div class="prof-top">
+                  <div class="prof-av">R</div>
+                  <div class="prof-name">Riya Menon</div>
+                  <div class="prof-role">Product Lead · Nimbus Labs</div>
+                  <div class="prof-tags"><span>Work</span><span>Priority</span><span>Merged ×2</span></div>
+                </div>
+                <div class="prof-row"><span class="k">Mobile</span><span class="v">+91 98450 •••••<small>SIM 1 · primary</small></span></div>
+                <div class="prof-row"><span class="k">Work</span><span class="v">+91 80 4000 ••••<small>Office line</small></span></div>
+                <div class="prof-row"><span class="k">Notes</span><span class="v">Met at Bengaluru meetup.<small>Follow up re: pricing</small></span></div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Rich contact profile with merged identity</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- GROUP B ---------- -->
+    <div class="group">
+      <div class="group-head reveal">
+        <span class="idx">B</span>
+        <h3>Protection &amp; control</h3>
+        <p>Blocklists, blocking modes, the announcer and consent-gated recording.</p>
+      </div>
+
+      <div class="fgrid">
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 8.6 8 11 4.6-2.4 8-6 8-11V5z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <h4>Blocklist</h4>
+          <p>Rule-based blocking that goes far beyond "block this number".</p>
+          <ul class="flist">
+            <li>Exact, prefix, wildcard, regex and numeric-range rules</li>
+            <li>Country-level blocking</li>
+            <li>Block private, unknown and non-contact callers</li>
+            <li>Import / export your rule sets</li>
+            <li>Crowd-sourced top-spam list, updated live</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">Regex</span><span class="tag">Wildcard</span><span class="tag">Range</span></div>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 5l14 14"/></svg></div>
+          <h4>Blocking options</h4>
+          <p>Silent, firm, and configurable — you choose what "blocked" means.</p>
+          <ul class="flist">
+            <li>Silent reject via Android CallScreeningService</li>
+            <li>Modes: Block · Silence · Send-to-AI · Allow</li>
+            <li>Per-contact overrides on top of global rules</li>
+            <li>SMS blocking alongside calls</li>
+            <li>Schedule / DND windows (nights, meetings)</li>
+            <li>Post-call spam prompt to teach the crowd</li>
+          </ul>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></svg></div>
+          <h4>Caller announcer</h4>
+          <p>Know who's calling without looking at the screen.</p>
+          <ul class="flist">
+            <li>TTS speaks the name, company or number</li>
+            <li>Announcement modes (always, headphones only, contacts only)</li>
+            <li>Indian-language voices</li>
+            <li>Spoken spam verdict ("Likely spam — blocked")</li>
+            <li>Headset / Bluetooth routing</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">TTS</span><span class="tag">Hands-free</span></div>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></div>
+          <h4>Call recording</h4>
+          <p>Reliable capture with encryption and clear consent.</p>
+          <ul class="flist">
+            <li>VOICE_CALL, AudioRecord and accessibility capture paths</li>
+            <li>Encrypted local storage</li>
+            <li>Playback with waveform scrubber</li>
+            <li>Auto-record rules (by contact, tag or unknown callers)</li>
+            <li>Consent banner + region gating</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">Encrypted</span><span class="tag">Consent-gated</span></div>
+        </div>
+      </div>
+
+      <!-- Blocklist mockup -->
+      <div class="mock-row flip reveal">
+        <div class="mock-text">
+          <h3>Write a rule, not a number</h3>
+          <p>Block an entire exchange prefix, a country code, or a regex pattern. Each rule gets a mode — block it, silence it, send it to AI, or let it through — and per-contact overrides win over global rules.</p>
+          <ul class="flist">
+            <li>Pattern-based rules with a live match count</li>
+            <li>Four modes per rule: Block · Silence · AI · Allow</li>
+            <li>Import and export rule sets between devices</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Blocklist</span></div>
+              <div class="screen-body">
+                <div class="rule"><span class="pattern">+91 140*</span><span class="mode blk">Block</span></div>
+                <div class="rule"><span class="pattern">^\+1\d{10}$</span><span class="mode ai">AI</span></div>
+                <div class="rule"><span class="pattern">+92 ••••</span><span class="mode blk">Block</span></div>
+                <div class="rule"><span class="pattern">\b(loan|prize)\b</span><span class="mode sil">Silence</span></div>
+                <div class="rule"><span class="pattern">Unknown callers</span><span class="mode ai">AI</span></div>
+                <div class="rule"><span class="pattern">Private / hidden</span><span class="mode blk">Block</span></div>
+                <div class="rule"><span class="pattern">Non-contacts · nights</span><span class="mode sil">Silence</span></div>
+                <div class="brief-block" style="border:0;padding-top:12px"><div class="lbl">Top spam (crowd-sourced)</div>
+                  <div class="pills"><span class="pill risk">+91 85000 •••• · 12.4k reports</span><span class="pill risk">Insurance spam · 8.1k</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Pattern-based blocklist with per-rule modes</p>
+        </div>
+      </div>
+
+      <!-- Announcer mockup -->
+      <div class="mock-row reveal">
+        <div class="mock-text">
+          <h3>An announcer that knows the verdict</h3>
+          <p>Kavach's caller announcer speaks the name, the company or the number — and if the call looks like spam, it says so out loud before your phone even rings properly.</p>
+          <ul class="flist">
+            <li>Speaks name / company / number via TTS</li>
+            <li>Indian-language voices and spoken spam verdicts</li>
+            <li>Routes to headset or Bluetooth automatically</li>
+            <li>Announcement modes to keep it quiet when it should be</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Announcer</span></div>
+              <div class="screen-body">
+                <div class="announcer">
+                  <div class="radar"><div class="sweep"></div><div class="blip"></div></div>
+                  <div class="speak"><span class="q">"Call from</span> Amma<span class="q">"</span></div>
+                  <div class="voice-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                  <div class="ann-modes"><span class="on">Headphones</span><span>Always</span><span>Contacts</span><span>हिन्दी</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Announcer with animated caller radar and voice waveform</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- GROUP C ---------- -->
+    <div class="group">
+      <div class="group-head reveal">
+        <span class="idx">C</span>
+        <h3>Intelligence &amp; AI</h3>
+        <p>Caller ID, spam scoring, and the headline AI call assistant.</p>
+      </div>
+
+      <div class="fgrid">
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+          <h4>Caller ID &amp; spam intelligence</h4>
+          <p>A local database first, the cloud only when needed.</p>
+          <ul class="flist">
+            <li>Local DB lookup, then cloud fallback</li>
+            <li>Crowd-sourced tags (spam, telemarketer, delivery…)</li>
+            <li>Spam score per number</li>
+            <li>Business name resolution</li>
+            <li>Offline cache for instant answers</li>
+            <li>Reverse number search</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">On-device first</span><span class="tag">Offline</span></div>
+        </div>
+
+        <div class="card fcard reveal" style="grid-column:span 1">
+          <div class="ficon"><svg viewBox="0 0 24 24"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg></div>
+          <h4>AI Call Assistant <span class="badge-pro" style="vertical-align:middle">Pro</span></h4>
+          <p>The headline feature: an assistant that picks up and represents you.</p>
+          <ul class="flist">
+            <li>Screening gate — decides whether to answer</li>
+            <li>Answers &amp; greets the caller naturally</li>
+            <li>Streaming transcription, live</li>
+            <li>Intent classifier: delivery · appointment · emergency · sales · spam · personal</li>
+            <li>Dialogue policy that keeps the call on track</li>
+            <li>Auto-SMS to the caller when needed</li>
+            <li>Post-call brief: transcript + summary + intent + sentiment + risk</li>
+            <li>Optional synthetic-voice reply</li>
+            <li>Escalation for urgent calls — it rings you</li>
+          </ul>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><path d="M3 12h3l2-7 3 14 2.5-9 1.5 4h6"/></svg></div>
+          <h4>Spam risk, at a glance</h4>
+          <p>A single score, computed from crowd reports, patterns and AI.</p>
+          <div class="gauge-wrap" style="margin-top:14px">
+            <div class="gauge" style="width:110px;height:110px"><div class="gauge-center"><b>82</b><span>risk</span></div></div>
+            <div style="flex:1;min-width:150px">
+              <div class="pills"><span class="pill risk">Telemarketer</span><span class="pill risk">Reported ×12k</span><span class="pill">Cloud match</span></div>
+              <p style="margin:10px 0 0;color:var(--muted);font-size:13px">High risk → Kavach suggests Block or Send-to-AI.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI brief mockup -->
+      <div class="mock-row flip reveal">
+        <div class="mock-text">
+          <h3>The post-call brief</h3>
+          <p>While you were busy, Kavach answered. Now you get the whole call in ten seconds: what they wanted, how they sounded, whether it's a risk, the recording, and the full transcript.</p>
+          <ul class="flist">
+            <li>Summary + full searchable transcript</li>
+            <li>Intent, sentiment and risk tags</li>
+            <li>Recording with waveform playback</li>
+            <li>Auto-SMS sent to the caller, shown in-thread</li>
+            <li>One-tap call back, block, or save contact</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>AI Brief</span></div>
+              <div class="screen-body">
+                <div class="brief-head"><span class="ai-dot"></span><b>AI call brief</b><small>2 min ago</small></div>
+                <div class="brief-block"><div class="lbl">Caller</div><div class="txt">+91 88000 ••••• · Unknown</div></div>
+                <div class="brief-block"><div class="lbl">Summary</div><div class="txt">Delivery agent for a parcel booked on Tuesday. Wants to deliver between 2–4 pm; asked to confirm the flat number.</div></div>
+                <div class="brief-block"><div class="lbl">Signals</div>
+                  <div class="pills"><span class="pill intent">Intent · Delivery</span><span class="pill sent">Sentiment · Neutral</span><span class="pill risk">Risk · Low</span></div>
+                </div>
+                <div class="brief-block" style="border:0">
+                  <div class="lbl">Recording</div>
+                  <div class="wave" id="wave"></div>
+                  <div class="player"><span class="pbtn">▶</span><span>0:47 · encrypted · transcript saved</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">AI brief: summary, intent, sentiment, risk + recording</p>
+        </div>
+      </div>
+
+      <!-- Transcript mockup -->
+      <div class="mock-row reveal">
+        <div class="mock-text">
+          <h3>Live transcription, streaming as they talk</h3>
+          <p>Kavach transcribes the call in real time. The assistant follows a dialogue policy so it can answer, ask the right follow-up, and decide when something is urgent enough to interrupt you.</p>
+          <ul class="flist">
+            <li>Streaming, low-latency transcription</li>
+            <li>Intent classifier runs live (delivery, appointment, emergency, sales, spam, personal)</li>
+            <li>Auto-SMS fallback if the caller needs a text</li>
+            <li>Emergency detection escalates and rings you</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Live transcript</span></div>
+              <div class="screen-body">
+                <div class="brief-head"><span class="ai-dot"></span><b>AI is on the call</b><small>00:47</small></div>
+                <div class="transcript">
+                  <p style="margin:6px 0"><b>Kavach:</b> Hello, you've reached Kavach, Riya's assistant. How can I help?</p>
+                  <p style="margin:6px 0"><b>Caller:</b> Hi, this is a delivery for a parcel. Is the flat number 402?</p>
+                  <p style="margin:6px 0"><b>Kavach:</b> Let me note that down. Is there a preferred time?</p>
+                  <p style="margin:6px 0"><b>Caller:</b> Between two and four in the afternoon.</p>
+                  <p style="margin:6px 0"><b>Kavach:</b> Noted — I'll text you a confirmation and pass this to Riya.</p>
+                </div>
+                <div class="pills" style="margin-top:10px"><span class="pill intent">Intent · Delivery</span><span class="pill">Auto-SMS sent ✓</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Streaming transcript with live intent classification</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- GROUP D ---------- -->
+    <div class="group">
+      <div class="group-head reveal">
+        <span class="idx">D</span>
+        <h3>Experience &amp; platform</h3>
+        <p>Themes, motion, accessibility, and everything that makes it a real app.</p>
+      </div>
+
+      <div class="fgrid">
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/></svg></div>
+          <h4>Themes &amp; UI</h4>
+          <p>Dynamic Material 3 with a motion system that feels alive.</p>
+          <ul class="flist">
+            <li>Dynamic Material 3 colour</li>
+            <li>Theme packs: Aurora · Carbon · Daylight · Neon Noir</li>
+            <li>Animated caller radar, spam gauge &amp; waveforms</li>
+            <li>Full motion system (springs, shared-element transitions)</li>
+            <li>Accessibility: contrast, scaling, TalkBack</li>
+          </ul>
+          <div style="margin-top:12px"><span class="tag">Material 3</span><span class="tag">4 themes</span></div>
+        </div>
+
+        <div class="card fcard reveal">
+          <div class="ficon"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+          <h4>Platform</h4>
+          <p>All the plumbing that makes a dialer app actually work.</p>
+          <ul class="flist">
+            <li>Onboarding + permission flow with clear rationale</li>
+            <li>Default dialer / screening / SMS roles</li>
+            <li>Encrypted backup &amp; sync</li>
+            <li>OTP sign-in</li>
+            <li>Rich notifications &amp; quick actions</li>
+            <li>Settings hub with search</li>
+            <li>In-app billing (UPI-friendly)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Theme switcher demo -->
+      <div class="mock-row flip reveal">
+        <div class="mock-text">
+          <h3>Pick a look — it changes everywhere</h3>
+          <p>Four hand-tuned theme packs, all built on dynamic Material 3. Tap a theme to preview it on the mockup — Aurora for glow, Carbon for industrial calm, Daylight for bright, Neon Noir for the after-hours.</p>
+          <div class="theme-switch" id="themeSwitch">
+            <button data-theme="aurora" class="on">Aurora</button>
+            <button data-theme="carbon">Carbon</button>
+            <button data-theme="daylight">Daylight</button>
+            <button data-theme="neon">Neon Noir</button>
+          </div>
+          <ul class="flist">
+            <li>Animated caller radar, spam gauge and audio waveforms</li>
+            <li>Consistent motion across every screen</li>
+            <li>Accessibility-first: contrast, text scaling, TalkBack labels</li>
+          </ul>
+        </div>
+        <div>
+          <div class="phone theme-demo" data-theme="aurora" id="themePhone">
+            <div class="phone-glow"></div>
+            <div class="screen">
+              <div class="status"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span><span>Home</span></div>
+              <div class="screen-body">
+                <div class="dial-num muted-demo" style="margin-top:16px">Kavach</div>
+                <div class="dial-name" id="themeCaption">Aurora · electric cyan on deep charcoal</div>
+                <div style="margin-top:20px">
+                  <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#00e5ff,#8b5cff);color:#04060c">S</div><div class="log-main"><b class="muted-demo">Sharma Traders</b><small>Business · verified</small></div></div>
+                  <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#ff3d9a,#8b5cff);color:#fff">R</div><div class="log-main"><b class="muted-demo">Riya Menon</b><small>Work · priority</small></div></div>
+                  <div class="log-item"><div class="log-av" style="background:linear-gradient(140deg,#7CFFB2,#00e5ff);color:#04140c">A</div><div class="log-main"><b class="muted-demo">Amma</b><small>Family</small></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="mock-label">Tap a theme pack above to preview it live</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section class="section" id="pricing">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><span class="dot"></span> Free vs Pro</span>
+      <h2>Kavach gives away what others <span class="grad-text">charge for</span></h2>
+      <p>The whole defensive core — dialer, contacts, logs, blocking, caller ID — is free, forever. Kavach monetises the AI call assistant and the business tier, not your basic right to a good dialer.</p>
+    </div>
+
+    <div class="cmp-scroll reveal">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th><div class="colh">Feature<small>What you get</small></div></th>
+            <th><div class="colh"><span>Kavach Free</span><small>₹0 · forever</small></div></th>
+            <th><div class="colh"><span class="badge-pro">Pro AI</span><small>AI assistant + power tools</small></div></th>
+            <th><div class="colh">Typical competitor<small>Paid tier</small></div></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Smart dialer, T9, speed dial</td><td class="yes">Included</td><td class="yes">Included</td><td class="part">Included</td></tr>
+          <tr><td>Rich contacts + vCard/CSV import-export</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Often paid</td></tr>
+          <tr><td>Unified call log with filters &amp; search</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Often paid</td></tr>
+          <tr><td>Caller ID &amp; spam lookup</td><td class="yes">Included</td><td class="yes">Included</td><td class="part">Free w/ ads</td></tr>
+          <tr><td>Basic number blocking</td><td class="yes">Included</td><td class="yes">Included</td><td class="yes">Included</td></tr>
+          <tr><td>Advanced blocking (regex, range, country, schedules)</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Paid tier</td></tr>
+          <tr><td>Caller announcer (TTS)</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Paid tier</td></tr>
+          <tr><td>Call recording + auto-record rules</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Paid tier</td></tr>
+          <tr><td>Messaging, smart replies, auto-reply rules</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Often paid</td></tr>
+          <tr><td>Theme packs &amp; animated UI</td><td class="yes">Included</td><td class="yes">Included</td><td class="no">Often paid</td></tr>
+          <tr><td>Encrypted backup &amp; sync</td><td class="part">Basic</td><td class="yes">Unlimited</td><td class="no">Paid tier</td></tr>
+          <tr><td><b>AI Call Assistant</b> (answers, transcribes, texts, briefs)</td><td class="no">—</td><td class="yes">Included</td><td class="no">Not offered</td></tr>
+          <tr><td>Auto-SMS to screened callers</td><td class="no">—</td><td class="yes">Included</td><td class="no">Not offered</td></tr>
+          <tr><td>Intent, sentiment &amp; risk scoring per call</td><td class="no">—</td><td class="yes">Included</td><td class="no">Not offered</td></tr>
+          <tr><td>Synthetic-voice replies &amp; escalation rules</td><td class="no">—</td><td class="yes">Included</td><td class="no">Not offered</td></tr>
+          <tr><td>Business tier (multi-line, team tags, API)</td><td class="no">—</td><td class="part">Add-on</td><td class="no">Enterprise only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cmp-notes">
+      <div class="card cmp-note reveal">
+        <h4>Free forever</h4>
+        <p>Everything defensive. Kavach Free is a complete, ad-free dialer and spam shield. No paywall on blocking or caller ID.</p>
+      </div>
+      <div class="card cmp-note reveal">
+        <h4><span class="badge-pro">Pro AI</span> — the assistant</h4>
+        <p>Pro unlocks the AI call assistant: screening, live transcription, auto-SMS, post-call briefs and escalation. Priced in ₹, billed via UPI-friendly in-app purchase.</p>
+      </div>
+      <div class="card cmp-note reveal">
+        <h4>Business tier</h4>
+        <p>Multi-line handling, team tags, business name resolution and an API for verified business identity — for small businesses and teams in India.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROADMAP ============ -->
+<section class="section" id="roadmap">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow"><span class="dot"></span> Build timeline</span>
+      <h2>The Kavach <span class="grad-text">roadmap</span></h2>
+      <p>A phased build, from a solid dialer to a full AI call assistant. Each phase ships something usable on its own.</p>
+    </div>
+
+    <div class="road">
+      <div class="phase now reveal">
+        <div class="ptop"><h4>Phase 1 — The Core Dialer</h4><span class="when live">In progress</span></div>
+        <p>Get the fundamentals flawless: dialer, contacts, call logs and the default-dialer role. Everything else builds on this.</p>
+        <div class="tags"><span class="tag">Dialer + dual-SIM</span><span class="tag">Rich contacts</span><span class="tag">Call log merge</span><span class="tag">Onboarding</span></div>
+      </div>
+      <div class="phase reveal">
+        <div class="ptop"><h4>Phase 2 — Shield</h4><span class="when">Next</span></div>
+        <p>Caller ID and spam intelligence, the full blocklist engine, blocking modes, the caller announcer and SMS filtering.</p>
+        <div class="tags"><span class="tag">Caller ID</span><span class="tag">Regex blocklist</span><span class="tag">CallScreeningService</span><span class="tag">Announcer TTS</span></div>
+      </div>
+      <div class="phase reveal">
+        <div class="ptop"><h4>Phase 3 — Record &amp; Review</h4><span class="when">Planned</span></div>
+        <p>Consent-gated call recording with encrypted storage, waveform playback, auto-record rules and messaging threads.</p>
+        <div class="tags"><span class="tag">Encrypted recording</span><span class="tag">Waveform player</span><span class="tag">Consent gating</span><span class="tag">SMS threads</span></div>
+      </div>
+      <div class="phase reveal">
+        <div class="ptop"><h4>Phase 4 — AI Call Assistant</h4><span class="when">Planned</span></div>
+        <p>The headline: screening gate, live transcription, intent classification, dialogue policy, auto-SMS and the post-call brief.</p>
+        <div class="tags"><span class="tag">Streaming ASR</span><span class="tag">Intent classifier</span><span class="tag">Auto-SMS</span><span class="tag">Post-call brief</span></div>
+      </div>
+      <div class="phase reveal">
+        <div class="ptop"><h4>Phase 5 — Polish &amp; Scale</h4><span class="when">Planned</span></div>
+        <p>Theme packs, motion system, accessibility, encrypted backup &amp; sync, in-app billing, and the business tier.</p>
+        <div class="tags"><span class="tag">Theme packs</span><span class="tag">Sync</span><span class="tag">Billing</span><span class="tag">Business tier</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section" id="faq">
+  <div class="wrap">
+    <div class="section-head reveal" style="margin-left:auto;margin-right:auto;text-align:center">
+      <span class="eyebrow"><span class="dot"></span> Questions</span>
+      <h2>Frequently asked</h2>
+      <p>Short answers. For anything else, the Instagram handle at the bottom is the fastest way to reach us.</p>
+    </div>
+
+    <div class="faq">
+      <details class="q reveal"><summary>Is Kavach free?<span class="plus">+</span></summary><div class="ans">Yes. The core — dialer, contacts, call logs, caller ID, blocking, announcer, recording and messaging — is free forever and ad-free. The AI Call Assistant and the business tier are the paid parts (Kavach Pro), priced in rupees and billed through in-app purchase.</div></details>
+      <details class="q reveal"><summary>Does Kavach reuse Truecaller's data or backend?<span class="plus">+</span></summary><div class="ans">No. Kavach does not reverse-engineer or reuse any competitor's app, database or backend. All intelligence is first-party or on-device, built from our own sources and crowd reports.</div></details>
+      <details class="q reveal"><summary>How does the AI call assistant work?<span class="plus">+</span></summary><div class="ans">When a call comes in and you've enabled the assistant, Kavach can answer, greet the caller, transcribe the conversation live, classify the intent (delivery, appointment, emergency, sales, spam, personal), follow a dialogue policy, text the caller back if needed, and send you a brief with the summary, transcript, sentiment, risk and the recording.</div></details>
+      <details class="q reveal"><summary>Is call recording legal?<span class="plus">+</span></summary><div class="ans">Recording and AI-answering are consent-gated and region-aware. Kavach shows a consent banner, announces to the caller when the assistant or recording is active, and gates the feature by region. It's on you to follow the law where you and the other party are located.</div></details>
+      <details class="q reveal"><summary>Does my data leave my phone?<span class="plus">+</span></summary><div class="ans">Kavach is on-device first. Caller ID and spam scoring try the local database before any cloud lookup, and there's an offline cache. Backups are encrypted. You can export your contacts and blocklists any time.</div></details>
+      <details class="q reveal"><summary>Which Android versions are supported?<span class="plus">+</span></summary><div class="ans">Kavach is built with Kotlin and Jetpack Compose and targets modern Android, with the default dialer, call-screening and SMS roles. Exact minimum version and per-feature requirements are still being finalised.</div></details>
+      <details class="q reveal"><summary>How do I request a feature or report a bug?<span class="plus">+</span></summary><div class="ans">Through Instagram at <b>@osintgram_io</b> — it's where feature requests and feedback are discussed. There's a floating button and a footer link on this page too.</div></details>
+      <details class="q reveal"><summary>Will there be an iOS version?<span class="plus">+</span></summary><div class="ans">Kavach is Android-first, because the default-dialer, call-screening and recording capabilities it depends on are deepest on Android. Not stated for iOS.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEEDBACK / INSTAGRAM ============ -->
+<section class="ig-section" id="feedback">
+  <div class="wrap">
+    <div class="card ig-card reveal">
+      <div class="ig-inner">
+        <div class="ig-badge">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="#fff" stroke="none"/></svg>
+        </div>
+        <h2>Want a feature? <span class="grad-text">Tell us on Instagram.</span></h2>
+        <p>Kavach is built in the open. Feature requests, ideas, bug reports and feedback all get discussed on our Instagram — <span class="handle">@osintgram_io</span>. That's the front door for shaping what gets built next.</p>
+        <p style="font-size:14.5px;color:#c9c0de">Drop a DM or comment with the feature you want. The roadmap above moves because of what you ask for.</p>
+        <div class="ig-actions">
+          <a class="btn btn-ig" href="https://instagram.com/osintgram_io" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+            Follow @osintgram_io
+          </a>
+          <a class="btn btn-ghost" href="https://instagram.com/osintgram_io" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
+            Send a feature request
+          </a>
+        </div>
+        <div class="ig-pills">
+          <span class="chip"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>Feature requests</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M12 6V2M8 12H4M20 12h-4M9 8 6 5M15 8l3-3M9 16l-3 3M15 16l3 3"/></svg>Bug reports</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1"/><circle cx="15.5" cy="10" r="1"/><path d="M8 15c1 1.2 2.4 1.8 4 1.8s3-.6 4-1.8"/></svg>Design feedback</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5M14 20c0-2 1.3-3.4 3-3.4S20 18 20 20"/></svg>Beta interest</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>General feedback</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">
+          <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+            <defs><linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#b14aff"/></linearGradient></defs>
+            <path d="M50 6 84 22v26c0 22-14 36-34 46C30 84 16 70 16 48V22z" fill="url(#bg2)"/>
+            <path d="M36 50l9 9 19-20" fill="none" stroke="#07090f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span><span class="brand-name">Kavach</span><span class="brand-sub">Call Intelligence</span></span>
+        </div>
+        <p>Armour for your phone calls. An Indian-first, AI-native caller intelligence app for Android.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <a href="#provides">Overview</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Free vs Pro</a>
+        <a href="#roadmap">Roadmap</a>
+      </div>
+      <div>
+        <h5>Support</h5>
+        <a href="#faq">FAQ</a>
+        <a href="#feedback">Feedback</a>
+        <a href="https://instagram.com/osintgram_io" target="_blank" rel="noopener">Feature requests</a>
+      </div>
+      <div>
+        <h5>Connect</h5>
+        <a href="https://instagram.com/osintgram_io" target="_blank" rel="noopener">Instagram · @osintgram_io</a>
+        <p>Feature requests and feedback are discussed here.</p>
+      </div>
+    </div>
+
+    <div class="legal-note">
+      <b>Legal &amp; privacy note.</b> Kavach does not reverse-engineer or reuse any competitor's app, database or backend — all intelligence is first-party or on-device. Call recording and AI-answering are consent-gated and region-aware, in line with applicable Indian law; Kavach announces when the assistant or recording is active and gates these features by region. This page is a product prototype and does not collect personal data.
+    </div>
+
+    <div class="foot-legal">
+      <span>© <span id="year">2026</span> Kavach. Prototype site — features shown are illustrative.</span>
+      <span>Made for India · Built with Kotlin &amp; Jetpack Compose</span>
+    </div>
+  </div>
+</footer>
+
+<!-- floating Instagram -->
+<a class="float-ig" href="https://instagram.com/osintgram_io" target="_blank" rel="noopener" aria-label="Feature requests and feedback on Instagram @osintgram_io">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+  <span>Request a feature</span>
+  <span class="pulse-dot"></span>
+</a>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---- nav scrolled state + mobile menu ---- */
+  var nav=document.getElementById('nav');
+  var burger=document.getElementById('burger');
+  var menu=document.getElementById('mobileMenu');
+  function onScroll(){ if(window.scrollY>10){nav.classList.add('scrolled');}else{nav.classList.remove('scrolled');} }
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+  if(burger){
+    burger.addEventListener('click',function(){
+      var open=menu.classList.toggle('open');
+      burger.setAttribute('aria-expanded',open?'true':'false');
+    });
+    menu.addEventListener('click',function(e){ if(e.target.tagName==='A'){menu.classList.remove('open');burger.setAttribute('aria-expanded','false');} });
+  }
+
+  /* ---- reveal on scroll ---- */
+  var reveals=document.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    },{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+    reveals.forEach(function(el){ io.observe(el); });
+    // safety net: never leave content invisible (e.g. very tall viewports, print)
+    window.addEventListener('load',function(){ setTimeout(function(){ reveals.forEach(function(el){ el.classList.add('in'); }); },3000); });
+  } else {
+    reveals.forEach(function(el){ el.classList.add('in'); });
+  }
+
+  /* ---- interactive dialer with live caller-ID preview ---- */
+  var dialNum=document.getElementById('dialNum');
+  var dialName=document.getElementById('dialName');
+  var keypad=document.getElementById('keypad');
+  var digits='';
+  var dir=[ // tiny demo directory: prefix -> name
+    {p:'98450', n:'Riya Menon · Nimbus Labs'},
+    {p:'98110', n:'Sharma Traders · Verified business'},
+    {p:'88000', n:'+91 88000 ••••• · Likely spam'},
+    {p:'140',   n:'Telemarketing prefix · Blocked rule'}
+  ];
+  function fmt(d){
+    if(!d) return '+91 98•••';
+    var s=d.replace(/[^0-9+]/g,'');
+    if(s.indexOf('+')===0){ return s; }
+    var out='';
+    for(var i=0;i<s.length;i++){
+      if(i===0) out+=s[i];
+      else if(i===5||i===8) out+=' '+s[i];
+      else out+=s[i];
+    }
+    return out;
+  }
+  function preview(d){
+    var s=d.replace(/[^0-9]/g,'');
+    for(var i=0;i<dir.length;i++){
+      if(s.length>=3 && dir[i].p.indexOf(s)===0 && s.length<=dir[i].p.length){ return dir[i].n; }
+      if(s.indexOf(dir[i].p)===0){ return dir[i].n; }
+    }
+    if(s.length>=4){ return 'No match — search cloud…'; }
+    return 'Start typing — caller ID previews live';
+  }
+  function render(){
+    dialNum.textContent=fmt(digits);
+    dialName.textContent=preview(digits);
+  }
+  if(keypad){
+    keypad.addEventListener('click',function(e){
+      var k=e.target.closest('.key'); if(!k) return;
+      var d=k.getAttribute('data-d');
+      if(d==='del'){ digits=digits.slice(0,-1); }
+      else if(d==='call'){
+        dialNum.textContent='Calling…'; dialName.textContent=(digits?'Dialling '+fmt(digits):'Dialling +91 98•••');
+        setTimeout(function(){ digits=''; render(); },1200); return;
+      }
+      else if(d==='+'||d==='0'){
+        digits += (d==='+'?'+':'0');
+      }
+      else { digits += d; }
+      render();
+    });
+    render();
+  }
+
+  /* ---- theme pack switcher ---- */
+  var tSw=document.getElementById('themeSwitch');
+  var tPhone=document.getElementById('themePhone');
+  var tCap=document.getElementById('themeCaption');
+  var caps={aurora:'Aurora · electric cyan on deep charcoal',carbon:'Carbon · industrial calm, low glow',daylight:'Daylight · bright, high-contrast daytime',neon:'Neon Noir · violet after-hours glow'};
+  if(tSw&&tPhone){
+    tSw.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      var t=b.getAttribute('data-theme');
+      tPhone.setAttribute('data-theme',t);
+      if(tCap) tCap.textContent=caps[t]||'';
+      Array.prototype.forEach.call(tSw.querySelectorAll('button'),function(x){ x.classList.toggle('on', x===b); });
+    });
+  }
+
+  /* ---- waveform bars (AI brief) ---- */
+  var wave=document.getElementById('wave');
+  if(wave){
+    for(var i=0;i<26;i++){
+      var bar=document.createElement('i');
+      bar.style.animationDelay=(i*0.06)+'s';
+      bar.style.animationDuration=(0.9+ (i%5)*0.12)+'s';
+      wave.appendChild(bar);
+    }
+  }
+
+  /* ---- voice bars (announcer) ---- */
+  document.querySelectorAll('.voice-bars').forEach(function(vb){
+    for(var i=0;i<12;i++){
+      var b=document.createElement('i');
+      b.style.animationDelay=(i*0.05)+'s';
+      b.style.height=(20+Math.abs(Math.sin(i*1.1))*70)+'%';
+      b.style.animationDuration=(0.8+(i%4)*0.15)+'s';
+      vb.appendChild(b);
+    }
+  });
+
+  /* ---- year ---- */
+  var y=document.getElementById('year'); if(y){ y.textContent=new Date().getFullYear(); }
+})();
+</script>
+</body>
+</html>
