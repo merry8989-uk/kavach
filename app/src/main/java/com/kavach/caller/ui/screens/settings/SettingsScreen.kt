@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kavach.caller.ui.screens.updates.UpdateSection
 
 /** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
 private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
@@ -87,6 +88,12 @@ fun SettingsScreen(
                 )
             }
         }
+
+        Spacer(Modifier.height(16.dp))
+        SectionHeader("Updates")
+        SwitchRow("Check for updates on launch", s.autoCheckUpdates) { vm.setAutoCheckUpdates(it) }
+        Spacer(Modifier.height(8.dp))
+        UpdateSection()
 
         Spacer(Modifier.height(24.dp))
         SectionHeader("About")

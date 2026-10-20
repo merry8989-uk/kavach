@@ -12,4 +12,5 @@ data class AppSettings(
     val cloudAiEnabled: Boolean = false,
     val recordAll: Boolean = false,
     val onboardingDone: Boolean = false,
+    val autoCheckUpdates: Boolean = true,
 )

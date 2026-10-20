@@ -39,6 +39,7 @@ brief.
 | **AI assistant** | Answers the call, announces consent, speaks a greeting, captures audio, transcribes (cloud), posts a brief |
 | **Themes** | Five theme packs that apply app-wide, persisted in settings |
 | **Onboarding** | Runtime permissions + Call screening / Default dialer / Default SMS roles |
+| **Updates** | In-app check against GitHub Releases, download + install, optional launch check |
 
 Full breakdown: [`docs/PLAN.md`](docs/PLAN.md) — every function split into parts
 with a phased build roadmap.
@@ -129,6 +130,13 @@ Still integration points (marked in code): the cloud ASR/LLM backend
 - **"Record all calls" now does something** — the screening service starts the recorder for allowed calls when the setting is on.
 - `InCallService` now tracks live calls so the assistant can answer/hang up when Kavach owns them.
 - Documented the honest platform limit: Android exposes no public API to inject audio into a cellular uplink, so a natural two-way AI conversation needs a server-side telephony gateway (see `docs/PLAN.md`).
+
+### Added in 0.4.0
+
+- **In-app update checker.** Settings → Updates shows the installed version and a *Check for updates* button. It reads the latest GitHub Release, compares versions, and when a newer build exists offers **Download & install** (downloads the APK with a progress bar, then hands it to the system installer via a `FileProvider`) or a link to the release notes.
+- **Optional launch-time check** (on by default, toggleable in Settings) surfaces a slim "Kavach x.y.z is available" banner at the top of the app.
+- The downloader only accepts URLs under Kavach's own GitHub release path, so a spoofed API response can't push an arbitrary APK.
+- Added a unit test for the version comparison.
 
 ## Legal & ethics
 

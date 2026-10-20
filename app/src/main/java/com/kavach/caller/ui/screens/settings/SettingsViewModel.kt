@@ -27,4 +27,5 @@ class SettingsViewModel @Inject constructor(
     fun setAiEnabled(value: Boolean) = viewModelScope.launch { repo.setAiEnabled(value) }
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
     fun setRecordAll(value: Boolean) = viewModelScope.launch { repo.setRecordAll(value) }
+    fun setAutoCheckUpdates(value: Boolean) = viewModelScope.launch { repo.setAutoCheckUpdates(value) }
 }

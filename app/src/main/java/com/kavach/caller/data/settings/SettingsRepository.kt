@@ -39,6 +39,7 @@ class SettingsRepository @Inject constructor(
         val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
         val recordAll = booleanPreferencesKey("record_all")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -52,6 +53,7 @@ class SettingsRepository @Inject constructor(
             cloudAiEnabled = p[Keys.cloudAiEnabled] ?: false,
             recordAll = p[Keys.recordAll] ?: false,
             onboardingDone = p[Keys.onboardingDone] ?: false,
+            autoCheckUpdates = p[Keys.autoCheckUpdates] ?: true,
         )
     }
 
@@ -71,4 +73,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setCloudAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.cloudAiEnabled] = value }
     suspend fun setRecordAll(value: Boolean) = context.dataStore.edit { it[Keys.recordAll] = value }
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
+    suspend fun setAutoCheckUpdates(value: Boolean) = context.dataStore.edit { it[Keys.autoCheckUpdates] = value }
 }
