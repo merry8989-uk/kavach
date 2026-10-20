@@ -1,6 +1,5 @@
 package com.kavach.caller.ui.screens.blocklist
 
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*

@@ -73,7 +73,7 @@ private fun activeSims(context: Context): List<SimOption> {
             val info = subs.firstOrNull { it.subscriptionId.toString() == handle.id }
             SimOption(
                 label = info?.displayName?.toString()?.takeIf { it.isNotBlank() }
-                    ?: handle.label?.toString()
+                    ?: telecom.getPhoneAccount(handle)?.label?.toString()
                     ?: "SIM",
                 handle = handle,
             )
