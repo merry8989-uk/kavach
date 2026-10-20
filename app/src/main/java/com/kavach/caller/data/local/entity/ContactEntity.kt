@@ -2,8 +2,10 @@ package com.kavach.caller.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /** A phone number attached to a contact, with a human label ("mobile", "work"). */
+@Serializable
 data class PhoneNumber(
     val label: String,
     val number: String,

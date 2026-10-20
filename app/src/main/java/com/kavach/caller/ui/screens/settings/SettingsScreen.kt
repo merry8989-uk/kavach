@@ -1,5 +1,6 @@
 package com.kavach.caller.ui.screens.settings
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
