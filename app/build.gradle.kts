@@ -107,8 +107,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
-    // On-device AI (intent/keyword spotting)
-    implementation("org.tensorflow:tensorflow-lite-task-text:0.4.4")
+    // On-device AI: the scaffold ships a keyword-based screener (see
+    // OnDeviceScreener.kt). Add the TFLite text-task dependency here when you
+    // drop in the trained intent model:
+    // implementation("org.tensorflow:tensorflow-lite-task-text:0.4.4")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
