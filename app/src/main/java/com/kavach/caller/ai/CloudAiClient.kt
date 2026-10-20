@@ -1,34 +1,16 @@
 package com.kavach.caller.ai
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.POST
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
-
-/**
- * Cloud half of the hybrid AI (F10.3/F10.6/F10.7). Talks to Kavach's own
- * backend, which proxies an ASR provider (Whisper-class) and an LLM for
- * summaries + dialogue. Nothing is sent unless the user enabled cloud AI.
- *
- * The backend base URL is injected at build time via BuildConfig so no
- * secrets live in the repo.
- */
-interface KavachAiApi {
-    @POST("v1/transcribe")
-    suspend fun transcribe(@Body req: TranscribeRequest): TranscribeResponse
-
-    @POST("v1/summarise")
-    suspend fun summarise(@Body req: SummariseRequest): CallBrief
-
-    @POST("v1/dialogue")
-    suspend fun dialogue(@Body req: DialogueRequest): DialogueResponse
-}
 
 @Serializable data class TranscribeRequest(val audioBase64: String, val language: String = "en-IN")
 @Serializable data class TranscribeResponse(val transcript: String, val confidence: Float = 0f)
@@ -36,28 +18,54 @@ interface KavachAiApi {
 @Serializable data class DialogueRequest(val transcriptSoFar: String, val callerName: String? = null)
 @Serializable data class DialogueResponse(val say: String, val shouldEscalate: Boolean = false)
 
+/**
+ * Cloud half of the hybrid AI (F10.3/F10.6/F10.7). Talks to Kavach's own
+ * backend over plain HTTPS with OkHttp + kotlinx.serialization — no Retrofit
+ * converter to keep the dependency surface small.
+ *
+ * Nothing is sent unless the user enabled cloud AI. Every call fails soft
+ * (returns null) so the on-device path always works offline.
+ */
 @Singleton
 class CloudAiClient @Inject constructor(
-    okHttp: OkHttpClient,
+    private val okHttp: OkHttpClient,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+    private val mediaType = "application/json".toMediaType()
 
-    private val api: KavachAiApi = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(okHttp)
-        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-        .build()
-        .create(KavachAiApi::class.java)
+    private suspend fun postRaw(path: String, payload: String): String? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val request = Request.Builder()
+                    .url(BASE_URL + path)
+                    .post(payload.toRequestBody(mediaType))
+                    .build()
+                okHttp.newCall(request).execute().use { response ->
+                    response.body?.string()
+                }
+            }.getOrNull()
+        }
 
-    /** Returns null on any failure — callers fall back to the on-device path. */
-    suspend fun transcribe(audioBase64: String): String? =
-        runCatching { api.transcribe(TranscribeRequest(audioBase64)).transcript }.getOrNull()
+    /** Full transcript of a recorded/screened call. */
+    suspend fun transcribe(audioBase64: String): String? {
+        val raw = postRaw("v1/transcribe", json.encodeToString(TranscribeRequest(audioBase64)))
+            ?: return null
+        return runCatching { json.decodeFromString<TranscribeResponse>(raw).transcript }.getOrNull()
+    }
 
-    suspend fun summarise(transcript: String, number: String): CallBrief? =
-        runCatching { api.summarise(SummariseRequest(transcript, number)) }.getOrNull()
+    /** Structured brief: summary + intent + sentiment + risk. */
+    suspend fun summarise(transcript: String, number: String): CallBrief? {
+        val raw = postRaw("v1/summarise", json.encodeToString(SummariseRequest(transcript, number)))
+            ?: return null
+        return runCatching { json.decodeFromString<CallBrief>(raw) }.getOrNull()
+    }
 
-    suspend fun nextLine(transcript: String, callerName: String?): DialogueResponse? =
-        runCatching { api.dialogue(DialogueRequest(transcript, callerName)) }.getOrNull()
+    /** The assistant's next spoken line, and whether to escalate to the owner. */
+    suspend fun nextLine(transcript: String, callerName: String?): DialogueResponse? {
+        val raw = postRaw("v1/dialogue", json.encodeToString(DialogueRequest(transcript, callerName)))
+            ?: return null
+        return runCatching { json.decodeFromString<DialogueResponse>(raw) }.getOrNull()
+    }
 
     companion object {
         // Point this at your deployed Kavach backend.

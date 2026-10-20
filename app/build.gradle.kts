@@ -103,11 +103,9 @@ dependencies {
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // Networking (cloud AI / crowd API)
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    // Networking (cloud AI / crowd API) — OkHttp + kotlinx.serialization directly
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
 
     // On-device AI (intent/keyword spotting)
     implementation("org.tensorflow:tensorflow-lite-task-text:0.4.4")
