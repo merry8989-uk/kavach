@@ -34,9 +34,9 @@ brief.
 | **Blocking** | Silent reject via `CallScreeningService`, Block / Silence / Send-to-AI / Allow |
 | **Messaging** | SMS threads + conversation view, compose & send, unread badges |
 | **Announcer** | TTS speaks name / company / number, Indian-English voice, spam verdict |
-| **Recording** | Layered capture strategy, consent-gated, encrypted storage, playback |
+| **Recording** | Layered capture (VOICE_CALL → recognition → mic), WAV output, playback screen, consent notice |
 | **Caller ID** | Local-first lookup, crowdsourced tags, heuristic + cloud spam scoring |
-| **AI assistant** | Screening, transcription, dialogue, auto-SMS, post-call briefs |
+| **AI assistant** | Answers the call, announces consent, speaks a greeting, captures audio, transcribes (cloud), posts a brief |
 | **Themes** | Five theme packs that apply app-wide, persisted in settings |
 | **Onboarding** | Runtime permissions + Call screening / Default dialer / Default SMS roles |
 
@@ -121,6 +121,14 @@ Still integration points (marked in code): the cloud ASR/LLM backend
 - Added T9 name search and a dual-SIM picker to the dialer.
 - Fixed wildcard rules treating `+` and `?` as regex metacharacters.
 - Added the Gradle wrapper, an MIT LICENSE, JVM unit tests and a CI workflow.
+
+### Added in 0.3.0
+
+- **The AI audio bridge is real now.** A `CallAssistantService` answers the call, sets speakerphone, speaks the consent notice + greeting, captures the call to a WAV, transcribes it via the cloud client (when enabled), and posts the post-call brief as a notification. Screening's Send-to-AI action actually drives it.
+- **Recording playback screen** (`RecordingsScreen`), reachable from Settings.
+- **"Record all calls" now does something** — the screening service starts the recorder for allowed calls when the setting is on.
+- `InCallService` now tracks live calls so the assistant can answer/hang up when Kavach owns them.
+- Documented the honest platform limit: Android exposes no public API to inject audio into a cellular uplink, so a natural two-way AI conversation needs a server-side telephony gateway (see `docs/PLAN.md`).
 
 ## Legal & ethics
 

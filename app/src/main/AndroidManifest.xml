@@ -87,6 +87,12 @@
             android:name=".recording.CallRecorderService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- The AI assistant runtime: answer -> announce -> capture -> brief -->
+        <service
+            android:name=".service.CallAssistantService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 
 </manifest>

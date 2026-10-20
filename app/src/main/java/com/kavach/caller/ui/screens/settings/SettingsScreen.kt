@@ -19,6 +19,7 @@ private val announcerModes = listOf("ALWAYS", "KNOWN_ONLY", "UNKNOWN_ONLY", "HEA
 @Composable
 fun SettingsScreen(
     onOpenBlocklist: () -> Unit = {},
+    onOpenRecordings: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.settings.collectAsState()
@@ -33,6 +34,10 @@ fun SettingsScreen(
         SectionHeader("Protection")
         OutlinedButton(onClick = onOpenBlocklist, modifier = Modifier.fillMaxWidth()) {
             Text("Blocking rules & blocklist")
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onOpenRecordings, modifier = Modifier.fillMaxWidth()) {
+            Text("Call recordings")
         }
 
         Spacer(Modifier.height(16.dp))

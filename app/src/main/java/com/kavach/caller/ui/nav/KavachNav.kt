@@ -33,6 +33,7 @@ import com.kavach.caller.ui.screens.dialer.DialerScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
 import com.kavach.caller.ui.screens.onboarding.hasCorePermissions
+import com.kavach.caller.ui.screens.recordings.RecordingsScreen
 import com.kavach.caller.ui.screens.settings.SettingsScreen
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -96,10 +97,14 @@ fun KavachNav() {
             }
             composable("messages") { MessagesScreen() }
             composable("settings") {
-                SettingsScreen(onOpenBlocklist = { nav.navigate("block") })
+                SettingsScreen(
+                    onOpenBlocklist = { nav.navigate("block") },
+                    onOpenRecordings = { nav.navigate("recordings") },
+                )
             }
             composable("block") { BlocklistScreen(onBack = { nav.popBackStack() }) }
             composable("assistant") { AssistantScreen(onBack = { nav.popBackStack() }) }
+            composable("recordings") { RecordingsScreen(onBack = { nav.popBackStack() }) }
         }
     }
 }
