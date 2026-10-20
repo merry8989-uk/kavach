@@ -1,5 +1,7 @@
 package com.kavach.caller.ui.screens.blocklist
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,7 +46,10 @@ class BlocklistViewModel @Inject constructor(
 }
 
 @Composable
-fun BlocklistScreen(vm: BlocklistViewModel = hiltViewModel()) {
+fun BlocklistScreen(
+    onBack: () -> Unit = {},
+    vm: BlocklistViewModel = hiltViewModel(),
+) {
     val rules by vm.rules.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
 
@@ -56,12 +61,16 @@ fun BlocklistScreen(vm: BlocklistViewModel = hiltViewModel()) {
         }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            Text(
-                "Blocking rules",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(16.dp),
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                Text(
+                    "Blocking rules",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+            }
             if (rules.isEmpty()) {
                 EmptyState(
                     title = "No rules yet",

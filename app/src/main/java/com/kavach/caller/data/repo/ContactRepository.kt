@@ -17,6 +17,12 @@ class ContactRepository @Inject constructor(
 
     suspend fun search(q: String): List<ContactEntity> = dao.search(q)
 
+    /** T9 name search for the dialer (input is digits). */
+    suspend fun searchByT9(digits: String): List<ContactEntity> {
+        if (digits.isBlank()) return emptyList()
+        return dao.searchT9(PhoneUtils.t9(digits))
+    }
+
     /** Pull the device contacts into Kavach, preserving Kavach-only fields. */
     suspend fun syncFromSystem(): Int {
         val system = systemReader.readAll()
@@ -29,6 +35,7 @@ class ContactRepository @Inject constructor(
                 notes = existing?.notes,
                 jobTitle = existing?.jobTitle,
                 isFavourite = existing?.isFavourite ?: false,
+                t9Key = PhoneUtils.t9(c.displayName),
             )
             dao.upsert(merged)
             n++
@@ -36,16 +43,20 @@ class ContactRepository @Inject constructor(
         return n
     }
 
-    suspend fun save(contact: ContactEntity): Long = dao.upsert(contact)
+    /** Always keep the T9 key in sync with the name on write. */
+    suspend fun save(contact: ContactEntity): Long =
+        dao.upsert(contact.copy(t9Key = PhoneUtils.t9(contact.displayName)))
 
     suspend fun delete(contact: ContactEntity) = dao.delete(contact)
 
-    /** Resolve a display name for an incoming number, or null if unknown. */
+    /**
+     * Resolve a display name for an incoming number, or null if unknown.
+     * Single indexed-ish SQL query — safe to call on the call-screening
+     * hot path.
+     */
     suspend fun nameFor(number: String): String? {
         val key = PhoneUtils.subscriberKey(number)
         if (key.isEmpty()) return null
-        return dao.search("").firstOrNull { c ->
-            c.numbers.any { PhoneUtils.subscriberKey(it.number) == key }
-        }?.displayName
+        return dao.findByNumberKey(key)?.displayName
     }
 }

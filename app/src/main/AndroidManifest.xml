@@ -59,6 +59,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Default-dialer support: required for the Default Dialer role -->
+        <service
+            android:name=".service.KavachInCallService"
+            android:exported="true"
+            android:permission="android.permission.BIND_INCALL_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.InCallService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.telecom.IN_CALL_SERVICE_UI"
+                android:value="true" />
+        </service>
+
         <!-- Caller ID + blocking engine -->
         <service
             android:name=".service.KavachScreeningService"

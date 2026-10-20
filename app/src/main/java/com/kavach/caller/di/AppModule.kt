@@ -2,6 +2,8 @@ package com.kavach.caller.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.kavach.caller.data.local.KavachDatabase
 import com.kavach.caller.data.local.dao.BlockRuleDao
 import com.kavach.caller.data.local.dao.CallLogDao
@@ -21,11 +23,31 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    /**
+     * v1 -> v2: add the T9 key column, and make the call log idempotent by
+     * de-duplicating existing rows before adding the unique index.
+     */
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE contacts_enriched ADD COLUMN t9Key TEXT NOT NULL DEFAULT ''")
+            db.execSQL(
+                "DELETE FROM call_log WHERE id NOT IN " +
+                    "(SELECT MIN(id) FROM call_log GROUP BY number, timestamp, type)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_call_log_number_timestamp_type " +
+                    "ON call_log(number, timestamp, type)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KavachDatabase =
         Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
-            // For production, swap in SQLCipher: .openHelperFactory(SupportFactory(passphrase))
+            .addMigrations(MIGRATION_1_2)
+            // Last-resort safety net only; the real path is the migration above.
+            // Swap in SQLCipher for encrypted-at-rest storage.
             .fallbackToDestructiveMigration()
             .build()
 

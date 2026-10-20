@@ -23,6 +23,21 @@ interface ContactDao {
     )
     suspend fun search(q: String): List<ContactEntity>
 
+    /**
+     * Resolve a contact by the last 10 digits of one of its numbers, in SQL.
+     * The old path loaded every contact and filtered in memory, once per
+     * incoming call.
+     */
+    @Query("SELECT * FROM contacts_enriched WHERE numbers LIKE '%' || :key || '%' LIMIT 1")
+    suspend fun findByNumberKey(key: String): ContactEntity?
+
+    /** T9 name search: prefix match on the precomputed [ContactEntity.t9Key]. */
+    @Query(
+        "SELECT * FROM contacts_enriched WHERE t9Key LIKE :t9 || '%' " +
+            "ORDER BY displayName COLLATE NOCASE ASC LIMIT 50"
+    )
+    suspend fun searchT9(t9: String): List<ContactEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(contact: ContactEntity): Long
 

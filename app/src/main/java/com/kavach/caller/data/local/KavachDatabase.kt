@@ -22,7 +22,7 @@ import com.kavach.caller.data.local.entity.TranscriptEntity
         RecordingEntity::class,
         TranscriptEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

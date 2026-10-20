@@ -32,5 +32,11 @@ data class ContactEntity(
     /** Crowdsourced / resolved name for this number, if any. */
     val resolvedName: String? = null,
     val isFavourite: Boolean = false,
+    /**
+     * T9 key of [displayName] (e.g. "Amit" -> "2648"). Indexed so the dialer
+     * can do T9 name search with a single SQL query instead of loading every
+     * contact into memory.
+     */
+    val t9Key: String = "",
     val updatedAt: Long = System.currentTimeMillis(),
 )

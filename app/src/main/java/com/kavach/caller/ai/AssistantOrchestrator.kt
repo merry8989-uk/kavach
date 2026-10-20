@@ -1,23 +1,22 @@
 package com.kavach.caller.ai
 
 import android.telecom.Call
+import com.kavach.caller.data.local.entity.TranscriptEntity
 import com.kavach.caller.data.repo.CallLogRepository
 import com.kavach.caller.data.repo.ContactRepository
+import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.service.Announcer
 import com.kavach.caller.util.PhoneUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Orchestrates the AI call assistant (F10). This is the state machine that
- * ties together screening -> answering -> transcription -> dialogue ->
- * auto-SMS -> post-call brief.
+ * Orchestrates the AI call assistant (F10). Ties screening -> answering ->
+ * transcription -> dialogue -> auto-SMS -> post-call brief together.
  *
  * States: IDLE -> RINGING -> ANSWERED -> LISTENING -> DIALOGUE -> SUMMARISING -> DONE
  *
- * The scaffold wires the transitions and the on-device classifier; the audio
- * bridge and cloud calls are stubbed at clearly marked integration points
- * (see callRecorder / CloudAiClient).
+ * AI enablement and cloud consent now come from persisted settings.
  */
 @Singleton
 class AssistantOrchestrator @Inject constructor(
@@ -27,13 +26,12 @@ class AssistantOrchestrator @Inject constructor(
     private val contacts: ContactRepository,
     private val callLog: CallLogRepository,
     private val announcer: Announcer,
+    private val settings: SettingsRepository,
 ) {
     enum class State { IDLE, RINGING, ANSWERED, LISTENING, DIALOGUE, SUMMARISING, DONE }
 
     @Volatile var state: State = State.IDLE
         private set
-
-    @Volatile var aiEnabled: Boolean = true
 
     private val pending = ArrayDeque<Pair<String, Call.Details>>()
 
@@ -43,7 +41,14 @@ class AssistantOrchestrator @Inject constructor(
         state = State.RINGING
     }
 
-    fun nextPending(): Pair<String, Call.Details>? = pending.removeFirstOrNull()
+    /** Drain the next call waiting for the assistant, if any. */
+    fun nextPending(): Pair<String, Call.Details>? {
+        val next = pending.removeFirstOrNull()
+        if (next != null) state = State.ANSWERED
+        return next
+    }
+
+    fun hasPending(): Boolean = pending.isNotEmpty()
 
     /**
      * Build the greeting the assistant will speak when it answers.
@@ -53,7 +58,7 @@ class AssistantOrchestrator @Inject constructor(
         val name = contacts.nameFor(number)
         val isContact = name != null
         val score = spamScorer.score(number, isContact = isContact)
-        val answer = screener.shouldAnswer(isContact, score, aiEnabled)
+        val answer = screener.shouldAnswer(isContact, score, settings.snapshot.aiEnabled)
         val greeting = if (isContact) {
             "Hi, this is $name's Kavach assistant. They can't take the call right now. How can I help?"
         } else {
@@ -69,16 +74,24 @@ class AssistantOrchestrator @Inject constructor(
     suspend fun onUtterance(number: String, utterance: String): CallIntent {
         state = State.LISTENING
         val local = screener.classify(utterance)
-        if (!aiEnabled) return local
-        // Integration point: batch/stream to CloudAiClient.transcribe for the
-        // full transcript, then CloudAiClient.nextLine for the assistant reply.
+        if (!settings.snapshot.cloudAiEnabled) return local
+        // Integration point: CloudAiClient.transcribe(...) for the full
+        // transcript, then CloudAiClient.nextLine(...) for the reply.
         return local
     }
 
     /** Finish the call: produce the brief and persist it. */
-    suspend fun finish(number: String, transcript: String, intent: CallIntent, recordingPath: String?): CallBrief {
+    suspend fun finish(
+        number: String,
+        transcript: String,
+        intent: CallIntent,
+        recordingPath: String?,
+    ): CallBrief {
         state = State.SUMMARISING
-        val brief = cloud.summarise(transcript, number) ?: CallBrief(
+        val brief = if (settings.snapshot.cloudAiEnabled) {
+            cloud.summarise(transcript, number)
+        } else null
+        val result = brief ?: CallBrief(
             number = number,
             transcript = transcript,
             summary = summariseLocally(transcript, intent),
@@ -87,19 +100,19 @@ class AssistantOrchestrator @Inject constructor(
             recordingPath = recordingPath,
         )
         callLog.saveTranscript(
-            com.kavach.caller.data.local.entity.TranscriptEntity(
+            TranscriptEntity(
                 number = number,
                 timestamp = System.currentTimeMillis(),
                 transcript = transcript,
-                summary = brief.summary,
-                intent = brief.intent.name,
-                sentiment = brief.sentiment.name,
-                risk = brief.risk,
+                summary = result.summary,
+                intent = result.intent.name,
+                sentiment = result.sentiment.name,
+                risk = result.risk,
             )
         )
         announcer.speak("Call handled. Summary ready.")
         state = State.DONE
-        return brief
+        return result
     }
 
     private fun summariseLocally(transcript: String, intent: CallIntent): String {

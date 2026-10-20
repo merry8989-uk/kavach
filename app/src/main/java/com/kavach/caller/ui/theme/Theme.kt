@@ -14,6 +14,10 @@ import androidx.compose.ui.platform.LocalContext
 /** Kavach's theme packs (F11.2). */
 enum class ThemePack { AURORA, CARBON, DAYLIGHT, NEON_NOIR, DYNAMIC }
 
+/** Map a persisted settings string to a ThemePack, defaulting safely. */
+fun themePackFromKey(key: String): ThemePack =
+    runCatching { ThemePack.valueOf(key) }.getOrDefault(ThemePack.AURORA)
+
 private fun auroraScheme() = darkColorScheme(
     primary = AuroraCyan,
     secondary = AuroraViolet,

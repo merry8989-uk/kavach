@@ -58,11 +58,26 @@ class CallLogViewModel @Inject constructor(
 }
 
 @Composable
-fun CallLogScreen(vm: CallLogViewModel = hiltViewModel()) {
+fun CallLogScreen(
+    onOpenAssistant: () -> Unit = {},
+    vm: CallLogViewModel = hiltViewModel(),
+) {
     val all by vm.entries.collectAsState()
     val list = vm.apply(all)
 
     Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Call log",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            TextButton(onClick = onOpenAssistant) { Text("AI briefs") }
+        }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
         ) {

@@ -1,5 +1,7 @@
 package com.kavach.caller.ui.screens.assistant
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,10 +35,18 @@ class AssistantViewModel @Inject constructor(
 
 /** The AI call-assistant inbox (F10.7): one card per AI-answered call. */
 @Composable
-fun AssistantScreen(vm: AssistantViewModel = hiltViewModel()) {
+fun AssistantScreen(
+    onBack: () -> Unit = {},
+    vm: AssistantViewModel = hiltViewModel(),
+) {
     val briefs by vm.briefs.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(4.dp)) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        }
         Column(Modifier.padding(16.dp)) {
             Text("AI call briefs", style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground)

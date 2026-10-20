@@ -17,7 +17,9 @@ interface CallLogDao {
     @Query("SELECT * FROM call_log WHERE aiAnswered = 1 ORDER BY timestamp DESC")
     fun observeAiAnswered(): Flow<List<CallLogEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // IGNORE (not REPLACE): the unique index on (number, timestamp, type)
+    // makes re-syncing the system log idempotent instead of duplicating rows.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entry: CallLogEntity): Long
 
     @Query("DELETE FROM call_log WHERE id = :id")

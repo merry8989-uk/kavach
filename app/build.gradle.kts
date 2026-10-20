@@ -67,6 +67,12 @@ android {
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
+
+    testOptions {
+        // Android framework stubs return defaults instead of throwing, so pure
+        // logic (block rules, phone utils) is unit-testable on the JVM.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {

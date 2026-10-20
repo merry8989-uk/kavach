@@ -10,14 +10,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+
+/** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
+private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
+private val announcerModes = listOf("ALWAYS", "KNOWN_ONLY", "UNKNOWN_ONLY", "HEADSET_ONLY", "OFF")
 
 @Composable
-fun SettingsScreen() {
-    var announcerOn by remember { mutableStateOf(true) }
-    var aiOn by remember { mutableStateOf(true) }
-    var cloudAi by remember { mutableStateOf(false) }
-    var recordAll by remember { mutableStateOf(false) }
-    var themePack by remember { mutableStateOf("Aurora") }
+fun SettingsScreen(
+    onOpenBlocklist: () -> Unit = {},
+    vm: SettingsViewModel = hiltViewModel(),
+) {
+    val s by vm.settings.collectAsState()
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -26,14 +30,31 @@ fun SettingsScreen() {
             color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(16.dp))
 
+        SectionHeader("Protection")
+        OutlinedButton(onClick = onOpenBlocklist, modifier = Modifier.fillMaxWidth()) {
+            Text("Blocking rules & blocklist")
+        }
+
+        Spacer(Modifier.height(16.dp))
         SectionHeader("Caller announcer (F7)")
-        SwitchRow("Announce incoming callers", announcerOn) { announcerOn = it }
-        SwitchRow("Spoken spam verdict", announcerOn) { }
+        Text("Announcement mode", style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
+            announcerModes.forEach { mode ->
+                FilterChip(
+                    selected = s.announcerMode == mode,
+                    onClick = { vm.setAnnouncerMode(mode) },
+                    label = { Text(mode.replace('_', ' ')) },
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
+        }
+        SwitchRow("Spoken spam verdict", s.announceSpamVerdict) { vm.setAnnounceSpamVerdict(it) }
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("AI assistant (F10)")
-        SwitchRow("Answer unknown calls with AI", aiOn) { aiOn = it }
-        SwitchRow("Use cloud transcription & summaries", cloudAi) { cloudAi = it }
+        SwitchRow("Answer unknown calls with AI", s.aiEnabled) { vm.setAiEnabled(it) }
+        SwitchRow("Use cloud transcription & summaries", s.cloudAiEnabled) { vm.setCloudAiEnabled(it) }
         Text(
             "Cloud AI sends audio to Kavach's servers for transcription. Off by default for privacy.",
             style = MaterialTheme.typography.bodyMedium,
@@ -42,7 +63,7 @@ fun SettingsScreen() {
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("Recording (F8)")
-        SwitchRow("Record all calls", recordAll) { recordAll = it }
+        SwitchRow("Record all calls", s.recordAll) { vm.setRecordAll(it) }
         Text(
             "Recording is announced to callers and disabled automatically in two-party-consent regions.",
             style = MaterialTheme.typography.bodyMedium,
@@ -52,11 +73,11 @@ fun SettingsScreen() {
         Spacer(Modifier.height(16.dp))
         SectionHeader("Appearance (F11)")
         Row(Modifier.horizontalScroll(rememberScrollState())) {
-            listOf("Aurora", "Carbon", "Daylight", "Neon Noir", "Dynamic").forEach { pack ->
+            themePacks.forEach { pack ->
                 FilterChip(
-                    selected = themePack == pack,
-                    onClick = { themePack = pack },
-                    label = { Text(pack) },
+                    selected = s.themePack == pack,
+                    onClick = { vm.setThemePack(pack) },
+                    label = { Text(pack.replace('_', ' ')) },
                     modifier = Modifier.padding(end = 8.dp),
                 )
             }
