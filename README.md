@@ -31,7 +31,7 @@ brief.
 
 | Area | Highlights |
 |---|---|
-| **Dialer** | Keypad, T9 search, dual-SIM, in-call controls, caller-ID preview |
+| **Dialer** | Stock-dialer layout: identity card, create/add contact, video call, send message, keypad with long-press shortcuts, dual-SIM, Call pill |
 | **Contacts** | Rich profiles — add / edit / delete, multiple numbers, company, notes, tags, photos |
 | **Call log** | System log merge, filters, spam scores, AI-answered badges |
 | **Blocklist** | Exact / prefix / wildcard / regex / range / country rules, private & non-contact rules |
@@ -186,6 +186,19 @@ Still integration points (marked in code): the cloud ASR/LLM backend
 - **Contacts are now editable.** A **+** button on the Contacts tab opens an add-contact form, and tapping any contact opens it for editing. Fields: name, multiple labelled numbers (add/remove), company, job title, notes and tags.
 - Saves write to the **device contact store** first (via a new `ContactsWriter`), so a contact added in Kavach also shows up in the phone's own contacts app — with Kavach's enriched copy (tags, notes) kept alongside.
 - **Delete** with a confirmation dialog removes the contact from Kavach and, when it is linked, from the device too.
+
+### Added in 0.8.0
+
+- **Dialer rebuilt to match a stock phone-app layout.** Typing a number now shows:
+  - an identity header — the contact name, or **"Not in your contacts"** — with the last call time and a call-back button;
+  - action rows: **Create new contact**, **Add to a contact**, **Video call**, **Send a message**;
+  - the number display with an overflow menu (**Paste**, **Copy number**, **Add 2-sec pause**, **Add wait**) and backspace;
+  - a keypad with the standard long-press shortcuts — 1 = voicemail, 0 = `+`, `*` = pause, `#` = wait;
+  - a green **Call** pill.
+- **Create new contact** opens the editor pre-filled with the typed number; **Add to a contact** picks an existing contact and appends the number.
+- **Send a message** opens the system SMS composer for that number (works without Kavach holding the SMS role).
+- **Video call** shows an honest unavailable state explaining it needs the default-dialer role and carrier video support — it does not pretend to work.
+- Added `SearchContactsByT9UseCase` and a `lastCallFor` query so the identity card shows real history.
 
 ## Legal & ethics
 

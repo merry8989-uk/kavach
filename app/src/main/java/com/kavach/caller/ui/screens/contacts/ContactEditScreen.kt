@@ -31,9 +31,14 @@ fun ContactEditScreen(
     onCancel: () -> Unit,
     onSave: (ContactDraft) -> Unit,
     onDelete: (ContactEntity) -> Unit,
+    /**
+     * Pre-built draft, used when the editor is opened from the dialer (create a
+     * contact from a typed number, or append the number to an existing one).
+     */
+    initialDraft: ContactDraft? = null,
 ) {
-    var draft by remember(initial) {
-        mutableStateOf(initial?.let { ContactDraft.from(it) } ?: ContactDraft())
+    var draft by remember(initial, initialDraft) {
+        mutableStateOf(initialDraft ?: initial?.let { ContactDraft.from(it) } ?: ContactDraft())
     }
     var tagInput by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf(false) }

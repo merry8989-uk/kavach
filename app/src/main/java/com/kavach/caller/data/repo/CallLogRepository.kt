@@ -7,6 +7,7 @@ import com.kavach.caller.data.local.entity.CallLogEntity
 import com.kavach.caller.data.local.entity.RecordingEntity
 import com.kavach.caller.data.local.entity.TranscriptEntity
 import com.kavach.caller.data.system.CallLogReader
+import com.kavach.caller.util.PhoneUtils
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +29,13 @@ class CallLogRepository @Inject constructor(
         val entries = reader.readRecent()
         for (e in entries) dao.insert(e)
         return entries.size
+    }
+
+    /** The last call with this number, or null. Used by the dialer header. */
+    suspend fun lastCallFor(number: String): CallLogEntity? {
+        val key = PhoneUtils.subscriberKey(number)
+        if (key.isEmpty()) return null
+        return dao.lastCallFor(key)
     }
 
     suspend fun recordCall(entry: CallLogEntity): Long = dao.insert(entry)

@@ -24,6 +24,13 @@ interface CallLogDao {
 
     @Query("DELETE FROM call_log WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    /** Most recent call involving a number — powers the dialer's identity card. */
+    @Query(
+        "SELECT * FROM call_log WHERE number LIKE '%' || :key || '%' " +
+            "ORDER BY timestamp DESC LIMIT 1"
+    )
+    suspend fun lastCallFor(key: String): CallLogEntity?
 }
 
 @Dao
