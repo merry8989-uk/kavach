@@ -48,4 +48,11 @@ data class AppSettings(
     val autoReplyText: String = "I'll get back to you soon.",
     /** Message ids the user removed from Kavach's view. See MessagesScreen. */
     val hiddenSmsIds: Set<String> = emptySet(),
+
+    /** Automatic push of diagnostics events into the user's Notion database. */
+    val notionSyncEnabled: Boolean = false,
+    val notionWifiOnly: Boolean = true,
+    val notionLastSyncAt: Long = 0L,
+    val notionSyncedTotal: Long = 0L,
+    val notionLastError: String? = null,
 )

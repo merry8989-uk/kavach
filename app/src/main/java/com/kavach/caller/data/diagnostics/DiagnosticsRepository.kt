@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import com.kavach.caller.BuildConfig
+import com.kavach.caller.data.notion.NotionSyncRepository
 import com.kavach.caller.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,7 @@ class DiagnosticsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
     private val session: SessionContext,
+    private val notionSync: dagger.Lazy<NotionSyncRepository>,
 ) {
     private val lock = Any()
     private val directory = File(context.filesDir, DIRECTORY)
@@ -104,6 +106,12 @@ class DiagnosticsRepository @Inject constructor(
             properties = clean,
         )
         val line = LogEventCodec.encode(event, session.envelope, networkType())
+
+        // Mirror into the Notion queue *before* the file write, so an event that
+        // reaches the dashboard is never lost to a rotation.
+        if (settings.snapshot.notionSyncEnabled) {
+            runCatching { notionSync.get().enqueue(line) }
+        }
 
         withContext(Dispatchers.IO) {
             synchronized(lock) {

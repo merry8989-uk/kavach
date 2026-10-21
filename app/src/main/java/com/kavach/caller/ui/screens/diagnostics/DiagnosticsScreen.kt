@@ -30,6 +30,8 @@ import com.kavach.caller.data.diagnostics.EventSchema
 import com.kavach.caller.data.diagnostics.ExportFormat
 import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogLevel
+import com.kavach.caller.data.notion.NotionSyncRepository
+import com.kavach.caller.data.notion.SecretStore
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.ui.components.KavachCard
@@ -52,6 +54,9 @@ import javax.inject.Inject
 class DiagnosticsViewModel @Inject constructor(
     private val repository: DiagnosticsRepository,
     private val session: com.kavach.caller.data.diagnostics.SessionContext,
+    private val notionSync: com.kavach.caller.data.notion.NotionSyncRepository,
+    private val secrets: com.kavach.caller.data.notion.SecretStore,
+    private val settings: com.kavach.caller.data.settings.SettingsRepository,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -69,6 +74,58 @@ class DiagnosticsViewModel @Inject constructor(
     /** The readable per-install code, shown so a tester can read it out. */
     val userCode: String get() = session.userCode
 
+    private val _notion = MutableStateFlow<NotionSyncRepository.Status?>(null)
+    val notion: StateFlow<NotionSyncRepository.Status?> = _notion.asStateFlow()
+
+    var syncMessage by mutableStateOf<String?>(null)
+        private set
+
+    fun dismissSyncMessage() {
+        syncMessage = null
+    }
+
+    fun refreshNotion() = viewModelScope.launch {
+        _notion.value = notionSync.status()
+    }
+
+    fun setNotionToken(token: String) = viewModelScope.launch {
+        secrets.put(SecretStore.NOTION_TOKEN, token.trim())
+        syncMessage = if (token.isBlank()) "Notion token cleared." else "Notion token saved."
+        refreshNotion()
+    }
+
+    fun setNotionEnabled(enabled: Boolean) = viewModelScope.launch {
+        settings.setNotionSyncEnabled(enabled)
+        syncMessage = if (enabled) {
+            "Automatic sync on. Events will upload as they happen."
+        } else {
+            "Automatic sync off. Nothing leaves this phone."
+        }
+        refreshNotion()
+    }
+
+    fun setNotionWifiOnly(wifiOnly: Boolean) = viewModelScope.launch {
+        settings.setNotionWifiOnly(wifiOnly)
+        refreshNotion()
+    }
+
+    fun syncNow() = viewModelScope.launch {
+        syncMessage = "Syncing…"
+        val (sent, failure) = notionSync.flush()
+        syncMessage = when {
+            failure != null && sent == 0 -> "Could not sync: $failure"
+            sent == 0 -> "Nothing to sync."
+            else -> "Sent $sent event(s)."
+        }
+        refreshNotion()
+    }
+
+    fun clearNotionQueue() = viewModelScope.launch {
+        notionSync.clearQueue()
+        syncMessage = "Upload queue cleared."
+        refreshNotion()
+    }
+
     var sizeText by mutableStateOf("0 B")
         private set
 
@@ -76,6 +133,7 @@ class DiagnosticsViewModel @Inject constructor(
         _entries.value = repository.entries()
         _counts.value = repository.countsByLevel()
         sizeText = repository.formattedSize()
+        _notion.value = notionSync.status()
     }
 
     fun setEnabled(enabled: Boolean) = viewModelScope.launch {
@@ -154,6 +212,144 @@ fun DiagnosticsScreen(
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
             ) {
+                item {
+                    SectionHeader("Notion dashboard")
+                    val notion = vm.notion.collectAsState().value
+                    var tokenDraft by remember { mutableStateOf("") }
+                    var showToken by remember { mutableStateOf(false) }
+
+                    KavachCard {
+                        Text(
+                            "Send events straight to the Kavach Diagnostics — Events database " +
+                                "in Notion, so the weekly review fills itself.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Automatic sync", color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    if (notion?.hasToken == true) {
+                                        "Token saved on this device, encrypted by the Keystore."
+                                    } else {
+                                        "Paste a Notion integration token below to turn this on."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = notion?.enabled == true,
+                                enabled = notion?.hasToken == true,
+                                onCheckedChange = { vm.setNotionEnabled(it) },
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = tokenDraft,
+                            onValueChange = { tokenDraft = it },
+                            label = { Text("Notion integration token") },
+                            placeholder = { Text("ntn_… or secret_…") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = if (showToken) {
+                                androidx.compose.ui.text.input.VisualTransformation.None
+                            } else {
+                                androidx.compose.ui.text.input.PasswordVisualTransformation()
+                            },
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { vm.setNotionToken(tokenDraft); tokenDraft = "" },
+                                enabled = tokenDraft.isNotBlank(),
+                            ) { Text("Save token") }
+                            OutlinedButton(onClick = { showToken = !showToken }) {
+                                Text(if (showToken) "Hide" else "Show")
+                            }
+                            if (notion?.hasToken == true) {
+                                TextButton(onClick = { vm.setNotionToken("") }) { Text("Clear") }
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Wi-Fi only", color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    "Keeps uploads off a metered plan.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = notion?.wifiOnly == true,
+                                onCheckedChange = { vm.setNotionWifiOnly(it) },
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            buildString {
+                                append("Waiting to upload: ${notion?.pending ?: 0}")
+                                append("  ·  Uploaded: ${notion?.syncedTotal ?: 0}")
+                                notion?.lastSyncAt?.let {
+                                    append("  ·  Last: ")
+                                    append(
+                                        android.text.format.DateUtils.getRelativeTimeSpanString(it),
+                                    )
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        notion?.lastError?.let { err ->
+                            Text(
+                                "Last problem: $err",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { vm.syncNow() }, enabled = notion?.enabled == true) {
+                                Text("Sync now")
+                            }
+                            OutlinedButton(
+                                onClick = { vm.clearNotionQueue() },
+                                enabled = (notion?.pending ?: 0) > 0,
+                            ) { Text("Clear queue") }
+                        }
+
+                        vm.syncMessage?.let { msg ->
+                            Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    msg,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                TextButton(onClick = { vm.dismissSyncMessage() }) { Text("OK") }
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Setup: in Notion, create an internal integration, give it access to " +
+                                "the Kavach Diagnostics page, copy its token, and paste it here. " +
+                                "The token stays on this phone — Kavach ships no Notion credentials, " +
+                                "and nothing is uploaded until you switch this on.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
                 item {
                     SectionHeader("This device")
                     KavachCard {

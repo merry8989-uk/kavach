@@ -17,13 +17,35 @@ object WorkerScheduler {
 
     private const val CALL_LOG_SYNC = "kavach_call_log_sync"
     private const val CACHE_CLEANUP = "kavach_cache_cleanup"
+    private const val NOTION_SYNC = "kavach_notion_sync"
 
     fun schedule(
         context: Context,
         backgroundSyncEnabled: Boolean = true,
         dataSaver: Boolean = false,
+        notionSyncEnabled: Boolean = false,
+        notionWifiOnly: Boolean = true,
     ) {
         val manager = WorkManager.getInstance(context)
+
+        if (notionSyncEnabled) {
+            // Wi-Fi-only when the user asked for it, so a metered plan is not
+            // spent on telemetry.
+            val notionConstraints = Constraints.Builder()
+                .setRequiredNetworkType(
+                    if (notionWifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED,
+                )
+                .build()
+            manager.enqueueUniquePeriodicWork(
+                NOTION_SYNC,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                PeriodicWorkRequestBuilder<NotionSyncWorker>(1, TimeUnit.HOURS)
+                    .setConstraints(notionConstraints)
+                    .build(),
+            )
+        } else {
+            manager.cancelUniqueWork(NOTION_SYNC)
+        }
 
         if (backgroundSyncEnabled) {
             val constraints = Constraints.Builder()

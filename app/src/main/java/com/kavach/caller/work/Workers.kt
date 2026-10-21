@@ -3,6 +3,7 @@ package com.kavach.caller.work
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.kavach.caller.data.notion.NotionSyncRepository
 import com.kavach.caller.data.repo.CallLogRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -20,6 +21,32 @@ import java.io.File
 @InstallIn(SingletonComponent::class)
 interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
+    fun notionSyncRepository(): NotionSyncRepository
+}
+
+/**
+ * Pushes queued diagnostics events to the user's Notion database.
+ *
+ * Only scheduled while the user has the sync switched on. A failure here is
+ * never fatal — the events stay queued and the next run retries, because a
+ * dashboard that lags is fine and a log that is lost is not.
+ */
+class NotionSyncWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result = try {
+        val entryPoint = EntryPointAccessors.fromApplication(
+            applicationContext,
+            WorkerEntryPoint::class.java,
+        )
+        val sync = entryPoint.notionSyncRepository()
+        val (sent, failure) = sync.flush()
+        if (failure != null && sent == 0) Result.retry() else Result.success()
+    } catch (t: Throwable) {
+        Result.retry()
+    }
 }
 
 /**

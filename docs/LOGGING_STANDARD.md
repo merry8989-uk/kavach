@@ -83,3 +83,38 @@ flood the log.
 - `scroll_depth` is defined in the catalogue but not yet emitted by a screen.
 - There is no log dashboard; the on-device viewer and the export formats are the
   current way to read it.
+
+## Automatic push to Notion
+
+The dashboard can fill itself. `data/notion/` implements it:
+
+| Concern | File |
+|---|---|
+| Token storage | `SecretStore` — Keystore-encrypted, never in the APK |
+| Event → row mapping | `NotionEventMapper` |
+| Queue, flush, status | `NotionSyncRepository` |
+| Background upload | `work/NotionSyncWorker` + `WorkerScheduler` |
+
+**How it works.** When the user switches it on, every event is appended to a
+local queue file as it is written. A periodic worker flushes up to 40 rows per
+run to `POST https://api.notion.com/v1/pages`, honouring a Wi-Fi-only constraint
+if the user asked for one. Nothing is deleted from the queue until Notion has
+accepted it, so a flight or an outage loses nothing.
+
+**Why the user's own token.** Kavach ships no Notion credentials. A token baked
+into the APK could be extracted and used to write to the workspace, so instead
+the user creates an internal integration, shares the Kavach Diagnostics page with
+it, and pastes the token into Settings. It is stored encrypted by the Android
+Keystore — a copied preferences file is useless on another phone — and it is sent
+only to `api.notion.com`.
+
+**Consent.** Off by default. Nothing leaves the device until the toggle is on,
+and turning it off stops the worker and leaves the queue untouched.
+
+**Known limits.**
+- Notion's API creates **one page per request** and rate-limits, so a flush is
+  capped per run rather than hammering it. A large backlog drains over several
+  runs.
+- Rows that Notion rejects with a 4xx are dropped rather than retried forever;
+  the rest of the queue continues.
+- The `Device` and `Release` columns are written as fixed values for now.

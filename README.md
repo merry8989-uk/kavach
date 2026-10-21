@@ -295,6 +295,13 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
+### Added in 0.20.0 — automatic Notion sync
+
+Diagnostics events can now push themselves into the user's own Notion database
+(`Kavach Diagnostics — Events`), so the weekly review fills itself. The token is
+the user's own, stored Keystore-encrypted, and the feature is off until they
+switch it on. Queued locally first, so an outage loses nothing.
+
 ### Added in 0.14.0 — our own consent-based database
 
 The plan in `docs/CALLER-ID-PLAN.md` is now **bundled inside the app** (in

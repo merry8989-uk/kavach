@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -51,6 +52,11 @@ class SettingsRepository @Inject constructor(
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
         val autoReplyText = stringPreferencesKey("auto_reply_text")
         val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
+        val notionSyncEnabled = booleanPreferencesKey("notion_sync_enabled")
+        val notionWifiOnly = booleanPreferencesKey("notion_wifi_only")
+        val notionLastSyncAt = longPreferencesKey("notion_last_sync_at")
+        val notionSyncedTotal = longPreferencesKey("notion_synced_total")
+        val notionLastError = stringPreferencesKey("notion_last_error")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -97,6 +103,11 @@ class SettingsRepository @Inject constructor(
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
             autoReplyText = p[Keys.autoReplyText] ?: "I'll get back to you soon.",
             hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
+            notionSyncEnabled = p[Keys.notionSyncEnabled] ?: false,
+            notionWifiOnly = p[Keys.notionWifiOnly] ?: true,
+            notionLastSyncAt = p[Keys.notionLastSyncAt] ?: 0L,
+            notionSyncedTotal = p[Keys.notionSyncedTotal] ?: 0L,
+            notionLastError = p[Keys.notionLastError],
         )
     }
 
@@ -126,6 +137,13 @@ class SettingsRepository @Inject constructor(
         prefs[Keys.hiddenSmsIds] = (prefs[Keys.hiddenSmsIds] ?: emptySet()) + ids
     }
     suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
+    suspend fun setNotionSyncEnabled(value: Boolean) = context.dataStore.edit { it[Keys.notionSyncEnabled] = value }
+    suspend fun setNotionWifiOnly(value: Boolean) = context.dataStore.edit { it[Keys.notionWifiOnly] = value }
+    suspend fun setNotionLastSyncAt(value: Long) = context.dataStore.edit { it[Keys.notionLastSyncAt] = value }
+    suspend fun setNotionSyncedTotal(value: Long) = context.dataStore.edit { it[Keys.notionSyncedTotal] = value }
+    suspend fun setNotionLastError(value: String?) = context.dataStore.edit { prefs ->
+        if (value == null) prefs.remove(Keys.notionLastError) else prefs[Keys.notionLastError] = value
+    }
     suspend fun setDataSaver(value: Boolean) = context.dataStore.edit { it[Keys.dataSaver] = value }
 
     /** Persist the signed-in account. Passing blanks signs the user out. */
