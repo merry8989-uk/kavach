@@ -35,6 +35,9 @@ class SettingsRepository @Inject constructor(
     private object Keys {
         val themePack = stringPreferencesKey("theme_pack")
         val announcerMode = stringPreferencesKey("announcer_mode")
+        val announceSpamVerdict = booleanPreferencesKey("announce_spam_verdict")
+        val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
+        val onboardingDone = booleanPreferencesKey("onboarding_done")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -83,5 +86,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
     suspend fun setAnnouncerMode(value: String) = context.dataStore.edit { it[Keys.announcerMode] = value }
     suspend fun setAnnounceSpamVerdict(value: Boolean) = context.dataStore.edit { it[Keys.announceSpamVerdict] = value }
+    suspend fun setCloudAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.cloudAiEnabled] = value }
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
 }
