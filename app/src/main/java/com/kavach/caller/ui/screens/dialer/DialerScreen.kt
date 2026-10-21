@@ -455,21 +455,27 @@ fun DialerScreen(
                 )
 
                 // Tap deletes one digit; holding keeps deleting until release.
+                var backspaceHeld by remember { mutableStateOf(false) }
+                LaunchedEffect(backspaceHeld) {
+                    if (!backspaceHeld) return@LaunchedEffect
+                    while (input.isNotEmpty()) {
+                        delay(BACKSPACE_REPEAT_MS)
+                        if (input.isEmpty()) break
+                        input = input.dropLast(1)
+                    }
+                }
                 Box(
                     Modifier
                         .size(48.dp)
                         .pointerInput(Unit) {
-                            awaitEachGesture {
-                                awaitFirstDown()
-                                if (input.isNotEmpty()) input = input.dropLast(1)
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    if (event.changes.none { it.pressed }) break
-                                    delay(BACKSPACE_REPEAT_MS)
-                                    if (input.isEmpty()) break
-                                    input = input.dropLast(1)
-                                }
-                            }
+                            detectTapGestures(
+                                onPress = {
+                                    if (input.isNotEmpty()) input = input.dropLast(1)
+                                    backspaceHeld = true
+                                    tryAwaitRelease()
+                                    backspaceHeld = false
+                                },
+                            )
                         },
                     contentAlignment = Alignment.Center,
                 ) {

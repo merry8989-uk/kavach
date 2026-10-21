@@ -3,6 +3,8 @@ package com.kavach.caller.data.repo
 import com.kavach.caller.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,24 +20,19 @@ class ReplySettingsRepository @Inject constructor(
     private val settings: SettingsRepository,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+    private val listSerializer = ListSerializer(String.serializer())
 
     val replies: Flow<List<String>> = settings.settings.map { parse(it.suggestedReplies) }
 
     fun parse(raw: String): List<String> {
         if (raw.isBlank()) return DEFAULT_REPLIES
-        return runCatching {
-            json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(String.serializer()), raw)
-        }.getOrDefault(DEFAULT_REPLIES)
+        return runCatching { json.decodeFromString(listSerializer, raw) }
+            .getOrDefault(DEFAULT_REPLIES)
     }
 
     suspend fun save(replies: List<String>) {
         val cleaned = replies.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        settings.setSuggestedReplies(
-            json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(String.serializer()),
-                cleaned,
-            ),
-        )
+        settings.setSuggestedReplies(json.encodeToString(listSerializer, cleaned))
     }
 
     suspend fun addReply(text: String) = save(parse(settings.snapshot.suggestedReplies) + text)
