@@ -56,7 +56,6 @@ class DiagnosticsViewModel @Inject constructor(
     private val session: com.kavach.caller.data.diagnostics.SessionContext,
     private val notionSync: com.kavach.caller.data.notion.NotionSyncRepository,
     private val secrets: com.kavach.caller.data.notion.SecretStore,
-    private val settings: com.kavach.caller.data.settings.SettingsRepository,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
