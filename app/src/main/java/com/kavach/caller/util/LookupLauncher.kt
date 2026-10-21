@@ -77,9 +77,13 @@ object LookupLauncher {
         val pretty = PhoneUtils.pretty(rawNumber)
 
         val copied = runCatching {
-            val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
-            clipboard.setPrimaryClip(ClipData.newPlainText("phone number", pretty))
-            true
+            val clipboard = context.getSystemService(ClipboardManager::class.java)
+            if (clipboard == null) {
+                false
+            } else {
+                clipboard.setPrimaryClip(ClipData.newPlainText("phone number", pretty))
+                true
+            }
         }.getOrDefault(false)
 
         return try {

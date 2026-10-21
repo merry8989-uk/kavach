@@ -113,7 +113,7 @@ class KavachApiClient @Inject constructor(
     private suspend fun <T> get(
         url: String,
         deserializer: DeserializationStrategy<T>,
-    ): T? = execute(newRequest(url).get(), deserializer)
+    ): T? = execute(newRequest(url).get().build(), deserializer)
 
     private suspend fun <B, T> post(
         url: String,
@@ -122,7 +122,7 @@ class KavachApiClient @Inject constructor(
         deserializer: DeserializationStrategy<T>,
     ): T? {
         val payload = json.encodeToString(serializer, body)
-        return execute(newRequest(url).post(payload.toRequestBody(jsonMedia)), deserializer)
+        return execute(newRequest(url).post(payload.toRequestBody(jsonMedia)).build(), deserializer)
     }
 
     private suspend fun <T> execute(
