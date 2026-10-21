@@ -1,36 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Core telephony -->
+    <!--
+      =====================================================================
+      PERMISSIONS
+      =====================================================================
+      Declared here in full so every feature can be *offered*; requested
+      contextually at runtime, per the spec's Phase 2 ("request permissions
+      contextually, not all at first launch"). The onboarding screen walks the
+      user through the whole set, but each one is requested through the normal
+      Android flow and can be refused individually.
+
+      Deliberately NOT requested, because a third-party app can never hold them
+      and declaring them would be a lie:
+        * CAPTURE_AUDIO_OUTPUT   — signature|privileged; system apps only.
+        * MODIFY_PHONE_STATE     — signature|privileged; system apps only.
+        * READ_VOICEMAIL / WRITE_VOICEMAIL — signature|privileged.
+        * QUERY_ALL_PACKAGES     — Play-restricted; we use <queries> below.
+        * BIND_INCALL_SERVICE / BIND_SCREENING_SERVICE — held by the system,
+          and already declared as the permission *on* our services.
+      Note also: being the default dialer does NOT grant SMS, call-log or
+      recording access. Each is requested and re-checked on its own.
+      =====================================================================
+    -->
+
+    <!-- ==== Telephony / calling ==== -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <!-- Legacy outgoing-call interception. Only meaningful before Android 10. -->
+    <uses-permission
+        android:name="android.permission.PROCESS_OUTGOING_CALLS"
+        android:maxSdkVersion="28" />
 
-    <!-- Contacts / call log -->
+    <!-- ==== Contacts ==== -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+
+    <!-- ==== Call log ==== -->
+    <!-- Legitimate for a default dialer. Re-checked before every read/write. -->
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
 
-    <!-- Messaging -->
+    <!-- ==== Messaging ==== -->
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
 
-    <!-- Recording + AI audio -->
+    <!-- ==== Recording + call audio ==== -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Needed to route audio while recording (earpiece / speaker / BT). -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- ==== Foreground services ==== -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
 
-    <!-- Sync / crowd intelligence -->
+    <!-- ==== In-call experience ==== -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Full-screen incoming-call UI on Android 14+ (user-revocable). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!--
+      Optional caller-ID overlay. Special access: the user must grant it from
+      system settings, so the app treats it as optional and says so.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- ==== Network / sync ==== -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- In-app updates: hand a downloaded APK to the system installer -->
+    <!-- ==== In-app updates ==== -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!--
+      =====================================================================
+      PACKAGE VISIBILITY (Android 11+)
+      =====================================================================
+      Without this block, `getLaunchIntentForPackage` and explicit-package
+      intents return null / fail for apps Kavach does not own, so the
+      "find the caller's name" sheet would report "not installed" for apps
+      that ARE installed. Each target is named explicitly rather than using
+      QUERY_ALL_PACKAGES.
+      =====================================================================
+    -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="com.zoho.arattai" />
+        <package android:name="com.hyped.app" />
+        <!-- Browsers, for the web-search and Caller Name targets. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- Mail composers, for the email target. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <!-- The system installer, for in-app updates. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" />
+        </intent>
+    </queries>
 
     <application
         android:name=".KavachApp"
@@ -58,6 +140,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tel" />
+            </intent-filter>
+            <!-- Answering / returning to an active call from the dialer -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tel" />
             </intent-filter>
         </activity>
@@ -96,19 +185,19 @@
             </intent-filter>
         </service>
 
-        <!-- AI assistant audio capture + recording foreground service -->
+        <!-- Recording foreground service -->
         <service
             android:name=".recording.CallRecorderService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|phoneCall" />
 
         <!-- The AI assistant runtime: answer -> announce -> capture -> brief -->
         <service
             android:name=".service.CallAssistantService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|phoneCall" />
 
-        <!-- Shares the downloaded update APK with the system installer -->
+        <!-- Shares the downloaded update APK and the diagnostics log -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

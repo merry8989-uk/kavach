@@ -18,7 +18,11 @@ object WorkerScheduler {
     private const val CALL_LOG_SYNC = "kavach_call_log_sync"
     private const val CACHE_CLEANUP = "kavach_cache_cleanup"
 
-    fun schedule(context: Context, backgroundSyncEnabled: Boolean = true) {
+    fun schedule(
+        context: Context,
+        backgroundSyncEnabled: Boolean = true,
+        dataSaver: Boolean = false,
+    ) {
         val manager = WorkManager.getInstance(context)
 
         if (backgroundSyncEnabled) {
@@ -28,7 +32,12 @@ object WorkerScheduler {
             manager.enqueueUniquePeriodicWork(
                 CALL_LOG_SYNC,
                 ExistingPeriodicWorkPolicy.KEEP,
-                PeriodicWorkRequestBuilder<CallLogSyncWorker>(6, TimeUnit.HOURS)
+                // Data saver stretches the interval rather than stopping sync,
+                // so history still catches up without burning the allowance.
+                PeriodicWorkRequestBuilder<CallLogSyncWorker>(
+                    if (dataSaver) 24 else 6,
+                    TimeUnit.HOURS,
+                )
                     .setConstraints(constraints)
                     .build(),
             )

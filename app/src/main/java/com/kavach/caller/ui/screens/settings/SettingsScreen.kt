@@ -108,6 +108,22 @@ fun SettingsScreen(
         UpdateSection()
 
         Spacer(Modifier.height(16.dp))
+        SectionHeader("Data & battery")
+        SwitchRow("Offline-only mode", s.offlineOnly) { vm.setOfflineOnly(it) }
+        Text(
+            "Stops every network call Kavach would make. Online lookup, reports and update " +
+                "checks are turned off; everything on-device keeps working.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SwitchRow("Data saver", s.dataSaver) { vm.setDataSaver(it) }
+        Text(
+            "Stretches the background call-log sync from every 6 hours to once a day.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(16.dp))
         SectionHeader("Your identity")
         OutlinedButton(onClick = onOpenAccount, modifier = Modifier.fillMaxWidth()) {
             Text("My number & consent")

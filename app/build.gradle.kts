@@ -101,6 +101,11 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // Encrypted local database (spec Phase 13). SQLCipher + the support-sqlite
+    // interface Room needs to open it.
+    implementation("net.zetetic:sqlcipher-android:4.6.1")
+    implementation("androidx.sqlite:sqlite:2.4.0")
+
     // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
     // KSP needs the android compiler artifact (not the kapt 'hilt-compiler').

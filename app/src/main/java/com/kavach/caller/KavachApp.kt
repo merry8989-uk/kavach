@@ -21,6 +21,7 @@ class KavachApp : Application() {
     @Inject lateinit var callStateMonitor: CallStateMonitor
     @Inject lateinit var features: FeatureRegistry
     @Inject lateinit var diagnostics: DiagnosticsRepository
+    @Inject lateinit var settings: com.kavach.caller.data.settings.SettingsRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -29,7 +30,11 @@ class KavachApp : Application() {
         // Warm the TTS engine so announcements are instant on the first ring.
         announcer.init()
         // Periodic call-log sync (only if the feature is on) + retention cleanup.
-        WorkerScheduler.schedule(this, backgroundSyncEnabled = features.isEnabled(FeatureId.BACKGROUND_SYNC))
+        WorkerScheduler.schedule(
+            this,
+            backgroundSyncEnabled = features.isEnabled(FeatureId.BACKGROUND_SYNC),
+            dataSaver = settings.snapshot.dataSaver,
+        )
         // Fallback call tracking (no-op until READ_PHONE_STATE is granted; the
         // nav graph retries once onboarding is done).
         callStateMonitor.start()

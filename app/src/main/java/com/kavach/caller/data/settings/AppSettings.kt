@@ -31,4 +31,13 @@ data class AppSettings(
     val accountUserId: String = "",
     val accountDisplayName: String = "",
     val accountPublishName: Boolean = false,
+
+    /**
+     * F16.4 power-saving modes. Both default off, and both change real
+     * behaviour rather than only the UI:
+     *  - offline-only stops every network call the app would otherwise make;
+     *  - data saver stops the background sync and the launch-time update check.
+     */
+    val offlineOnly: Boolean = false,
+    val dataSaver: Boolean = false,
 )

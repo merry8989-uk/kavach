@@ -64,13 +64,28 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): KavachDatabase =
-        Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+        databaseKey: com.kavach.caller.data.local.DatabaseKey,
+    ): KavachDatabase {
+        // A pre-encryption install has a plaintext database that SQLCipher cannot
+        // read. Move it aside (never delete) before opening the encrypted one.
+        com.kavach.caller.data.local.DatabaseKey.moveLegacyPlaintextAside(context)
+        runCatching { System.loadLibrary("sqlcipher") }
+
+        val factory = net.zetetic.database.sqlcipher.SupportOpenHelperFactory(
+            databaseKey.passphrase(),
+        )
+        return Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
+            .openHelperFactory(factory)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             // Last-resort safety net only; the real path is the migration above.
             // Swap in SQLCipher for encrypted-at-rest storage.
+            // Safety net only. Real migrations exist; this exists so a schema
+            // slip in the field degrades to a cache refresh instead of a crash.
             .fallbackToDestructiveMigration()
             .build()
+    }
 
     @Provides fun provideContactDao(db: KavachDatabase): ContactDao = db.contactDao()
     @Provides fun provideBlockRuleDao(db: KavachDatabase): BlockRuleDao = db.blockRuleDao()

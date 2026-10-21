@@ -44,11 +44,15 @@ class KavachApiClient @Inject constructor(
 
     private val jsonMedia = "application/json".toMediaType()
 
+    /** Offline-only mode means we never touch the network, whatever else is set. */
     val isConfigured: Boolean
-        get() = settings.snapshot.backendBaseUrl.isNotBlank()
+        get() = settings.snapshot.backendBaseUrl.isNotBlank() && !settings.snapshot.offlineOnly
 
-    private fun baseUrl(): String? =
-        settings.snapshot.backendBaseUrl.trim().trimEnd('/').takeIf { it.isNotBlank() }
+    private fun baseUrl(): String? {
+        // Offline-only short-circuits here, so no endpoint can bypass it.
+        if (settings.snapshot.offlineOnly) return null
+        return settings.snapshot.backendBaseUrl.trim().trimEnd('/').takeIf { it.isNotBlank() }
+    }
 
     // ---------------- endpoints ----------------
 

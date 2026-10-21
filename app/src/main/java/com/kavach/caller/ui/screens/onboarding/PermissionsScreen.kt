@@ -1,6 +1,7 @@
 package com.kavach.caller.ui.screens.onboarding
 
 import android.Manifest
+import android.app.NotificationManager
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
@@ -74,6 +75,21 @@ private fun permissionGroups(): List<PermGroup> = buildList {
                     add(Manifest.permission.READ_PHONE_NUMBERS)
                     add(Manifest.permission.ANSWER_PHONE_CALLS)
                 }
+                // Only meaningful before Android 10; harmless to skip on newer.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    add(Manifest.permission.PROCESS_OUTGOING_CALLS)
+                }
+            },
+        )
+    )
+    add(
+        PermGroup(
+            "In-call screen",
+            "Keep the screen awake and show the call UI over the lock screen",
+            buildList {
+                add(Manifest.permission.WAKE_LOCK)
+                add(Manifest.permission.DISABLE_KEYGUARD)
+                add(Manifest.permission.VIBRATE)
             },
         )
     )
@@ -90,9 +106,13 @@ private fun permissionGroups(): List<PermGroup> = buildList {
     )
     add(
         PermGroup(
-            "Microphone",
+            "Microphone & call audio",
             "Call recording and the AI assistant",
-            listOf(Manifest.permission.RECORD_AUDIO),
+            listOf(
+                Manifest.permission.RECORD_AUDIO,
+                // Needed to route audio to the right output while recording.
+                Manifest.permission.MODIFY_AUDIO_SETTINGS,
+            ),
         )
     )
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -130,6 +150,52 @@ private fun allPermissions(): Array<String> =
     permissionGroups().flatMap { it.permissions }.toTypedArray()
 
 /**
+ * Access the OS grants from a system settings page rather than a dialog.
+ * Kavach treats every one of these as optional and says so.
+ */
+private data class SpecialAccess(
+    val title: String,
+    val rationale: String,
+    val granted: (Context) -> Boolean,
+    val intent: (Context) -> Intent?,
+)
+
+private fun specialAccessItems(): List<SpecialAccess> = buildList {
+    add(
+        SpecialAccess(
+            title = "Show over other apps (optional)",
+            rationale = "Puts the caller's name on screen while the phone rings. Without it, " +
+                "the name still appears in the call notification.",
+            granted = { Settings.canDrawOverlays(it) },
+            intent = { context ->
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.fromParts("package", context.packageName, null),
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    )
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        add(
+            SpecialAccess(
+                title = "Full-screen call alerts",
+                rationale = "Android 14 and newer require this to show the in-call screen " +
+                    "instead of a heads-up notification.",
+                granted = { context ->
+                    val manager = context.getSystemService(NotificationManager::class.java)
+                    manager?.canUseFullScreenIntent() ?: false
+                },
+                intent = {
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                        .setData(Uri.fromParts("package", it.packageName, null))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+        )
+    }
+}
+
+/**
  * First-run setup. Asks for every permission Kavach needs plus the system roles
  * it depends on: **default dialer** and **caller ID / call screening** (the
  * "call identity" role), with the SMS role as optional.
@@ -146,6 +212,7 @@ fun PermissionsScreen(
     val context = LocalContext.current
     val groups = remember { permissionGroups() }
     val roles = remember { roleItems() }
+    val specialAccess = remember { specialAccessItems() }
 
     var permStatus by remember { mutableStateOf(List(groups.size) { false }) }
     var roleStatus by remember { mutableStateOf(List(roles.size) { false }) }
@@ -265,6 +332,18 @@ fun PermissionsScreen(
                     "dialer from the system Settings app.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+        SectionLabel("Special access (optional)")
+        specialAccess.forEach { item ->
+            StatusRow(
+                title = item.title,
+                subtitle = item.rationale,
+                ok = item.granted(context),
+                actionLabel = "Open",
+                onAction = { item.intent(context)?.let { runCatching { context.startActivity(it) } } },
             )
         }
 
