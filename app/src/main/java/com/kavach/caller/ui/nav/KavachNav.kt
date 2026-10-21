@@ -99,8 +99,11 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
     val updateVm: UpdateViewModel = hiltViewModel()
     val updateState by updateVm.state.collectAsState()
 
-    // Optional launch-time update check (toggle in Settings).
     LaunchedEffect(Unit) {
+        // Past onboarding now, so the phone permission is granted — start the
+        // fallback call monitor.
+        settingsVm.startCallMonitoring()
+        // Optional launch-time update check (toggle in Settings).
         if (appSettings.autoCheckUpdates) {
             updateVm.check(BuildConfig.VERSION_NAME)
         }

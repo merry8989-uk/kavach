@@ -22,6 +22,8 @@ data class CallLogEntity(
     val durationSec: Long = 0,
     val timestamp: Long,
     val simSlot: Int = -1,
+    /** PhoneAccountHandle id of the SIM the call used — maps to a SIM label. */
+    val phoneAccountId: String? = null,
     val spamScore: Int = 0,
     val aiAnswered: Boolean = false,
     val recordingId: Long? = null,

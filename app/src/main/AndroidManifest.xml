@@ -62,6 +62,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Full-screen in-call experience (shown by the InCallService) -->
+        <activity
+            android:name=".service.InCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Kavach" />
+
         <!-- Default-dialer support: required for the Default Dialer role -->
         <service
             android:name=".service.KavachInCallService"

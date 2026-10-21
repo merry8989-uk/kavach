@@ -2,6 +2,7 @@ package com.kavach.caller
 
 import android.app.Application
 import com.kavach.caller.service.Announcer
+import com.kavach.caller.service.CallStateMonitor
 import com.kavach.caller.work.WorkerScheduler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -10,6 +11,7 @@ import javax.inject.Inject
 class KavachApp : Application() {
 
     @Inject lateinit var announcer: Announcer
+    @Inject lateinit var callStateMonitor: CallStateMonitor
 
     override fun onCreate() {
         super.onCreate()
@@ -17,5 +19,8 @@ class KavachApp : Application() {
         announcer.init()
         // Periodic call-log sync + local retention cleanup.
         WorkerScheduler.schedule(this)
+        // Fallback call tracking (no-op until READ_PHONE_STATE is granted; the
+        // nav graph retries once onboarding is done).
+        callStateMonitor.start()
     }
 }

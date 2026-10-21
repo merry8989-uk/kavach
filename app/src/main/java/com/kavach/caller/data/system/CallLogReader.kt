@@ -35,6 +35,8 @@ class CallLogReader @Inject constructor(
                 val typeIdx = c.getColumnIndexOrThrow(CallLog.Calls.TYPE)
                 val durIdx = c.getColumnIndexOrThrow(CallLog.Calls.DURATION)
                 val dateIdx = c.getColumnIndexOrThrow(CallLog.Calls.DATE)
+                // Not every device exposes PHONE_ACCOUNT_ID; -1 means absent.
+                val accountIdx = c.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_ID)
                 var count = 0
                 while (c.moveToNext() && count < limit) {
                     out += CallLogEntity(
@@ -43,6 +45,7 @@ class CallLogReader @Inject constructor(
                         type = c.getInt(typeIdx),
                         durationSec = c.getLong(durIdx),
                         timestamp = c.getLong(dateIdx),
+                        phoneAccountId = if (accountIdx >= 0) c.getString(accountIdx) else null,
                     )
                     count++
                 }

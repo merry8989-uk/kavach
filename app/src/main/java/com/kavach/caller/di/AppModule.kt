@@ -41,11 +41,18 @@ object AppModule {
         }
     }
 
+    /** v2 -> v3: record which SIM account each call used. */
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE call_log ADD COLUMN phoneAccountId TEXT")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KavachDatabase =
         Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             // Last-resort safety net only; the real path is the migration above.
             // Swap in SQLCipher for encrypted-at-rest storage.
             .fallbackToDestructiveMigration()

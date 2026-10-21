@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
+import com.kavach.caller.service.CallStateMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
@@ -14,7 +15,14 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
+    private val callStateMonitor: CallStateMonitor,
 ) : ViewModel() {
+
+    /**
+     * Start the fallback call monitor. Called once the app is past onboarding,
+     * so READ_PHONE_STATE has actually been granted by then.
+     */
+    fun startCallMonitoring() = callStateMonitor.start()
 
     val settings = repo.settings.stateIn(
         viewModelScope,
