@@ -23,6 +23,13 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // SQLCipher ships native libraries per architecture. Shipping all four
+        // took the APK from ~1.9 MB to ~23 MB, almost all of it x86/x86_64 code
+        // no real phone uses. Keep the two ARM ABIs that actual devices need.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     // Release signing is injected by CI from GitHub Secrets.

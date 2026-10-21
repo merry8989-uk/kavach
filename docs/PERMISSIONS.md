@@ -1,76 +1,144 @@
-# Kavach — Permissions & Roles
+# Permissions and special access
 
-## 1. Permission matrix
+Every permission Kavach declares, why it exists, and what happens if it is
+refused. Nothing here is requested "just in case": each entry names the feature
+that stops working without it.
 
-| Permission | API | Feature it enables | If denied |
-|---|---|---|---|
-| READ_CONTACTS | 23 | Caller ID, contacts list, T9 | Contacts screen empty; caller shows as "Unknown caller" |
-| WRITE_CONTACTS | 23 | Add / edit / delete contacts | Kavach keeps its own copy; device store not written |
-| READ_CALL_LOG | 23 | Call history | Call log empty; sync does nothing |
-| WRITE_CALL_LOG | 23 | (reserved) | no effect |
-| READ_PHONE_STATE | 23 | Screening, SIM list, dual-SIM | Screening role unusable; SIM picker hidden |
-| READ_PHONE_NUMBERS | 26 | Own-number display | hidden |
-| CALL_PHONE | 23 | Direct call placement | falls back to `ACTION_DIAL` |
-| ANSWER_PHONE_CALLS | 26 | Assistant answering | assistant cannot auto-answer |
-| MANAGE_OWN_CALLS | 26 | Self-managed calls (declared) | not currently used |
-| READ_SMS / RECEIVE_SMS | 23 | Message threads | Messages screen empty |
-| SEND_SMS | 23 | Send a message | send silently no-ops |
-| RECORD_AUDIO | 23 | Recording + assistant capture | recording/assistant unavailable |
-| POST_NOTIFICATIONS | 33 | Call briefs, update banner | notifications suppressed |
-| REQUEST_INSTALL_PACKAGES | 23 | In-app update install | download works; install must be manual |
-| INTERNET / ACCESS_NETWORK_STATE | 23 | Update check, future cloud | offline features still work |
+**Request policy.** Everything is *declared* in the manifest so a feature can be
+offered, but requests happen through the normal Android flow and can be refused
+individually. Onboarding walks the whole set in order; every feature also
+re-checks its own status before it runs, so revoking a permission later degrades
+that feature instead of crashing the app.
 
-## 2. Roles
+---
 
-| Role | API | Why | Fallback when not held |
-|---|---|---|---|
-| `ROLE_DIALER` | 29 | Default dialer: in-call UI, reliable FGS start for capture | `TelecomManager.acceptRingingCall()` (less reliable); mic-FGS start may be blocked on Android 12+ |
-| `ROLE_CALL_SCREENING` | 29 | Identify/block before the phone rings | No screening at all — the core protection is off |
-| `ROLE_SMS` | 29 | Read/reply/filter messages | SMS permissions can still be granted directly, but default-SMS features don't apply |
+## Declared permissions
 
-Below API 29 the role APIs do not exist; the setup screen says so and points the user
-at system Settings.
+### Telephony and calling
 
-## 3. Request policy — and a deliberate deviation
+| Permission | Needed for | If refused |
+|---|---|---|
+| `READ_PHONE_STATE` | Knowing a call is ringing, and which SIM it is on | Caller ID and in-call state stop working |
+| `READ_PHONE_NUMBERS` | Reading the number of the active SIM | SIM picker shows generic labels |
+| `CALL_PHONE` | Placing a call from the dialer | You can still dial; the OS asks each time |
+| `ANSWER_PHONE_CALLS` | Answering/hanging up from the in-call screen | Answer via the system UI |
+| `MANAGE_OWN_CALLS` | Running our own call UI as a self-managed connection | Falls back to the system call UI |
+| `PROCESS_OUTGOING_CALLS` *(maxSdk 28)* | Legacy outgoing-call interception | Nothing on Android 10+; it is not requested there |
 
-The master specification says: *"Request permissions contextually, not all at first
-launch."*
+### Contacts and call log
 
-**Kavach currently asks for everything on first launch** (F14), because that was the
-explicit product instruction given for this build. This is a real deviation and is
-flagged here rather than hidden.
+| Permission | Needed for | If refused |
+|---|---|---|
+| `READ_CONTACTS` | Naming callers from your own address book | Callers show as numbers only |
+| `WRITE_CONTACTS` | Saving a contact from the dialer | The add/edit buttons explain the refusal |
+| `READ_CALL_LOG` | Importing call history | History tab stays empty (manual entry still works) |
+| `WRITE_CALL_LOG` | Writing a call back to the system log | History lives only inside Kavach |
 
-Reconciling options, in order of preference:
-1. **Recommended:** keep the first-run screen but make the big "Grant all" button
-   optional, and additionally request each permission contextually the first time its
-   feature is opened. Belt and braces.
-2. Request only READ_CONTACTS + READ_PHONE_STATE at first run (enough for caller ID),
-   and defer call log, SMS, microphone and notifications to first use.
-3. Keep as-is (all at first launch).
+`READ_CALL_LOG` is legitimate for a default dialer, and the app is eligible for
+that role. Play still requires the call-log declaration form for distribution.
 
-Whichever is chosen, the following already hold:
+### Messaging
 
-- Every permission is explained in plain language before it is requested.
-- Denial is handled without crashing — dependent features degrade to honest empty
-  states rather than fake data.
-- `Open app settings` is offered for permanently-denied permissions.
-- Role status is re-checked on every visit to the setup screen (the screen polls),
-  and the nav gate re-evaluates on each launch.
+| Permission | Needed for | If refused |
+|---|---|---|
+| `READ_SMS` | Threads and SMS spam filtering | Messages tab is hidden |
+| `SEND_SMS` | Replying from a thread | Reply is unavailable |
+| `RECEIVE_SMS` | Intercepting new messages | New messages only appear in the system app |
 
-## 4. Rules Kavach follows
+Kavach does **not** request `ROLE_SMS`. It declares no SMS intent filters, so
+Android would never grant it; offering a button that cannot work would be
+dishonest UI.
 
-- Never bypass Android permission checks.
-- Never assume accessibility access grants call or recording access.
-- Never assume the default-dialer role grants unrestricted SMS, call-log or
-  recording access.
-- Re-check role/permission state on resume and before dependent operations
-  (the setup screen polls; the nav gate re-checks each launch).
-- Every permission-dependent feature reflects its true authorisation state.
+### Recording and call audio
 
-## 5. Where permissions are requested
+| Permission | Needed for | If refused |
+|---|---|---|
+| `RECORD_AUDIO` | Call recording and the AI assistant | Both features report themselves unavailable |
+| `MODIFY_AUDIO_SETTINGS` | Routing audio to earpiece/speaker/Bluetooth while recording | Recording may capture silence on some devices |
 
-| Location | What |
+**Honest scope:** Android does not let an ordinary app inject audio into a
+cellular uplink. Two-way recording therefore depends on the device and OEM, and
+Kavach says so rather than claiming it always works. Nothing is marked verified
+until it has been tested on the actual phone.
+
+### Foreground services
+
+| Permission | Needed for |
 |---|---|
-| `ui/screens/onboarding/PermissionsScreen.kt` | First-run: all groups + 3 roles, live status, next-step button |
-| `ui/nav/KavachNav.kt` | Gate: re-shows setup if `onboardingDone` is false or core permissions are missing |
-| Runtime guards | `DialerScreen` (CALL_PHONE), `MessagesScreen` (SEND_SMS), `activeSims` (READ_PHONE_STATE), `UpdateInstaller` (install intent) |
+| `FOREGROUND_SERVICE` | Keeping the recorder/assistant alive during a call |
+| `FOREGROUND_SERVICE_MICROPHONE` | The microphone type for those services |
+| `FOREGROUND_SERVICE_PHONE_CALL` | The phone-call type, so the OS treats them as call work |
+
+### In-call experience
+
+| Permission | Needed for | If refused |
+|---|---|---|
+| `POST_NOTIFICATIONS` | Call briefs, missed-call reminders, update alerts | Features still work; nothing is shown |
+| `USE_FULL_SCREEN_INTENT` | Full-screen in-call UI on Android 14+ | Falls back to a heads-up notification |
+| `WAKE_LOCK` | Keeping the screen awake during a call | Screen may sleep mid-call |
+| `DISABLE_KEYGUARD` | Showing the call UI over the lock screen | You unlock first |
+| `VIBRATE` | Ring vibration | No vibration |
+| `SYSTEM_ALERT_WINDOW` *(optional)* | The caller-name overlay while ringing | The name still appears in the notification |
+
+### Network and updates
+
+| Permission | Needed for |
+|---|---|
+| `INTERNET`, `ACCESS_NETWORK_STATE` | Online lookup, reports, update checks |
+| `REQUEST_INSTALL_PACKAGES` | Handing a downloaded update APK to the system installer |
+
+---
+
+## Deliberately NOT requested
+
+Declaring these would be a lie, because a normal app can never hold them:
+
+| Permission | Why not |
+|---|---|
+| `CAPTURE_AUDIO_OUTPUT` | `signature\|privileged` — system apps only |
+| `MODIFY_PHONE_STATE` | `signature\|privileged` — system apps only |
+| `READ_VOICEMAIL`, `WRITE_VOICEMAIL` | `signature\|privileged` |
+| `QUERY_ALL_PACKAGES` | Play-restricted; we use a scoped `<queries>` block instead |
+| `BIND_INCALL_SERVICE`, `BIND_SCREENING_SERVICE` | Held by the system and already declared *on* our services |
+
+---
+
+## Package visibility (`<queries>`)
+
+Android 11+ hides other installed apps unless they are declared. Kavach names
+the messaging apps it can hand a number to, plus the browser, mail and installer
+intents it needs:
+
+`com.whatsapp`, `com.whatsapp.w4b`, `org.telegram.messenger`,
+`com.zoho.arattai`, `com.hyped.app`, and `VIEW https`, `SENDTO mailto`,
+`VIEW content`.
+
+Without this block the lookup sheet would report "not installed" for apps that
+*are* installed, and the WhatsApp Business entry could not launch its package.
+
+---
+
+## Roles
+
+| Role | Purpose | If not held |
+|---|---|---|
+| `ROLE_DIALER` | Replaces the stock dialer: in-call screen, dual-SIM, recording | Kavach still identifies callers |
+| `ROLE_CALL_SCREENING` | Blocks and screens calls before they ring | Blocking falls back to the dialer |
+
+---
+
+## Local data protection
+
+The Room database is opened through **SQLCipher**. The passphrase is a random
+32-byte secret, encrypted with a non-exportable AES-256-GCM key in the Android
+Keystore; the ciphertext lives in private preferences. It is never on disk in
+the clear.
+
+Not yet covered: recording **audio files** are written to app-private storage but
+are not individually encrypted (`EncryptedFile`), and the backend URL/token and
+account JWT live in DataStore. Both are tracked as remaining work.
+
+---
+
+*Engineering guidance, not legal advice. Play policy declarations and DPDP
+obligations should be reviewed before public distribution.*
