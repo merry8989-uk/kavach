@@ -32,6 +32,8 @@ brief.
 | Area | Highlights |
 |---|---|
 | **Dialer** | Stock-dialer layout: identity card, create/add contact, video call, send message, keypad with long-press shortcuts, dual-SIM, Call pill |
+| **In-call screen** | Full-screen: name, number, region, direction, live duration, SIM label, keypad/mute/speaker/hold/record/Bluetooth, answer/decline/end |
+| **Call notification** | Ongoing notification: who, saved-or-not, SIM, direction, self-updating duration |
 | **Contacts** | Rich profiles — add / edit / delete, multiple numbers, company, notes, tags, photos |
 | **Call log** | System log merge, filters, spam scores, AI-answered badges |
 | **Blocklist** | Exact / prefix / wildcard / regex / range / country rules, private & non-contact rules |
@@ -199,6 +201,24 @@ Still integration points (marked in code): the cloud ASR/LLM backend
 - **Send a message** opens the system SMS composer for that number (works without Kavach holding the SMS role).
 - **Video call** shows an honest unavailable state explaining it needs the default-dialer role and carrier video support — it does not pretend to work.
 - Added `SearchContactsByT9UseCase` and a `lastCallFor` query so the identity card shows real history.
+
+### Added in 0.9.0 — Phase 4 caller UI
+
+Before this, Kavach showed **nothing** during a call. Now:
+
+- **Full-screen in-call screen** (`InCallActivity` + `InCallScreen`), driven by `KavachInCallService`:
+  - "Calling via <SIM>" / "Incoming call via <SIM>" header;
+  - the **contact name** when known, the formatted number, and the **region**;
+  - a **direction marker** (incoming/outgoing) and a **live duration**;
+  - a "Saved contact" / "Not in your contacts" chip;
+  - controls: Keypad (real DTMF), Mute, Speaker, and a More menu with **working** Hold, Record and Bluetooth;
+  - Answer/Decline while ringing, End call once connected.
+- **Ongoing call notification** showing the name/number, whether they're saved, the **SIM**, the **direction**, and a **self-updating duration** (platform chronometer).
+- New `CallSession` domain model + `CallSessionManager` so the screen and the notification can never disagree.
+- **Fallback `CallStateMonitor`** for when Kavach is *not* the default dialer: it derives the number, direction and SIM from the system call log, and stands down automatically while the accurate InCallService path is active.
+- **SIM attribution in the call log** — `phoneAccountId` is now read and mapped to a SIM label (DB migration v2→v3).
+
+Honest limits: the full in-call UI needs the **default-dialer role**; without it the fallback notification is reduced (the first moments of a ringing call may not be attributable, since the call-log row is written as the call starts). Video calling remains unimplemented and says so.
 
 ## Legal & ethics
 

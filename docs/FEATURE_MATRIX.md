@@ -13,8 +13,10 @@ Backend = whether a server is needed. Privacy = data touched.
 | F1.1 | Dialer keypad | IMPLEMENTED | 24 | CALL_PHONE (for ACTION_CALL) | — | none | — |
 | F1.3 | Call placement | IMPLEMENTED | 24 | CALL_PHONE | — | number | — |
 | F1.4 | Dual-SIM picker | IMPLEMENTED | 24 | READ_PHONE_STATE | — | SIM metadata | — |
-| F1.5 | In-call screen | NOT_STARTED | 24 | Default-dialer role | — | none | — |
+| F1.5 | In-call screen | IMPLEMENTED | 24 | Default-dialer role | — | number, name | — |
+| F1.9 | Ongoing call notification | IMPLEMENTED | 24 | POST_NOTIFICATIONS, READ_PHONE_STATE | — | number, name, SIM | — |
 | F1.6 | Speed dial / favourites | NOT_STARTED | 24 | READ_CONTACTS | — | contacts | — |
+| F1.10 | Call state fallback monitor | IMPLEMENTED | 24 | READ_PHONE_STATE, READ_CALL_LOG | — | call metadata | — |
 | F1.7 | T9 search | IMPLEMENTED | 24 | READ_CONTACTS | — | contacts | — |
 | F1.8 | Caller-ID preview | IMPLEMENTED | 24 | READ_CONTACTS | — | number | — |
 | F2.1 | Read device contacts | IMPLEMENTED | 24 | READ_CONTACTS | — | full address book (local only) | — |
