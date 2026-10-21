@@ -5,6 +5,7 @@ import android.telecom.CallScreeningService
 import android.telecom.CallScreeningService.CallResponse
 import com.kavach.caller.ai.AssistantOrchestrator
 import com.kavach.caller.data.local.entity.BlockAction
+import com.kavach.caller.data.diagnostics.DiagnosticsRepository
 import com.kavach.caller.domain.feature.FeatureId
 import com.kavach.caller.domain.feature.FeatureRegistry
 import com.kavach.caller.domain.usecase.DecideCallActionUseCase
@@ -30,6 +31,7 @@ class KavachScreeningService : CallScreeningService() {
     @Inject lateinit var announcer: Announcer
     @Inject lateinit var assistant: AssistantOrchestrator
     @Inject lateinit var features: FeatureRegistry
+    @Inject lateinit var diagnostics: DiagnosticsRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -44,6 +46,12 @@ class KavachScreeningService : CallScreeningService() {
 
         scope.launch {
             val decision = decideCallAction(raw)
+            // Masked number only — the diagnostics log never stores full numbers.
+            diagnostics.info(
+                "Screening",
+                "${decision.action} ${DiagnosticsRepository.mask(raw)}" +
+                    (decision.rule?.let { " rule=${it.type}" } ?: " no-rule"),
+            )
 
             val response = when (decision.action) {
                 BlockAction.BLOCK -> CallResponse.Builder()

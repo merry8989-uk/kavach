@@ -3,6 +3,7 @@ package com.kavach.caller.ui.screens.updates
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kavach.caller.data.diagnostics.DiagnosticsRepository
 import com.kavach.caller.data.update.UpdateInfo
 import com.kavach.caller.data.update.UpdateInstaller
 import com.kavach.caller.domain.usecase.CheckForUpdatesUseCase
@@ -15,6 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UpdateViewModel @Inject constructor(
+    private val diagnostics: DiagnosticsRepository,
     private val checkForUpdates: CheckForUpdatesUseCase,
     private val installer: UpdateInstaller,
 ) : ViewModel() {
@@ -33,7 +35,9 @@ class UpdateViewModel @Inject constructor(
 
     fun check(currentVersion: String) = viewModelScope.launch {
         _state.value = State.Checking
-        _state.value = when (val result = checkForUpdates(currentVersion)) {
+        val result = checkForUpdates(currentVersion)
+        diagnostics.info("Updates", "check from $currentVersion -> ${result::class.simpleName}")
+        _state.value = when (result) {
             is CheckForUpdatesUseCase.Result.Available -> State.Available(result.info)
             CheckForUpdatesUseCase.Result.UpToDate -> State.UpToDate(currentVersion)
             CheckForUpdatesUseCase.Result.Unreachable ->

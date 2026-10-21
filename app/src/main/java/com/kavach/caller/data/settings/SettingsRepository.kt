@@ -38,6 +38,7 @@ class SettingsRepository @Inject constructor(
         val announceSpamVerdict = booleanPreferencesKey("announce_spam_verdict")
         val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val diagnosticsEnabled = booleanPreferencesKey("diagnostics_enabled")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -71,6 +72,7 @@ class SettingsRepository @Inject constructor(
             announceSpamVerdict = p[Keys.announceSpamVerdict] ?: true,
             cloudAiEnabled = p[Keys.cloudAiEnabled] ?: false,
             onboardingDone = p[Keys.onboardingDone] ?: false,
+            diagnosticsEnabled = p[Keys.diagnosticsEnabled] ?: true,
         )
     }
 
@@ -88,4 +90,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setAnnounceSpamVerdict(value: Boolean) = context.dataStore.edit { it[Keys.announceSpamVerdict] = value }
     suspend fun setCloudAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.cloudAiEnabled] = value }
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
+    suspend fun setDiagnosticsEnabled(value: Boolean) = context.dataStore.edit { it[Keys.diagnosticsEnabled] = value }
 }

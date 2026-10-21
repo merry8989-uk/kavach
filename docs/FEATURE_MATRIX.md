@@ -96,6 +96,8 @@ Backend = whether a server is needed. Privacy = data touched.
 | F16.2 | Per-module enable/disable with real effect | IMPLEMENTED | 24 | — | — | — | — |
 | F16.3 | Runtime capability check + honest failure reason | IMPLEMENTED | 24 | varies per module | varies | — | — |
 | F16.4 | Battery-saver / data-saver / offline-only modes | NOT_STARTED | 24 | — | — | — | — |
+| F16.5 | Diagnostics log (opt-in, masked, shareable) | IMPLEMENTED | 24 | — | — | masked numbers only | — |
+| F9.8 | Lookup elsewhere (WhatsApp/TG/Arattai/Hyped/mail/Google/Truecaller) | IMPLEMENTED | 24 | — | — | number only, leaves the device via the chosen app | — |
 | F14.1 | First-run permission groups | IMPLEMENTED | 24 | (all) | — | — | — |
 | F14.2 | Role requests in setup | IMPLEMENTED | 29 | — | — | — | — |
 | F14.4 | Persisted setup completion | IMPLEMENTED | 24 | — | — | — | — |

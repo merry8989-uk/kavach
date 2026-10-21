@@ -47,4 +47,5 @@ class SettingsViewModel @Inject constructor(
     fun setAnnounceSpamVerdict(value: Boolean) = viewModelScope.launch { repo.setAnnounceSpamVerdict(value) }
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
     fun setOnboardingDone(value: Boolean) = viewModelScope.launch { repo.setOnboardingDone(value) }
+    fun setDiagnosticsEnabled(value: Boolean) = viewModelScope.launch { repo.setDiagnosticsEnabled(value) }
 }

@@ -10,4 +10,6 @@ data class AppSettings(
     val announceSpamVerdict: Boolean = true,
     val cloudAiEnabled: Boolean = false,
     val onboardingDone: Boolean = false,
+    /** Opt-in local diagnostics log. Nothing is ever sent without the user sharing it. */
+    val diagnosticsEnabled: Boolean = true,
 )

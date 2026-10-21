@@ -3,6 +3,7 @@ package com.kavach.caller.ui.screens.calllog
 import android.provider.CallLog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,6 +29,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.caller.data.local.entity.CallLogEntity
 import com.kavach.caller.data.repo.CallLogRepository
+import com.kavach.caller.ui.components.CallerLookupDialog
 import com.kavach.caller.ui.components.SectionHeader
 import com.kavach.caller.ui.screens.contacts.Avatar
 import com.kavach.caller.ui.screens.contacts.EmptyState
@@ -86,6 +89,7 @@ fun CallLogScreen(
     val all by vm.entries.collectAsState()
     val matching = vm.matching(all)
     val filtered = matching.take(vm.visibleCount)
+    var lookupNumber by remember { mutableStateOf<String?>(null) }
 
     // Group into Today / Yesterday / Older so a long history stays readable.
     val grouped: Map<String, List<CallLogEntity>> = filtered.groupBy { dayBucket(it.timestamp) }
@@ -130,7 +134,7 @@ fun CallLogScreen(
                 grouped.forEach { (bucket, items) ->
                     item(key = "header-$bucket") { SectionHeader(bucket) }
                     items(items, key = { it.id }) { entry ->
-                        CallRow(entry)
+                        CallRow(entry, onLongPress = { lookupNumber = entry.number })
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
                         )
@@ -147,10 +151,14 @@ fun CallLogScreen(
             }
         }
     }
+
+    lookupNumber?.let { number ->
+        CallerLookupDialog(number = number, onDismiss = { lookupNumber = null })
+    }
 }
 
 @Composable
-private fun CallRow(entry: CallLogEntity) {
+private fun CallRow(entry: CallLogEntity, onLongPress: () -> Unit) {
     val (icon, tint) = when (entry.type) {
         CallLog.Calls.MISSED_TYPE -> Icons.Filled.CallMissed to MaterialTheme.colorScheme.error
         CallLog.Calls.OUTGOING_TYPE -> Icons.Filled.CallMade to MaterialTheme.colorScheme.primary
@@ -159,7 +167,12 @@ private fun CallRow(entry: CallLogEntity) {
     val label = entry.name ?: PhoneUtils.pretty(entry.number)
 
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier
+            .fillMaxWidth()
+            .pointerInput(entry.id) {
+                detectTapGestures(onLongPress = { onLongPress() })
+            }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Avatar(

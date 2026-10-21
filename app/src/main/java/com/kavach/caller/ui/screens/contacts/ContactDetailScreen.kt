@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import androidx.lifecycle.viewModelScope
 import com.kavach.caller.data.local.entity.CallLogEntity
 import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.repo.CallLogRepository
+import com.kavach.caller.ui.components.CallerLookupDialog
 import com.kavach.caller.ui.components.FavouriteStar
 import com.kavach.caller.ui.components.InfoRow
 import com.kavach.caller.ui.components.KavachCard
@@ -82,6 +84,7 @@ fun ContactDetailScreen(
     val context = LocalContext.current
     val recent by vm.recent.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
+    var lookupNumber by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(contact.id) { vm.load(contact) }
 
@@ -159,6 +162,12 @@ fun ContactDetailScreen(
                     enabled = primaryNumber != null,
                     modifier = Modifier.weight(1f),
                 ) { primaryNumber?.let { sendMessage(context, it) } }
+                ActionButton(
+                    icon = Icons.Filled.Search,
+                    label = "Look up",
+                    enabled = primaryNumber != null,
+                    modifier = Modifier.weight(1f),
+                ) { primaryNumber?.let { lookupNumber = it } }
             }
 
             // ---- numbers ----
@@ -234,6 +243,10 @@ fun ContactDetailScreen(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    lookupNumber?.let { number ->
+        CallerLookupDialog(number = number, onDismiss = { lookupNumber = null })
     }
 
     if (confirmDelete) {

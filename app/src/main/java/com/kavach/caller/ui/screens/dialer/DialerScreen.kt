@@ -61,6 +61,7 @@ import com.kavach.caller.domain.model.CallerIdentity
 import com.kavach.caller.domain.usecase.IdentifyCallerUseCase
 import com.kavach.caller.domain.usecase.SaveContactUseCase
 import com.kavach.caller.domain.usecase.SearchContactsByT9UseCase
+import com.kavach.caller.ui.components.CallerLookupDialog
 import com.kavach.caller.ui.screens.contacts.ContactEditScreen
 import com.kavach.caller.ui.screens.contacts.MonogramAvatar
 import com.kavach.caller.util.PhoneUtils
@@ -155,6 +156,7 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
     var showAddPicker by remember { mutableStateOf(false) }
     var showVideoInfo by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    var lookupNumber by remember { mutableStateOf<String?>(null) }
     val sims = remember { activeSims(context) }
     var selectedSim by rememberSaveable { mutableStateOf(0) }
 
@@ -345,6 +347,15 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
                             text = { Text("Add wait") },
                             onClick = { menuOpen = false; input += ";" },
                         )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Find caller's name") },
+                            enabled = input.isNotBlank(),
+                            onClick = {
+                                menuOpen = false
+                                if (input.isNotBlank()) lookupNumber = input
+                            },
+                        )
                     }
                 }
 
@@ -488,6 +499,10 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
                 TextButton(onClick = { assignSlot = null }) { Text("Cancel") }
             },
         )
+    }
+
+    lookupNumber?.let { number ->
+        CallerLookupDialog(number = number, onDismiss = { lookupNumber = null })
     }
 
     if (showVideoInfo) {

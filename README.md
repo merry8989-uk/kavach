@@ -47,6 +47,8 @@ brief.
 | **Onboarding** | Runtime permissions + Call screening / Default dialer / Default SMS roles |
 | **Updates** | In-app check against GitHub Releases, download + install, optional launch check |
 | **Features screen** | Central registry: per-module on/off, live capability status, honest reasons |
+| **Caller lookup** | Send a number to WhatsApp, WhatsApp Business, Telegram, Arattai, Hyped, mail, Google or Truecaller's web search |
+| **Diagnostics** | Opt-in local technical log with masked numbers, readable and shareable from Settings |
 
 > **Verification status: nothing here is device-verified.** The project compiles and
 > passes CI, but it has never been run on a phone or emulator. See
@@ -244,6 +246,31 @@ Honest limits: the full in-call UI needs the **default-dialer role**; without it
   the READ_SMS permission instead.
 - Added a unit test asserting the registry's structure: no self-dependencies, no cycles,
   essential modules default to on, and every feature is labelled.
+
+### Added in 0.12.0 — caller lookup + diagnostics
+
+**"Find the caller's name"** — a lookup sheet reachable from the dialer (overflow menu),
+the call log (long-press a row) and the contact detail screen. It hands the number to:
+WhatsApp, WhatsApp Business, Telegram, Arattai, Hyped, Email, Google search, and
+**Truecaller's public web search** (country path derived from the calling code).
+
+- WhatsApp / Telegram / mail / Google / Truecaller use documented public links, so they
+  work without Kavach knowing anything about the target app.
+- Arattai and Hyped have no documented public deep link, so they are handled as "open if
+  installed, else show the store listing". **Their package names are best-effort and need
+  checking on a real device.**
+- Failures are reported in the sheet ("WhatsApp isn't installed on this phone") instead of
+  appearing to do nothing.
+
+**Diagnostics** (Settings -> Diagnostics & logs) — an opt-in local technical log:
+
+- Records startup, module states, screening decisions, call sessions and update checks.
+- **Phone numbers are masked to their last 4 digits before writing**; contact names, message
+  content and audio are never logged. The masking is enforced in the repository, not left to
+  callers.
+- Readable in-app with level colouring, and shareable as a file via the system share sheet
+  (through the existing `FileProvider`). Nothing is ever uploaded automatically.
+- Capped at 512 KB with rotation, so it cannot grow without bound. Clear button included.
 
 ## Legal & ethics
 

@@ -22,6 +22,7 @@ fun SettingsScreen(
     onOpenBlocklist: () -> Unit = {},
     onOpenRecordings: () -> Unit = {},
     onOpenFeatures: () -> Unit = {},
+    onOpenDiagnostics: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.settings.collectAsState()
@@ -103,6 +104,17 @@ fun SettingsScreen(
         SectionHeader("Updates")
         Spacer(Modifier.height(8.dp))
         UpdateSection()
+
+        Spacer(Modifier.height(16.dp))
+        SectionHeader("Troubleshooting")
+        OutlinedButton(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) {
+            Text("Diagnostics & logs")
+        }
+        Text(
+            "Local technical log you can share to help fix a problem.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Spacer(Modifier.height(24.dp))
         SectionHeader("About")

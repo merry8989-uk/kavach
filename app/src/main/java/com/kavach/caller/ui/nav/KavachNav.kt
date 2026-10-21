@@ -37,6 +37,7 @@ import com.kavach.caller.ui.screens.assistant.AssistantScreen
 import com.kavach.caller.ui.screens.blocklist.BlocklistScreen
 import com.kavach.caller.ui.screens.calllog.CallLogScreen
 import com.kavach.caller.ui.screens.contacts.ContactsScreen
+import com.kavach.caller.ui.screens.diagnostics.DiagnosticsScreen
 import com.kavach.caller.ui.screens.dialer.DialerScreen
 import com.kavach.caller.ui.screens.features.FeaturesScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
@@ -160,12 +161,14 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenBlocklist = { nav.navigate("block") },
                         onOpenRecordings = { nav.navigate("recordings") },
                         onOpenFeatures = { nav.navigate("features") },
+                        onOpenDiagnostics = { nav.navigate("diagnostics") },
                     )
                 }
                 composable("block") { BlocklistScreen(onBack = { nav.popBackStack() }) }
                 composable("assistant") { AssistantScreen(onBack = { nav.popBackStack() }) }
                 composable("recordings") { RecordingsScreen(onBack = { nav.popBackStack() }) }
                 composable("features") { FeaturesScreen(onBack = { nav.popBackStack() }) }
+                composable("diagnostics") { DiagnosticsScreen(onBack = { nav.popBackStack() }) }
             }
         }
     }

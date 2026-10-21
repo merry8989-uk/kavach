@@ -11,6 +11,7 @@ import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import com.kavach.caller.data.repo.ContactRepository
+import com.kavach.caller.data.diagnostics.DiagnosticsRepository
 import com.kavach.caller.data.system.CallLogReader
 import com.kavach.caller.domain.feature.FeatureId
 import com.kavach.caller.domain.feature.FeatureRegistry
@@ -49,6 +50,7 @@ class CallStateMonitor @Inject constructor(
     private val callLogReader: CallLogReader,
     private val features: FeatureRegistry,
     private val missedCallNotifier: MissedCallNotifier,
+    private val diagnostics: DiagnosticsRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -141,6 +143,10 @@ class CallStateMonitor @Inject constructor(
             )
             sessionManager.set(session)
             callNotifications.show(session)
+            diagnostics.info(
+                "Calls",
+                "$direction ${phase.name} ${DiagnosticsRepository.mask(number)} sim=${simLabel ?: "unknown"}",
+            )
         }
     }
 
