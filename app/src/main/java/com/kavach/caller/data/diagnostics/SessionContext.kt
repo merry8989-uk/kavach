@@ -55,6 +55,21 @@ class SessionContext @Inject constructor(
         if (BuildConfig.DEBUG) "debug" else "production"
 
     /**
+     * A readable pseudonym for this install, format KV-XXX-XXX.
+     *
+     * It exists so Notion rows from one device group together without any name,
+     * account, email or device identifier being involved. Random, local, and
+     * never derived from anything about the person or the phone. A reinstall
+     * produces a new one.
+     */
+    val userCode: String = runCatching {
+        val prefs = context.getSharedPreferences("kavach_user_code", Context.MODE_PRIVATE)
+        prefs.getString("code", null) ?: generateUserCode().also {
+            prefs.edit().putString("code", it).apply()
+        }
+    }.getOrDefault("KV-000-000")
+
+    /**
      * Per-install salt for pseudonymous user ids. Random and local, so a hashed
      * id cannot be matched against another installation or a phone-number
      * dictionary.
@@ -74,8 +89,18 @@ class SessionContext @Inject constructor(
             os = os,
             deviceModel = deviceModel,
             releaseChannel = releaseChannel,
+            userCode = userCode,
         )
 
     fun hasPermission(permission: String): Boolean =
         context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun generateUserCode(): String {
+        // Unambiguous alphabet: no O/0, no I/1, so a code can be read off a
+        // screen and typed into Notion without confusion.
+        val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        val random = java.security.SecureRandom()
+        fun block() = (1..3).map { alphabet[random.nextInt(alphabet.length)] }.joinToString("")
+        return "KV-" + block() + "-" + block()
+    }
 }

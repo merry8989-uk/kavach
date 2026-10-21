@@ -51,6 +51,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DiagnosticsViewModel @Inject constructor(
     private val repository: DiagnosticsRepository,
+    private val session: com.kavach.caller.data.diagnostics.SessionContext,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -64,6 +65,9 @@ class DiagnosticsViewModel @Inject constructor(
     val counts: StateFlow<Map<LogLevel, Int>> = _counts.asStateFlow()
 
     val schemaVersion: String get() = EventSchema.VERSION
+
+    /** The readable per-install code, shown so a tester can read it out. */
+    val userCode: String get() = session.userCode
 
     var sizeText by mutableStateOf("0 B")
         private set
@@ -150,6 +154,37 @@ fun DiagnosticsScreen(
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
             ) {
+                item {
+                    SectionHeader("This device")
+                    KavachCard {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "User code",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    vm.userCode,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    "A random per-install pseudonym. Quote it when reporting an " +
+                                        "issue so the rows from this phone group together. It is " +
+                                        "not personal data, and reinstalling changes it.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(onClick = { copyUserCode(context, vm.userCode) }) {
+                                Text("Copy")
+                            }
+                        }
+                    }
+                }
+
                 item {
                     SectionHeader("Collection")
                     KavachCard {
@@ -390,6 +425,11 @@ private fun ExportFormatDialog(
  * Compose a mail to the maintainer with the log already attached and the
  * device details already written. The user only has to describe the problem.
  */
+private fun copyUserCode(context: Context, code: String) {
+    val manager = context.getSystemService(android.content.ClipboardManager::class.java) ?: return
+    manager.setPrimaryClip(android.content.ClipData.newPlainText("Kavach user code", code))
+}
+
 private fun emailLog(context: Context, file: File?, body: String) {
     runCatching {
         val intent = Intent(Intent.ACTION_SEND).apply {

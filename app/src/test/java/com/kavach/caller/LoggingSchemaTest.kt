@@ -29,6 +29,7 @@ class LoggingSchemaTest {
         os = "Android 14 (API 34)",
         deviceModel = "Google Pixel 7",
         releaseChannel = "production",
+        userCode = "KV-4F9-K2Q",
     )
 
     private fun event(
@@ -220,6 +221,18 @@ class LoggingSchemaTest {
             assertTrue("missing envelope field '$field' in $json", json.contains("\"$field\""))
         }
         assertTrue(json.contains("\"schema_version\":\"${EventSchema.VERSION}\""))
+    }
+
+    @Test
+    fun `the readable user code is stamped on every event`() {
+        val json = LogEventCodec.encode(event("session_start", mapOf("start_type" to "cold")), envelope, null)
+        assertTrue("user_code missing from $json", json.contains("\"user_code\":\"KV-4F9-K2Q\""))
+    }
+
+    @Test
+    fun `the user code carries no personal data`() {
+        // It is a random pseudonym: fixed shape, random body.
+        assertTrue(envelope.userCode.matches(Regex("KV-[A-Z2-9]{3}-[A-Z2-9]{3}")))
     }
 
     @Test

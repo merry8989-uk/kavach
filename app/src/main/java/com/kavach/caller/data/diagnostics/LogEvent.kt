@@ -50,6 +50,8 @@ data class EnvelopeFields(
     val os: String,
     val deviceModel: String,
     val releaseChannel: String,
+    /** Readable per-install pseudonym, e.g. KV-4F9-K2Q. Not personal data. */
+    val userCode: String = "KV-000-000",
 )
 
 /** Reads and writes events as one JSON object per line. */
@@ -71,6 +73,7 @@ object LogEventCodec {
         out["app_version"] = envelope.appVersion
         out["os"] = envelope.os
         out["device_model"] = envelope.deviceModel
+        out["user_code"] = envelope.userCode
         networkType?.let { out["network_type"] = it }
         out["screen_or_route"] = event.screenOrRoute
         out["log_level"] = event.logLevel.name.lowercase(Locale.US)
@@ -104,8 +107,8 @@ object LogEventCodec {
 
         val reserved = setOf(
             "event_name", "schema_version", "timestamp", "session_id", "attempt_id",
-            "user_id", "platform", "app_version", "os", "device_model", "network_type",
-            "screen_or_route", "log_level", "release_channel",
+            "user_id", "user_code", "platform", "app_version", "os", "device_model",
+            "network_type", "screen_or_route", "log_level", "release_channel",
         )
         return LogEvent(
             eventName = name,

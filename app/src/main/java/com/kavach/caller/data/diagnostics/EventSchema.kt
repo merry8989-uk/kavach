@@ -47,7 +47,7 @@ object EventSchema {
     )
 
     val ENVELOPE_OPTIONAL = setOf(
-        "attempt_id", "user_id", "network_type", "release_channel",
+        "attempt_id", "user_id", "user_code", "network_type", "release_channel",
     )
 
     // ---------------- catalogue (Part C, adapted to Kavach) ----------------
