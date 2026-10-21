@@ -11,6 +11,7 @@ import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import com.kavach.caller.data.repo.ContactRepository
+import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.data.system.CallLogReader
 import com.kavach.caller.domain.model.CallDirection
 import com.kavach.caller.domain.model.CallPhase
@@ -45,6 +46,8 @@ class CallStateMonitor @Inject constructor(
     private val callNotifications: CallNotificationManager,
     private val contactRepository: ContactRepository,
     private val callLogReader: CallLogReader,
+    private val settings: SettingsRepository,
+    private val missedCallNotifier: MissedCallNotifier,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -88,9 +91,26 @@ class CallStateMonitor @Inject constructor(
             TelephonyManager.CALL_STATE_RINGING -> publish(CallPhase.RINGING)
             TelephonyManager.CALL_STATE_OFFHOOK -> publish(CallPhase.ACTIVE)
             TelephonyManager.CALL_STATE_IDLE -> {
+                remindIfMissed()
                 sessionManager.clear()
                 callNotifications.clear()
             }
+        }
+    }
+
+    /**
+     * On hang-up, if the call just ended was missed, post an enriched reminder.
+     * The call-log row exists by now, which is what makes this possible without
+     * the default-dialer role.
+     */
+    private fun remindIfMissed() {
+        if (!settings.snapshot.missedCallReminders) return
+        scope.launch {
+            val entry = runCatching { callLogReader.readRecent(1).firstOrNull() }.getOrNull()
+                ?: return@launch
+            if (entry.type != CallLog.Calls.MISSED_TYPE) return@launch
+            val name = runCatching { contactRepository.nameFor(entry.number) }.getOrNull()
+            missedCallNotifier.notifyMissed(name, entry.number)
         }
     }
 

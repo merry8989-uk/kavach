@@ -40,6 +40,7 @@ class SettingsRepository @Inject constructor(
         val recordAll = booleanPreferencesKey("record_all")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
+        val missedCallReminders = booleanPreferencesKey("missed_call_reminders")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -54,6 +55,7 @@ class SettingsRepository @Inject constructor(
             recordAll = p[Keys.recordAll] ?: false,
             onboardingDone = p[Keys.onboardingDone] ?: false,
             autoCheckUpdates = p[Keys.autoCheckUpdates] ?: true,
+            missedCallReminders = p[Keys.missedCallReminders] ?: true,
         )
     }
 
@@ -74,4 +76,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setRecordAll(value: Boolean) = context.dataStore.edit { it[Keys.recordAll] = value }
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
     suspend fun setAutoCheckUpdates(value: Boolean) = context.dataStore.edit { it[Keys.autoCheckUpdates] = value }
+    suspend fun setMissedCallReminders(value: Boolean) = context.dataStore.edit { it[Keys.missedCallReminders] = value }
 }

@@ -46,5 +46,6 @@ class SettingsViewModel @Inject constructor(
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
     fun setRecordAll(value: Boolean) = viewModelScope.launch { repo.setRecordAll(value) }
     fun setAutoCheckUpdates(value: Boolean) = viewModelScope.launch { repo.setAutoCheckUpdates(value) }
+    fun setMissedCallReminders(value: Boolean) = viewModelScope.launch { repo.setMissedCallReminders(value) }
     fun setOnboardingDone(value: Boolean) = viewModelScope.launch { repo.setOnboardingDone(value) }
 }

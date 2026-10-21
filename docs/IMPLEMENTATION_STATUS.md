@@ -53,6 +53,26 @@ This release restructured the project to conform to the master specification.
 - **Coil** added and used for real device contact photos, with a monogram fallback.
 - **MockK + kotlinx-coroutines-test** added; use-case tests written.
 
+## 2b. Phase 6 completed (v0.10.0)
+
+Dialer / contacts / call history are no longer partial:
+
+- **Favourites** — star toggle in the editor and on the detail screen, a favourites
+  strip on the dialer, a Favourites section and filter chip in Contacts.
+- **Speed dial** — slots 2-9 in a new `speed_dial` table; long-press a keypad digit to
+  call the assigned number, or pick a contact to assign one. Slot 1 stays voicemail.
+- **Missed-call reminders** — an enriched notification with the caller's name and a
+  one-tap call-back action, toggleable in Settings.
+- **Per-contact ringtone** — chosen via the system ringtone picker and written to the
+  device contact (`CUSTOM_RINGTONE`).
+- **Call history** — grouped into Today / Yesterday / dated sections, with filters,
+  direction icons, duration and pagination ("Load more").
+- **Contact detail screen** — full profile, quick actions (call/message), numbers,
+  work, notes, ringtone, and the recent interaction timeline.
+
+Schema: DB v4 (adds `contacts_enriched.ringtoneUri` and the `speed_dial` table) with a
+v3->v4 migration.
+
 ## 3. What exists and compiles (app)
 
 **Foundation** — single-activity Compose, Material 3, 5 tabs + stacked routes, Hilt DI,
@@ -86,7 +106,7 @@ in-app update checker, WorkManager jobs.
 | Contacts | CRUD + photos work; import/export and a full detail screen not built. |
 | Settings | Real and persisted, but **no central feature registry (F16)** — modules cannot be independently disabled and there is no per-feature capability reporting. |
 | Themes | 5 packs work; motion, reduced-animation and Hindi localisation not built. |
-| Premium | Nothing. No billing, no entitlements. |
+| Premium | **None, by design.** Kavach is free: no subscriptions, no paywall, no entitlements. |
 
 ## 5. Blocked (client not wired to the backend)
 
@@ -120,7 +140,7 @@ The **server side of all four now exists and is tested**; only the Android clien
 ## 8. Next phase
 
 Per the spec's workflow, the next incomplete phase is **Phase 12 — the central feature
-registry (F16)**: stable feature IDs, required permission/role/subscription, runtime
+registry (F16)**: stable feature IDs, required permission/role, runtime
 capability check, failure reason, and independent enable/disable per module. It needs
 no backend and unblocks the spec's rule that every setting must control real behaviour.
 
@@ -130,6 +150,6 @@ Ordered plan after that:
 3. **Security hardening** — SQLCipher + EncryptedFile (highest-risk gap).
 4. **Phase 6 remainder** — in-call screen, favourites, speed dial, contact detail.
 5. **Phase 9** — recording capability assessment in the UI, encryption, quota, consent.
-6. **Phase 11** — billing with server-side verification.
+6. ~~Phase 11 — billing~~ — **cancelled**: Kavach is free.
 7. **Testing** — Room migration tests, Compose UI smoke tests, lint in CI.
 8. **Device verification** — run `TEST_PLAN.md` on real hardware; promote to VERIFIED.

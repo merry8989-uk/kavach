@@ -9,8 +9,8 @@
 
 Kavach is a caller-identity and call-protection platform. Where Truecaller gives
 its best features (AI call screening, spam stats, advanced blocking, no ads) only
-to paid users, Kavach ships those to everyone and monetises the *AI assistant* and
-*team/business* tiers instead.
+to paid users, Kavach ships those to everyone. Kavach is **free** — no subscription,
+no premium tier, no paywall.
 
 Two things make Kavach different, not just a clone:
 
@@ -140,15 +140,16 @@ Each feature below lists its **parts** (the units a developer builds) and the
 - **F12.6** Notifications — incoming brief, missed-call digest, spam alerts.
 - **F12.7** Settings hub.
 - **F12.8** Telemetry & crash reporting (opt-in, privacy-scrubbed).
-- **F12.9** In-app billing — Pro AI minutes, business tier.
+- **F12.9** ~~In-app billing~~ — **removed**: Kavach is free, with no paid tiers.
 
-### F13. Business / paid tiers (features Truecaller locks behind paywall)
-- **F13.1** No ads (Kavach is ad-light by design; Pro = zero).
-- **F13.2** Unlimited AI answering minutes.
-- **F13.3** Advanced blocking (regex, schedules, country rules) — free in Kavach.
-- **F13.4** Who-viewed / contact requests, business profiles.
-- **F13.5** Team/shared blocklists & tags (SMB).
-- **F13.6** Call analytics dashboard.
+### F13. Free by design
+- **F13.1** No paywall anywhere: every feature in this document ships to every user.
+- **F13.2** No subscriptions, no in-app purchases, no entitlement system.
+- **F13.3** No advertising.
+- **F13.4** No server-side monetisation hooks.
+
+If a future maintainer wants to add a paid tier, it must be a deliberate product
+decision recorded here first — nothing in the code assumes one exists.
 
 ---
 
@@ -167,7 +168,7 @@ Each feature below lists its **parts** (the units a developer builds) and the
 │                  · CallLog adapter · WorkManager sync · Retrofit API client           │
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │  System layer    CallScreeningService · InCallService(default dialer) · Recorder       │
-│                  · Announcer(TTS) · SmsReceiver · AccessibilityCapture · Billing      │
+│                  · Announcer(TTS) · SmsReceiver · AccessibilityCapture                │
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │  AI layer        OnDeviceScreener(TFLite keyword/intent) · CloudAI(ASR+LLM summary)   │
 │                  AssistantOrchestrator (state machine)                                │
@@ -175,7 +176,7 @@ Each feature below lists its **parts** (the units a developer builds) and the
                                    │ HTTPS (opt-in)
 ┌──────────────────────────────────▼──────────────────────────────────────────────────┐
 │  Backend (separate repo/service)   Identity/OTP · Crowd-tag API · Spam scoring ·      │
-│                                    ASR proxy · LLM summariser · Billing webhooks      │
+│                                    ASR proxy · LLM summariser                         │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -202,7 +203,7 @@ Each feature below lists its **parts** (the units a developer builds) and the
 | Cloud ASR | Whisper-class API | Accuracy |
 | Cloud LLM | Configurable (any provider) | Summaries, dialogue |
 | Auth | OTP (own backend or Firebase) | Standard |
-| Billing | Play Billing | Subscriptions |
+| Billing | **None** | Kavach is free by design — no subscriptions, no paywall |
 | Crash | Sentry (self-hostable) | Privacy |
 | CI/CD | GitHub Actions → signed APK/AAB → Release | Your auto-release requirement |
 
@@ -228,7 +229,7 @@ F8 recording paths + consent gating + playback + storage policy.
 F10 orchestrator, on-device screening, cloud ASR/LLM, briefs, auto-SMS.
 
 **Phase 5 — Backend & accounts (weeks 11–12)**
-OTP auth, crowd-tag API, spam scoring, sync, billing.
+OTP auth, crowd-tag API, spam scoring, sync.
 
 **Phase 6 — Hardening (weeks 13–14)**
 Testing, accessibility, Play policy compliance, privacy policy, store assets.

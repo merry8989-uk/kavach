@@ -125,7 +125,7 @@ Deletes the account and all server-side personal data. (Client-side not built.)
 | No bulk export | No endpoint may dump the identity database |
 | Audit logging | Every identity write and report is attributable |
 | Data minimisation | Do not accept contacts, SMS bodies or recordings on lookup endpoints |
-| Purchases | `POST /v1/billing/verify` must validate receipts with Google before granting entitlement — a client boolean must never grant premium |
+| Purchases | **None.** Kavach is free; there is no billing endpoint and no entitlement system. |
 
 ## 6. Client integration points
 
@@ -134,4 +134,3 @@ Deletes the account and all server-side personal data. (Client-side not built.)
 | `ai/CloudAiClient.kt` | §1–§3 (wired, fails soft) |
 | (future) `data/remote/CallerLookupDataSource.kt` | §4 lookup |
 | (future) `data/remote/ReportDataSource.kt` | §4 reports |
-| (future) `billing/EntitlementRepository.kt` | §5 purchases |

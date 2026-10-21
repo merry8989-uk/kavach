@@ -1,5 +1,11 @@
 package com.kavach.caller.ui.screens.contacts
 
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.local.entity.PhoneNumber
 import com.kavach.caller.data.repo.ContactDraft
+import com.kavach.caller.ui.components.FavouriteStar
 
 /**
  * Create / edit a contact (F2.6). Handles multiple numbers, company, job title,
@@ -45,6 +52,32 @@ fun ContactEditScreen(
 
     val canSave = draft.name.isNotBlank() || draft.numbers.any { it.number.isNotBlank() }
 
+    // Per-contact ringtone picker (F6.x).
+    val ringtoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            @Suppress("DEPRECATION")
+            val uri = result.data
+                ?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
+            draft = draft.copy(ringtoneUri = uri?.toString())
+        }
+    }
+
+    fun pickRingtone() {
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Ringtone for this contact")
+            putExtra(
+                RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                draft.ringtoneUri?.let { Uri.parse(it) },
+            )
+        }
+        runCatching { ringtoneLauncher.launch(intent) }
+    }
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(4.dp),
@@ -58,6 +91,10 @@ fun ContactEditScreen(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onBackground,
+            )
+            FavouriteStar(
+                isFavourite = draft.isFavourite,
+                onToggle = { draft = draft.copy(isFavourite = !draft.isFavourite) },
             )
             TextButton(onClick = { if (canSave) onSave(draft) }, enabled = canSave) {
                 Text("Save")
@@ -196,6 +233,22 @@ fun ContactEditScreen(
                             },
                             modifier = Modifier.padding(end = 6.dp),
                         )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            FieldLabel("Ringtone")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (draft.ringtoneUri.isNullOrBlank()) "System default" else "Custom ringtone",
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { pickRingtone() }) { Text("Choose") }
+                if (!draft.ringtoneUri.isNullOrBlank()) {
+                    TextButton(onClick = { draft = draft.copy(ringtoneUri = null) }) {
+                        Text("Clear")
                     }
                 }
             }

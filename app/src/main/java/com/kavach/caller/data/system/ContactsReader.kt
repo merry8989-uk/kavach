@@ -26,6 +26,7 @@ class ContactsReader @Inject constructor(
             ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
             ContactsContract.Contacts.PHOTO_URI,
             ContactsContract.Contacts.HAS_PHONE_NUMBER,
+            ContactsContract.Contacts.CUSTOM_RINGTONE,
         )
         runCatching {
             context.contentResolver.query(uri, projection, null, null, null)?.use { c ->
@@ -33,6 +34,7 @@ class ContactsReader @Inject constructor(
                 val nameIdx = c.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
                 val photoIdx = c.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_URI)
                 val hasPhoneIdx = c.getColumnIndexOrThrow(ContactsContract.Contacts.HAS_PHONE_NUMBER)
+                val ringtoneIdx = c.getColumnIndex(ContactsContract.Contacts.CUSTOM_RINGTONE)
                 while (c.moveToNext()) {
                     if (c.getInt(hasPhoneIdx) == 0) continue
                     val id = c.getLong(idIdx)
@@ -47,6 +49,7 @@ class ContactsReader @Inject constructor(
                         photoUri = photo,
                         company = org,
                         numbers = numbers,
+                        ringtoneUri = if (ringtoneIdx >= 0) c.getString(ringtoneIdx) else null,
                     )
                 }
             }

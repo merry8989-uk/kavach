@@ -9,6 +9,7 @@ import com.kavach.caller.data.local.dao.BlockRuleDao
 import com.kavach.caller.data.local.dao.CallLogDao
 import com.kavach.caller.data.local.dao.ContactDao
 import com.kavach.caller.data.local.dao.RecordingDao
+import com.kavach.caller.data.local.dao.SpeedDialDao
 import com.kavach.caller.data.local.dao.TranscriptDao
 import dagger.Module
 import dagger.Provides
@@ -48,11 +49,24 @@ object AppModule {
         }
     }
 
+    /** v3 -> v4: per-contact ringtone + speed-dial slots. */
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE contacts_enriched ADD COLUMN ringtoneUri TEXT")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS speed_dial (" +
+                    "slot INTEGER NOT NULL PRIMARY KEY, " +
+                    "number TEXT NOT NULL, " +
+                    "label TEXT NOT NULL)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KavachDatabase =
         Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             // Last-resort safety net only; the real path is the migration above.
             // Swap in SQLCipher for encrypted-at-rest storage.
             .fallbackToDestructiveMigration()
@@ -63,6 +77,7 @@ object AppModule {
     @Provides fun provideCallLogDao(db: KavachDatabase): CallLogDao = db.callLogDao()
     @Provides fun provideRecordingDao(db: KavachDatabase): RecordingDao = db.recordingDao()
     @Provides fun provideTranscriptDao(db: KavachDatabase): TranscriptDao = db.transcriptDao()
+    @Provides fun provideSpeedDialDao(db: KavachDatabase): SpeedDialDao = db.speedDialDao()
 
     @Provides
     @Singleton

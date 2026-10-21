@@ -13,4 +13,5 @@ data class AppSettings(
     val recordAll: Boolean = false,
     val onboardingDone: Boolean = false,
     val autoCheckUpdates: Boolean = true,
+    val missedCallReminders: Boolean = true,
 )

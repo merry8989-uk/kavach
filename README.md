@@ -6,8 +6,8 @@ unknown calls, transcribes them, texts the caller, and hands you a one-screen
 brief.
 
 > Built with Kotlin + Jetpack Compose. Hybrid on-device + cloud AI.
-> Kavach gives away the features competitors lock behind a paywall, and
-> monetises the AI assistant instead.
+> **Completely free** — no subscriptions, no premium tier, no ads, no paywall.
+> Every feature ships to every user.
 
 **🌐 Product site & prototype:** `docs/index.html` (GitHub Pages)
 **💬 Feature requests & feedback:** [@osintgram_io](https://instagram.com/osintgram_io)

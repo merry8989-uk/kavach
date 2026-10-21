@@ -31,6 +31,13 @@ interface CallLogDao {
             "ORDER BY timestamp DESC LIMIT 1"
     )
     suspend fun lastCallFor(key: String): CallLogEntity?
+
+    /** Recent interactions with one number — the contact detail timeline. */
+    @Query(
+        "SELECT * FROM call_log WHERE number LIKE '%' || :key || '%' " +
+            "ORDER BY timestamp DESC LIMIT :limit"
+    )
+    suspend fun recentCallsFor(key: String, limit: Int): List<CallLogEntity>
 }
 
 @Dao

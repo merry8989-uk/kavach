@@ -141,6 +141,25 @@ class ContactsWriter @Inject constructor(
         false
     }
 
+    /**
+     * Set (or clear) the device contact's custom ringtone (F6.x).
+     * Pass null to fall back to the system default.
+     */
+    fun setCustomRingtone(contactId: Long, uri: String?): Boolean = runCatching {
+        val values = ContentValues().apply {
+            put(ContactsContract.Contacts.CUSTOM_RINGTONE, uri)
+        }
+        resolver.update(
+            ContactsContract.Contacts.CONTENT_URI,
+            values,
+            "${ContactsContract.Contacts._ID} = ?",
+            arrayOf(contactId.toString()),
+        ) > 0
+    }.getOrElse {
+        Log.w(TAG, "setCustomRingtone failed: ${it.message}")
+        false
+    }
+
     /** Delete a device contact (all its raw contacts). */
     fun delete(contactId: Long): Boolean = runCatching {
         resolver.delete(

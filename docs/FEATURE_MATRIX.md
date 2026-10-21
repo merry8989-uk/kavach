@@ -15,7 +15,7 @@ Backend = whether a server is needed. Privacy = data touched.
 | F1.4 | Dual-SIM picker | IMPLEMENTED | 24 | READ_PHONE_STATE | — | SIM metadata | — |
 | F1.5 | In-call screen | IMPLEMENTED | 24 | Default-dialer role | — | number, name | — |
 | F1.9 | Ongoing call notification | IMPLEMENTED | 24 | POST_NOTIFICATIONS, READ_PHONE_STATE | — | number, name, SIM | — |
-| F1.6 | Speed dial / favourites | NOT_STARTED | 24 | READ_CONTACTS | — | contacts | — |
+| F1.6 | Speed dial / favourites | IMPLEMENTED | 24 | READ_CONTACTS | — | contacts | — |
 | F1.10 | Call state fallback monitor | IMPLEMENTED | 24 | READ_PHONE_STATE, READ_CALL_LOG | — | call metadata | — |
 | F1.7 | T9 search | IMPLEMENTED | 24 | READ_CONTACTS | — | contacts | — |
 | F1.8 | Caller-ID preview | IMPLEMENTED | 24 | READ_CONTACTS | — | number | — |
@@ -25,12 +25,12 @@ Backend = whether a server is needed. Privacy = data touched.
 | F2.4 | Profile image | IN_PROGRESS | 24 | READ_CONTACTS | — | photo URI (read); no upload | — |
 | F2.5 | Merged identity | IN_PROGRESS | 24 | READ_CONTACTS | yes (for crowd data) | number | — |
 | F2.6 | Add / edit / delete contact | IMPLEMENTED | 24 | READ/WRITE_CONTACTS | — | contacts | — |
-| F2.7 | Contact detail screen | IN_PROGRESS | 24 | READ_CONTACTS | — | contacts | — |
+| F2.7 | Contact detail screen | IMPLEMENTED | 24 | READ_CONTACTS | — | contacts | — |
 | F2.8 | Import / export (vCard, CSV) | NOT_STARTED | 24 | READ/WRITE_CONTACTS, storage | — | contacts | — |
 | F3.1 | Read system call log | IMPLEMENTED | 24 | READ_CALL_LOG | — | call metadata | — |
 | F3.2 | Enrich with name/spam/AI | IMPLEMENTED | 24 | READ_CALL_LOG | yes | call metadata | — |
 | F3.3 | Filters | IMPLEMENTED | 24 | READ_CALL_LOG | — | — | — |
-| F3.4 | Per-entry actions | IN_PROGRESS | 24 | CALL_PHONE, SEND_SMS | — | — | — |
+| F3.4 | Per-entry actions | IMPLEMENTED | 24 | CALL_PHONE, SEND_SMS | — | — | — |
 | F3.6 | Local mirror, idempotent sync | IMPLEMENTED | 24 | READ_CALL_LOG | — | call metadata | — |
 | F4.1 | Rule store | IMPLEMENTED | 24 | — | — | numbers | RuleMatcherTest |
 | F4.2 | Rule types (8) | IMPLEMENTED | 24 | — | — | numbers | RuleMatcherTest |
@@ -90,8 +90,8 @@ Backend = whether a server is needed. Privacy = data touched.
 | F12.6 | Notifications | IMPLEMENTED | 24 | POST_NOTIFICATIONS | — | — | — |
 | F12.7 | Settings hub | IMPLEMENTED | 24 | — | — | — | — |
 | F12.8 | Crash/telemetry | NOT_STARTED | 24 | INTERNET | yes | diagnostics | — |
-| F12.9 | Billing | NOT_STARTED | 24 | INTERNET | yes | purchase token | — |
-| F13.x | Premium entitlements | NOT_STARTED | 24 | INTERNET | yes | purchase | — |
+| F12.9 | Billing | N/A | — | — | — | — | Removed: Kavach is free |
+| F13.x | Free by design (no paywall) | IMPLEMENTED | — | — | — | — | — |
 | F14.1 | First-run permission groups | IMPLEMENTED | 24 | (all) | — | — | — |
 | F14.2 | Role requests in setup | IMPLEMENTED | 29 | — | — | — | — |
 | F14.4 | Persisted setup completion | IMPLEMENTED | 24 | — | — | — | — |

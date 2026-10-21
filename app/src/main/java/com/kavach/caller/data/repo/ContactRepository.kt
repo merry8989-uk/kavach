@@ -49,6 +49,10 @@ class ContactRepository @Inject constructor(
     suspend fun save(contact: ContactEntity): Long =
         dao.upsert(contact.copy(t9Key = PhoneUtils.t9(contact.displayName)))
 
+    /** Toggle the favourite flag without going through the full editor. */
+    suspend fun toggleFavourite(contact: ContactEntity) =
+        dao.upsert(contact.copy(isFavourite = !contact.isFavourite))
+
     suspend fun delete(contact: ContactEntity) = dao.delete(contact)
 
     /**
@@ -70,6 +74,11 @@ class ContactRepository @Inject constructor(
             draft.systemId
         }
 
+        // Per-contact ringtone lives on the device contact, not in Kavach.
+        if (systemId != null) {
+            systemWriter.setCustomRingtone(systemId, draft.ringtoneUri)
+        }
+
         val entity = ContactEntity(
             id = draft.id,
             systemId = systemId,
@@ -81,6 +90,7 @@ class ContactRepository @Inject constructor(
             numbers = numbers,
             isFavourite = draft.isFavourite,
             t9Key = PhoneUtils.t9(name),
+            ringtoneUri = draft.ringtoneUri,
         )
         return dao.upsert(entity)
     }

@@ -14,6 +14,7 @@ data class ContactDraft(
     val notes: String = "",
     val tags: List<String> = emptyList(),
     val isFavourite: Boolean = false,
+    val ringtoneUri: String? = null,
 ) {
     companion object {
         fun from(contact: ContactEntity) = ContactDraft(
@@ -26,6 +27,7 @@ data class ContactDraft(
             notes = contact.notes.orEmpty(),
             tags = contact.tags,
             isFavourite = contact.isFavourite,
+            ringtoneUri = contact.ringtoneUri,
         )
     }
 }

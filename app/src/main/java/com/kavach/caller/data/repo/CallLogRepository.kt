@@ -38,6 +38,13 @@ class CallLogRepository @Inject constructor(
         return dao.lastCallFor(key)
     }
 
+    /** Recent interactions with a number, for the contact detail screen. */
+    suspend fun recentWith(number: String, limit: Int = 8): List<CallLogEntity> {
+        val key = PhoneUtils.subscriberKey(number)
+        if (key.isEmpty()) return emptyList()
+        return dao.recentCallsFor(key, limit)
+    }
+
     suspend fun recordCall(entry: CallLogEntity): Long = dao.insert(entry)
     suspend fun saveRecording(recording: RecordingEntity): Long = recordingDao.insert(recording)
     suspend fun saveTranscript(transcript: TranscriptEntity): Long = transcriptDao.insert(transcript)

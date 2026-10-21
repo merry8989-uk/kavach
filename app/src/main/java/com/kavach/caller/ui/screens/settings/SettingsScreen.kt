@@ -32,6 +32,15 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(16.dp))
 
+        SectionHeader("Calls")
+        SwitchRow("Missed-call reminders", s.missedCallReminders) { vm.setMissedCallReminders(it) }
+        Text(
+            "Shows a notification with the caller's name when you miss a call.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(16.dp))
         SectionHeader("Protection")
         OutlinedButton(onClick = onOpenBlocklist, modifier = Modifier.fillMaxWidth()) {
             Text("Blocking rules & blocklist")

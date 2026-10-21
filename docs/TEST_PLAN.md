@@ -88,7 +88,7 @@ cd backend && pytest
 | Permission denial/revocation | ❌ |
 | Role changes | ❌ |
 | Settings persistence | ❌ |
-| Subscription entitlements | ❌ (no billing) |
+| Subscription entitlements | N/A — Kavach is free, there are none |
 | UI navigation | ❌ |
 | Background work | ❌ |
 | Privacy deletion | ❌ |

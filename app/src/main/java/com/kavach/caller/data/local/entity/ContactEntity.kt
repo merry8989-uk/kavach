@@ -38,5 +38,7 @@ data class ContactEntity(
      * contact into memory.
      */
     val t9Key: String = "",
+    /** Per-contact ringtone (F6.x), a content:// URI. Null = system default. */
+    val ringtoneUri: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 )

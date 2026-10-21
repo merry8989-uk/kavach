@@ -17,6 +17,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,9 +52,11 @@ import androidx.lifecycle.viewModelScope
 import com.kavach.caller.data.local.entity.CallLogEntity
 import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.local.entity.PhoneNumber
+import com.kavach.caller.data.local.entity.SpeedDialEntity
 import com.kavach.caller.data.repo.CallLogRepository
 import com.kavach.caller.data.repo.ContactDraft
 import com.kavach.caller.data.repo.ContactRepository
+import com.kavach.caller.data.repo.SpeedDialRepository
 import com.kavach.caller.domain.model.CallerIdentity
 import com.kavach.caller.domain.usecase.IdentifyCallerUseCase
 import com.kavach.caller.domain.usecase.SaveContactUseCase
@@ -81,11 +84,20 @@ class DialerViewModel @Inject constructor(
     private val saveContactUseCase: SaveContactUseCase,
     private val callLogRepository: CallLogRepository,
     private val contactRepository: ContactRepository,
+    private val speedDialRepository: SpeedDialRepository,
 ) : ViewModel() {
 
     /** All contacts, for the "Add to a contact" picker. */
     val contacts = contactRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Speed-dial slots 2-9 (F1.6). */
+    val speedDial = speedDialRepository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun assignSpeedDial(slot: Int, number: String, label: String) = viewModelScope.launch {
+        speedDialRepository.assign(slot, number, label)
+    }
 
     suspend fun identify(number: String): CallerIdentity? =
         if (number.length >= 3) identifyCaller(number) else null
@@ -147,6 +159,8 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
     var selectedSim by rememberSaveable { mutableStateOf(0) }
 
     val contacts by vm.contacts.collectAsState()
+    val speedDials by vm.speedDial.collectAsState()
+    var assignSlot by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(input) {
         identity = vm.identify(input)
@@ -273,6 +287,33 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
         ) {
+            // Favourites strip — one tap to call the people you ring most.
+            val favourites = contacts.filter { it.isFavourite }
+            if (input.isEmpty() && favourites.isNotEmpty()) {
+                LazyRow(
+                    Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(favourites, key = { it.id }) { c ->
+                        Column(
+                            Modifier.width(60.dp).clickable {
+                                c.numbers.firstOrNull()?.number?.let { placeCall(it) }
+                            },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            MonogramAvatar(c.displayName, size = 46)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                c.displayName.substringBefore(' '),
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -349,8 +390,13 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
                                 modifier = Modifier.weight(1f),
                                 onTap = { input += key.digit },
                                 onLongPress = {
+                                    val slot = key.digit.toIntOrNull()
+                                    val assigned = speedDials.firstOrNull { it.slot == slot }
                                     when {
                                         key.digit == "1" -> voiceMailNumber(context)?.let { placeCall(it) }
+                                        slot != null && slot in 2..9 && assigned != null ->
+                                            placeCall(assigned.number)
+                                        slot != null && slot in 2..9 -> assignSlot = slot
                                         key.longPress != null -> input += key.longPress
                                     }
                                 },
@@ -409,6 +455,37 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
             },
             confirmButton = {
                 TextButton(onClick = { showAddPicker = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    assignSlot?.let { slot ->
+        AlertDialog(
+            onDismissRequest = { assignSlot = null },
+            title = { Text("Speed dial $slot") },
+            text = {
+                if (contacts.isEmpty()) {
+                    Text("You have no contacts to assign yet.")
+                } else {
+                    LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                        items(contacts, key = { it.id }) { c ->
+                            ListItem(
+                                headlineContent = { Text(c.displayName) },
+                                supportingContent = { Text(c.numbers.firstOrNull()?.number ?: "") },
+                                modifier = Modifier.clickable {
+                                    val number = c.numbers.firstOrNull()?.number
+                                    if (!number.isNullOrBlank()) {
+                                        vm.assignSpeedDial(slot, number, c.displayName)
+                                    }
+                                    assignSlot = null
+                                },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { assignSlot = null }) { Text("Cancel") }
             },
         )
     }

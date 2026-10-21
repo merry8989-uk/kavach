@@ -155,5 +155,5 @@ Wiring the client to the real backend is a pending task.
 - No crowdsourced database population (the service exists; no data does).
 - No trained ML model — `OnDeviceScreener` is keyword rules.
 - No analytics/crash SDK.
-- No billing.
+- No billing — Kavach is free, by design, with no paywall or entitlement system.
 - Nothing is device-verified (no Android SDK or emulator in the build environment).

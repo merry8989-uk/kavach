@@ -21,8 +21,9 @@ module that answers, transcribes and summarises calls.
 - Existing options gate their best protections behind a subscription.
 
 ### 1.2 Positioning
-Free core protection; monetise the AI/assistant and business tiers rather than
-basic safety. Never charge for permission explanations or privacy controls.
+**Kavach is completely free.** Every feature ships to every user: no
+subscriptions, no premium tier, no in-app purchases, no advertising, and no
+paywall on protection, privacy controls or permission explanations.
 
 ### 1.3 Non-goals
 - Not a VoIP service.
@@ -153,13 +154,13 @@ Each requirement maps to a Feature ID used in `FEATURE_MATRIX.md` and
 - F12.6 Notifications
 - F12.7 Settings hub
 - F12.8 Crash/telemetry (opt-in)
-- F12.9 Billing
+- F12.9 Billing — **removed: Kavach is free**
 
-### F13 Premium
-- F13.1 Real entitlement system via Google Play Billing
-- F13.2 Plans: Free / Premium / Family
-- F13.3 Server-side purchase verification
-- F13.4 No client-side boolean grants premium
+### F13 Free by design
+- F13.1 No paywall on any feature
+- F13.2 No subscriptions or in-app purchases
+- F13.3 No advertising
+- F13.4 No entitlement system in the client
 
 ### F14 First-run setup
 - F14.1 Permission groups with rationale
@@ -174,7 +175,7 @@ Each requirement maps to a Feature ID used in `FEATURE_MATRIX.md` and
 - F15.3 Optional launch-time check
 
 ### F16 Central feature registry
-- F16.1 Stable feature ID, state, required permission/role/subscription
+- F16.1 Stable feature ID, state, required permission/role
 - F16.2 Runtime capability check + failure reason
 - F16.3 Independent enable/disable of optional modules
 - F16.4 Disabling stops scheduled work and background collection
@@ -220,6 +221,6 @@ These are recorded honestly; they shape what is achievable.
 - Caller identity comes from traceable, authorised sources.
 - Blocking works through supported Android APIs.
 - Settings actually control module behaviour.
-- Premium access (when built) uses verified entitlements.
+- Nothing is gated behind a payment — every feature is available to every user.
 - Missing dependencies produce honest unavailable states.
 - Every remaining limitation is documented.
