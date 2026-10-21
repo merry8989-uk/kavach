@@ -1,10 +1,13 @@
 package com.kavach.caller.ui.screens.contacts
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -24,7 +27,16 @@ import androidx.compose.ui.unit.dp
 import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.local.entity.PhoneNumber
 import com.kavach.caller.data.repo.ContactDraft
+import com.kavach.caller.data.repo.ContactPhotoStore
 import com.kavach.caller.ui.components.FavouriteStar
+import com.kavach.caller.ui.screens.contacts.Avatar
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 /**
  * Create / edit a contact (F2.6). Handles multiple numbers, company, job title,
@@ -32,6 +44,12 @@ import com.kavach.caller.ui.components.FavouriteStar
  *
  * [initial] is null when creating a new contact.
  */
+/** The only thing this screen needs from DI: somewhere to put a photo. */
+@HiltViewModel
+class ContactPhotoViewModel @Inject constructor(
+    val store: ContactPhotoStore,
+) : ViewModel()
+
 @Composable
 fun ContactEditScreen(
     initial: ContactEntity?,
@@ -78,6 +96,50 @@ fun ContactEditScreen(
         runCatching { ringtoneLauncher.launch(intent) }
     }
 
+    val photoVm: ContactPhotoViewModel = hiltViewModel()
+    val scope = rememberCoroutineScope()
+    var showPhotoUrl by remember { mutableStateOf(false) }
+    var photoMessage by remember { mutableStateOf<String?>(null) }
+    var captureTarget by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture(),
+    ) { saved ->
+        val uri = captureTarget
+        captureTarget = null
+        if (saved && uri != null) {
+            scope.launch {
+                // The camera wrote straight into our own directory, so the path
+                // is already ours to keep.
+                val path = photoVm.store.importFrom(uri)
+                if (path != null) draft = draft.copy(photoUri = path)
+                else photoMessage = "Could not save the photo."
+            }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val path = photoVm.store.importFrom(uri)
+                if (path != null) {
+                    draft = draft.copy(photoUri = path)
+                } else {
+                    photoMessage = "Could not read that image."
+                }
+            }
+        }
+    }
+
+    fun takePhoto() {
+        val (_, uri) = photoVm.store.newCaptureTarget()
+        captureTarget = uri
+        runCatching { cameraLauncher.launch(uri) }
+            .onFailure { photoMessage = "No camera app available." }
+    }
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(4.dp),
@@ -104,6 +166,59 @@ fun ContactEditScreen(
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         ) {
+            // ---- photo ----
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (draft.photoUri != null) {
+                    Avatar(
+                        ContactEntity(displayName = draft.name.ifBlank { "?" }, photoUri = draft.photoUri),
+                        size = 72,
+                    )
+                } else {
+                    MonogramAvatar(draft.name.ifBlank { "?" }, size = 72)
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Photo",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { takePhoto() }) { Text("Camera") }
+                        OutlinedButton(
+                            onClick = {
+                                galleryLauncher.launch(
+                                    PickVisualMediaRequest(
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                    ),
+                                )
+                            },
+                        ) { Text("Gallery") }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { showPhotoUrl = true }) { Text("From URL") }
+                        if (draft.photoUri != null) {
+                            TextButton(onClick = {
+                                val old = draft.photoUri
+                                draft = draft.copy(photoUri = null)
+                                scope.launch { photoVm.store.delete(old) }
+                            }) { Text("Remove") }
+                        }
+                    }
+                }
+            }
+            photoMessage?.let { text ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = draft.name,
                 onValueChange = { draft = draft.copy(name = it) },

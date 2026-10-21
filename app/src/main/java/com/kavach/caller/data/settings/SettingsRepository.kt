@@ -47,6 +47,10 @@ class SettingsRepository @Inject constructor(
         val accountPublishName = booleanPreferencesKey("account_publish_name")
         val offlineOnly = booleanPreferencesKey("offline_only")
         val dataSaver = booleanPreferencesKey("data_saver")
+        val suggestedReplies = stringPreferencesKey("suggested_replies")
+        val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
+        val autoReplyText = stringPreferencesKey("auto_reply_text")
+        val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -89,6 +93,10 @@ class SettingsRepository @Inject constructor(
             accountPublishName = p[Keys.accountPublishName] ?: false,
             offlineOnly = p[Keys.offlineOnly] ?: false,
             dataSaver = p[Keys.dataSaver] ?: false,
+            suggestedReplies = p[Keys.suggestedReplies] ?: "",
+            autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
+            autoReplyText = p[Keys.autoReplyText] ?: "I'll get back to you soon.",
+            hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
         )
     }
 
@@ -111,6 +119,13 @@ class SettingsRepository @Inject constructor(
     suspend fun setBackendToken(value: String) = context.dataStore.edit { it[Keys.backendToken] = value.trim() }
 
     suspend fun setOfflineOnly(value: Boolean) = context.dataStore.edit { it[Keys.offlineOnly] = value }
+    suspend fun setSuggestedReplies(json: String) = context.dataStore.edit { it[Keys.suggestedReplies] = json }
+    suspend fun setAutoReplyEnabled(value: Boolean) = context.dataStore.edit { it[Keys.autoReplyEnabled] = value }
+    suspend fun setAutoReplyText(value: String) = context.dataStore.edit { it[Keys.autoReplyText] = value }
+    suspend fun hideSmsIds(ids: Set<String>) = context.dataStore.edit { prefs ->
+        prefs[Keys.hiddenSmsIds] = (prefs[Keys.hiddenSmsIds] ?: emptySet()) + ids
+    }
+    suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
     suspend fun setDataSaver(value: Boolean) = context.dataStore.edit { it[Keys.dataSaver] = value }
 
     /** Persist the signed-in account. Passing blanks signs the user out. */

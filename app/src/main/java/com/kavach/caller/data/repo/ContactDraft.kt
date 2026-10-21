@@ -15,6 +15,8 @@ data class ContactDraft(
     val tags: List<String> = emptyList(),
     val isFavourite: Boolean = false,
     val ringtoneUri: String? = null,
+    /** Local file path or an http(s) URL. See [ContactPhotoStore]. */
+    val photoUri: String? = null,
 ) {
     companion object {
         fun from(contact: ContactEntity) = ContactDraft(
@@ -28,6 +30,7 @@ data class ContactDraft(
             tags = contact.tags,
             isFavourite = contact.isFavourite,
             ringtoneUri = contact.ringtoneUri,
+            photoUri = contact.photoUri,
         )
     }
 }

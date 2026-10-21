@@ -91,6 +91,7 @@ class ContactRepository @Inject constructor(
             isFavourite = draft.isFavourite,
             t9Key = PhoneUtils.t9(name),
             ringtoneUri = draft.ringtoneUri,
+            photoUri = draft.photoUri,
         )
         return dao.upsert(entity)
     }
@@ -118,6 +119,15 @@ class ContactRepository @Inject constructor(
         if (key.isEmpty()) return null
         return dao.observeAllOnce().firstOrNull { contact ->
             contact.numbers.any { PhoneUtils.subscriberKey(it.number) == key }
+        }
+    }
+
+    /** Saved contacts whose number contains the typed digits. */
+    suspend fun findMatchingNumber(digits: String): List<ContactEntity> {
+        val clean = digits.filter { it.isDigit() }
+        if (clean.length < 3) return emptyList()
+        return dao.observeAllOnce().filter { contact ->
+            contact.numbers.any { PhoneUtils.subscriberKey(it.number).contains(clean) }
         }
     }
 

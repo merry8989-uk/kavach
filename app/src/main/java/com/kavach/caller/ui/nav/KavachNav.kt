@@ -43,6 +43,7 @@ import com.kavach.caller.ui.screens.account.AccountScreen
 import com.kavach.caller.ui.screens.contacts.ContactsScreen
 import com.kavach.caller.ui.screens.diagnostics.DiagnosticsScreen
 import com.kavach.caller.ui.screens.policy.DataPolicyScreen
+import com.kavach.caller.ui.screens.settings.RepliesScreen
 import com.kavach.caller.ui.screens.dialer.DialerScreen
 import com.kavach.caller.ui.screens.features.FeaturesScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
@@ -188,6 +189,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenFeatures = { nav.navigate("features") },
                         onOpenDiagnostics = { nav.navigate("diagnostics") },
                         onOpenAccount = { nav.navigate("account") },
+                        onOpenReplies = { nav.navigate("replies") },
                         onOpenPolicy = { nav.navigate("policy") },
                     )
                 }
@@ -197,6 +199,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 composable("features") { FeaturesScreen(onBack = { nav.popBackStack() }) }
                 composable("diagnostics") { DiagnosticsScreen(onBack = { nav.popBackStack() }) }
                 composable("account") { AccountScreen(onBack = { nav.popBackStack() }) }
+                composable("replies") { RepliesScreen(onBack = { nav.popBackStack() }) }
                 composable(
                     route = "number/{number}",
                     arguments = listOf(navArgument("number") { type = NavType.StringType }),

@@ -4,4 +4,6 @@
     <cache-path name="updates" path="updates/" />
     <!-- The diagnostics log the user can choose to share. -->
     <files-path name="diagnostics" path="diagnostics/" />
+    <!-- Contact photos. Needed so the camera app can write into our storage. -->
+    <files-path name="contact_photos" path="contact-photos/" />
 </paths>

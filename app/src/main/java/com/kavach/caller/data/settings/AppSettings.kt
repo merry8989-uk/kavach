@@ -40,4 +40,12 @@ data class AppSettings(
      */
     val offlineOnly: Boolean = false,
     val dataSaver: Boolean = false,
+
+    /** Suggested replies, stored as a JSON array so order is preserved. */
+    val suggestedReplies: String = "",
+    /** Auto-reply to incoming SMS. Off by default — it sends without asking. */
+    val autoReplyEnabled: Boolean = false,
+    val autoReplyText: String = "I'll get back to you soon.",
+    /** Message ids the user removed from Kavach's view. See MessagesScreen. */
+    val hiddenSmsIds: Set<String> = emptySet(),
 )

@@ -32,6 +32,13 @@ interface CallLogDao {
     )
     suspend fun lastCallFor(key: String): CallLogEntity?
 
+    /** Recent calls whose number contains the typed digits — dialer search. */
+    @Query(
+        "SELECT * FROM call_log WHERE number LIKE '%' || :digits || '%' " +
+            "ORDER BY timestamp DESC LIMIT :limit"
+    )
+    suspend fun recentMatching(digits: String, limit: Int): List<CallLogEntity>
+
     /** Recent interactions with one number — the contact detail timeline. */
     @Query(
         "SELECT * FROM call_log WHERE number LIKE '%' || :key || '%' " +

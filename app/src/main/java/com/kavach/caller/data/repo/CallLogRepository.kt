@@ -38,6 +38,16 @@ class CallLogRepository @Inject constructor(
         return dao.lastCallFor(key)
     }
 
+    /**
+     * Recent calls whose number contains the typed digits, newest first.
+     * Powers the dialer's search results.
+     */
+    suspend fun recentMatching(digits: String, limit: Int = 40): List<CallLogEntity> {
+        val clean = digits.filter { it.isDigit() }
+        if (clean.length < 3) return emptyList()
+        return dao.recentMatching(clean, limit)
+    }
+
     /** Recent interactions with a number, for the contact detail screen. */
     suspend fun recentWith(number: String, limit: Int = 8): List<CallLogEntity> {
         val key = PhoneUtils.subscriberKey(number)

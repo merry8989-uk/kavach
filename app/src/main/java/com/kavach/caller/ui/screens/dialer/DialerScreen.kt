@@ -36,10 +36,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +68,7 @@ import com.kavach.caller.util.PhoneUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -104,6 +105,57 @@ class DialerViewModel @Inject constructor(
         if (number.length >= 3) identifyCaller(number) else null
 
     suspend fun searchT9(digits: String): List<ContactEntity> = searchContactsByT9(digits)
+
+    /**
+     * One result list for whatever is typed: saved contacts *and* recent calls.
+     *
+     * Deduplicated by subscriber key. When a number is both, the row is built
+     * from the recent call (its timestamp is the useful part) while the name
+     * still comes from the saved contact, because a name the user chose beats
+     * whatever the call log holds.
+     */
+    suspend fun search(input: String): List<DialerMatch> {
+        val digits = input.filter { it.isDigit() }
+        if (digits.length < 2) return emptyList()
+
+        val t9 = if (input.all { it.isDigit() }) searchContactsByT9(digits) else emptyList()
+        val byNumber = contactRepository.findMatchingNumber(digits)
+        val contacts = (t9 + byNumber).distinctBy { it.id }
+
+        val recents = callLogRepository.recentMatching(digits)
+
+        val merged = LinkedHashMap<String, DialerMatch>()
+        contacts.forEach { contact ->
+            val number = contact.numbers.firstOrNull()?.number ?: return@forEach
+            val key = PhoneUtils.subscriberKey(number)
+            if (key.isEmpty()) return@forEach
+            merged[key] = DialerMatch(
+                number = number,
+                name = contact.displayName,
+                source = MatchSource.CONTACT,
+                contactId = contact.id,
+            )
+        }
+        recents.forEach { call ->
+            val key = PhoneUtils.subscriberKey(call.number)
+            if (key.isEmpty()) return@forEach
+            val existing = merged[key]
+            merged[key] = DialerMatch(
+                number = call.number,
+                name = existing?.name ?: call.name,
+                source = if (existing != null) MatchSource.BOTH else MatchSource.RECENT,
+                lastCallAt = call.timestamp,
+                lastCallType = call.type,
+                contactId = existing?.contactId,
+            )
+        }
+
+        // Most recent interaction first; contacts never called sort after them.
+        return merged.values.sortedWith(
+            compareByDescending<DialerMatch> { it.lastCallAt ?: 0L }
+                .thenBy { (it.name ?: it.number).lowercase() },
+        )
+    }
 
     suspend fun lastCall(number: String): CallLogEntity? = callLogRepository.lastCallFor(number)
 
@@ -154,7 +206,7 @@ fun DialerScreen(
     var input by rememberSaveable { mutableStateOf("") }
     var identity by remember { mutableStateOf<CallerIdentity?>(null) }
     var lastCallAt by remember { mutableStateOf<Long?>(null) }
-    var matches by remember { mutableStateOf<List<ContactEntity>>(emptyList()) }
+    var results by remember { mutableStateOf<List<DialerMatch>>(emptyList()) }
     var editorDraft by remember { mutableStateOf<ContactDraft?>(null) }
     var showAddPicker by remember { mutableStateOf(false) }
     var showVideoInfo by remember { mutableStateOf(false) }
@@ -170,7 +222,7 @@ fun DialerScreen(
     LaunchedEffect(input) {
         identity = vm.identify(input)
         lastCallAt = vm.lastCall(input)?.timestamp
-        matches = if (input.isNotEmpty() && input.all { it.isDigit() }) vm.searchT9(input) else emptyList()
+        results = vm.search(input)
     }
 
     fun placeCall(raw: String) {
@@ -269,26 +321,48 @@ fun DialerScreen(
                 DialerAction(Icons.Filled.Videocam, "Video call") { showVideoInfo = true }
                 DialerAction(Icons.Filled.Sms, "Send a message") { sendMessage(context, input) }
 
-                if (matches.isNotEmpty()) {
+                if (results.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Contacts",
+                        "Matches",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                    LazyColumn(Modifier.heightIn(max = 180.dp)) {
-                        items(matches, key = { it.id }) { c ->
-                            ListItem(
-                                headlineContent = { Text(c.displayName) },
-                                supportingContent = {
-                                    Text(c.numbers.firstOrNull()?.number ?: "")
-                                },
-                                modifier = Modifier.clickable {
-                                    c.numbers.firstOrNull()?.number?.let { n ->
-                                        input = PhoneUtils.normalize(n).trimStart('+')
+                    LazyColumn(Modifier.heightIn(max = 200.dp)) {
+                        items(results, key = { PhoneUtils.subscriberKey(it.number) }) { match ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        input = PhoneUtils.normalize(match.number).trimStart('+')
                                     }
-                                },
-                            )
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                MonogramAvatar(match.displayName, size = 38)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        match.displayName,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        maxLines = 1,
+                                    )
+                                    Text(
+                                        buildString {
+                                            append(PhoneUtils.pretty(match.number))
+                                            match.lastCallAt?.let { at ->
+                                                append(" · ")
+                                                append(matchCallLabel(match.lastCallType, at))
+                                            }
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                    )
+                                }
+                                MatchBadge(match.source)
+                            }
                         }
                     }
                 }
@@ -380,8 +454,24 @@ fun DialerScreen(
                     maxLines = 1,
                 )
 
-                IconButton(
-                    onClick = { if (input.isNotEmpty()) input = input.dropLast(1) },
+                // Tap deletes one digit; holding keeps deleting until release.
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown()
+                                if (input.isNotEmpty()) input = input.dropLast(1)
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.none { it.pressed }) break
+                                    delay(BACKSPACE_REPEAT_MS)
+                                    if (input.isEmpty()) break
+                                    input = input.dropLast(1)
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Delete")
                 }
@@ -606,6 +696,46 @@ private fun sendMessage(context: Context, number: String) {
         Uri.parse("smsto:${PhoneUtils.toE164(number)}"),
     )
     runCatching { context.startActivity(intent) }
+}
+
+/** How fast the backspace key repeats while it is held. */
+private const val BACKSPACE_REPEAT_MS = 70L
+
+@Composable
+private fun MatchBadge(source: MatchSource) {
+    val label = when (source) {
+        MatchSource.CONTACT -> "Contact"
+        MatchSource.RECENT -> "Recent"
+        MatchSource.BOTH -> "Contact · Recent"
+    }
+    val container = when (source) {
+        MatchSource.CONTACT -> MaterialTheme.colorScheme.primaryContainer
+        MatchSource.RECENT -> MaterialTheme.colorScheme.tertiaryContainer
+        MatchSource.BOTH -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    Surface(shape = MaterialTheme.shapes.small, color = container) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+private fun matchCallLabel(type: Int?, at: Long): String {
+    val kind = when (type) {
+        android.provider.CallLog.Calls.MISSED_TYPE -> "Missed"
+        android.provider.CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
+        android.provider.CallLog.Calls.INCOMING_TYPE -> "Incoming"
+        else -> "Call"
+    }
+    val when_ = android.text.format.DateUtils.getRelativeTimeSpanString(
+        at,
+        System.currentTimeMillis(),
+        android.text.format.DateUtils.MINUTE_IN_MILLIS,
+    ).toString()
+    return "$kind · $when_"
 }
 
 private fun copyToClipboard(context: Context, text: String) {

@@ -24,6 +24,7 @@ fun SettingsScreen(
     onOpenFeatures: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
+    onOpenReplies: () -> Unit = {},
     onOpenPolicy: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
@@ -119,6 +120,18 @@ fun SettingsScreen(
         SwitchRow("Data saver", s.dataSaver) { vm.setDataSaver(it) }
         Text(
             "Stretches the background call-log sync from every 6 hours to once a day.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(16.dp))
+        SectionHeader("Messaging")
+        OutlinedButton(onClick = onOpenReplies, modifier = Modifier.fillMaxWidth()) {
+            Text("Suggested replies & auto-reply")
+        }
+        Text(
+            "Manage the one-tap replies shown while typing, and set an automatic reply " +
+                "to incoming messages.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

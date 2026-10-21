@@ -197,6 +197,19 @@
             android:exported="false"
             android:foregroundServiceType="microphone|phoneCall" />
 
+        <!--
+          Auto-reply to incoming SMS. Off unless the user enables it in
+          Settings -> Replies; the receiver checks that flag first.
+        -->
+        <receiver
+            android:name=".service.SmsAutoReplyReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="500">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Shares the downloaded update APK and the diagnostics log -->
         <provider
             android:name="androidx.core.content.FileProvider"
