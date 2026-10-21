@@ -3,6 +3,7 @@ package com.kavach.caller.data.repo
 import com.kavach.caller.data.local.dao.ContactDao
 import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.system.ContactsReader
+import com.kavach.caller.data.system.ContactsWriter
 import com.kavach.caller.util.PhoneUtils
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -12,6 +13,7 @@ import javax.inject.Singleton
 class ContactRepository @Inject constructor(
     private val dao: ContactDao,
     private val systemReader: ContactsReader,
+    private val systemWriter: ContactsWriter,
 ) {
     fun observeAll(): Flow<List<ContactEntity>> = dao.observeAll()
 
@@ -48,6 +50,49 @@ class ContactRepository @Inject constructor(
         dao.upsert(contact.copy(t9Key = PhoneUtils.t9(contact.displayName)))
 
     suspend fun delete(contact: ContactEntity) = dao.delete(contact)
+
+    /**
+     * Create or update a contact from the editor form. Writes to the device
+     * store first (so the contact appears in the phone's own contacts app),
+     * then mirrors it into Kavach's enriched table.
+     */
+    suspend fun saveDraft(draft: ContactDraft): Long {
+        val numbers = draft.numbers.filter { it.number.isNotBlank() }
+        val name = draft.name.trim().ifBlank { numbers.firstOrNull()?.number ?: "Unknown" }
+        val company = draft.company.trim().ifBlank { null }
+        val jobTitle = draft.jobTitle.trim().ifBlank { null }
+        val notes = draft.notes.trim().ifBlank { null }
+
+        val systemId = if (draft.systemId == null) {
+            systemWriter.insert(name, numbers, company, jobTitle, notes)
+        } else {
+            systemWriter.update(draft.systemId, name, company, jobTitle, notes)
+            draft.systemId
+        }
+
+        val entity = ContactEntity(
+            id = draft.id,
+            systemId = systemId,
+            displayName = name,
+            company = company,
+            jobTitle = jobTitle,
+            notes = notes,
+            tags = draft.tags,
+            numbers = numbers,
+            isFavourite = draft.isFavourite,
+            t9Key = PhoneUtils.t9(name),
+        )
+        return dao.upsert(entity)
+    }
+
+    /**
+     * Remove a contact. If it is linked to a device contact, that is deleted
+     * too — otherwise the next sync would just bring it back.
+     */
+    suspend fun deleteContact(contact: ContactEntity) {
+        contact.systemId?.let { systemWriter.delete(it) }
+        dao.delete(contact)
+    }
 
     /**
      * Resolve a display name for an incoming number, or null if unknown.

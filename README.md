@@ -28,7 +28,7 @@ brief.
 | Area | Highlights |
 |---|---|
 | **Dialer** | Keypad, T9 search, dual-SIM, in-call controls, caller-ID preview |
-| **Contacts** | Rich profiles — multiple numbers, company, notes, tags, photos |
+| **Contacts** | Rich profiles — add / edit / delete, multiple numbers, company, notes, tags, photos |
 | **Call log** | System log merge, filters, spam scores, AI-answered badges |
 | **Blocklist** | Exact / prefix / wildcard / regex / range / country rules, private & non-contact rules |
 | **Blocking** | Silent reject via `CallScreeningService`, Block / Silence / Send-to-AI / Allow |
@@ -144,6 +144,12 @@ Still integration points (marked in code): the cloud ASR/LLM backend
 - Each item shows a live tick as it's granted, and one primary button always performs the next outstanding step: *Grant all permissions* → *Set as Default dialer* → *Set as Caller ID & spam* → *Finish setup*.
 - Setup completion is remembered, so the flow appears on first install (or if the core permissions are later revoked) rather than every launch — the nav graph waits for settings to load so it never flashes.
 - *Skip for now* dismisses it for the session, and an *Open app settings* shortcut helps with permissions the user has permanently denied.
+
+### Added in 0.6.0
+
+- **Contacts are now editable.** A **+** button on the Contacts tab opens an add-contact form, and tapping any contact opens it for editing. Fields: name, multiple labelled numbers (add/remove), company, job title, notes and tags.
+- Saves write to the **device contact store** first (via a new `ContactsWriter`), so a contact added in Kavach also shows up in the phone's own contacts app — with Kavach's enriched copy (tags, notes) kept alongside.
+- **Delete** with a confirmation dialog removes the contact from Kavach and, when it is linked, from the device too.
 
 ## Legal & ethics
 
