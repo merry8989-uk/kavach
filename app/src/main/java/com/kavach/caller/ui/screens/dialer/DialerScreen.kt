@@ -79,8 +79,8 @@ class DialerViewModel @Inject constructor(
     private val identifyCaller: IdentifyCallerUseCase,
     private val searchContactsByT9: SearchContactsByT9UseCase,
     private val saveContactUseCase: SaveContactUseCase,
-    callLogRepository: CallLogRepository,
-    contactRepository: ContactRepository,
+    private val callLogRepository: CallLogRepository,
+    private val contactRepository: ContactRepository,
 ) : ViewModel() {
 
     /** All contacts, for the "Add to a contact" picker. */
