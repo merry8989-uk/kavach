@@ -42,7 +42,18 @@ class FeatureRegistry @Inject constructor(
         val missingPermissions = id.requiresPermissions.filter { !isGranted(it) }
         val missingRole = id.requiresRole?.takeIf { !isRoleHeld(it) }
         val missingDependencies = id.dependsOn.filter { !isEnabled(it) }
+        val missingBackend = id.requiresBackend && settings.snapshot.backendBaseUrl.isBlank()
         val enabled = isEnabled(id)
+
+        if (missingBackend) {
+            return FeatureState(
+                id = id,
+                enabled = enabled,
+                status = FeatureStatus.UNAVAILABLE,
+                reason = "No Kavach server is configured. Add the server URL in Settings, " +
+                    "or self-host the backend in this repository.",
+            )
+        }
 
         if (missingPermissions.isNotEmpty() || missingRole != null || missingDependencies.isNotEmpty()) {
             return FeatureState(
@@ -80,6 +91,9 @@ class FeatureRegistry @Inject constructor(
      * Used to block the toggle and to explain the block in the UI.
      */
     fun enableBlockReason(id: FeatureId): String? {
+        if (id.requiresBackend && settings.snapshot.backendBaseUrl.isBlank()) {
+            return "Needs a Kavach server URL in Settings"
+        }
         val missingPermissions = id.requiresPermissions.filter { !isGranted(it) }
         if (missingPermissions.isNotEmpty()) {
             return "Needs permission: ${missingPermissions.joinToString { it.substringAfterLast('.') }}"
@@ -110,6 +124,11 @@ class FeatureRegistry @Inject constructor(
     // ---------------- internals ----------------
 
     private fun degradedReason(id: FeatureId): String? = when (id) {
+        FeatureId.REMOTE_LOOKUP ->
+            if (settings.snapshot.backendToken.isBlank()) {
+                "No API token set — the server will reject lookups."
+            } else null
+
         FeatureId.AI_ASSISTANT ->
             if (!settings.snapshot.cloudAiEnabled) {
                 "Running on-device only — enable cloud AI in Settings for full transcription and summaries."

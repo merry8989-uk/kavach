@@ -33,6 +33,8 @@ enum class FeatureId(
     val requiresRole: String? = null,
     val requiresPermissions: List<String> = emptyList(),
     val dependsOn: List<FeatureId> = emptyList(),
+    /** Needs a configured Kavach server; unavailable until one is set. */
+    val requiresBackend: Boolean = false,
 ) {
     // ---------------- Protection ----------------
     CALL_SCREENING(
@@ -56,6 +58,14 @@ enum class FeatureId(
         description = "Speak the caller's name out loud when the phone rings.",
         category = FeatureCategory.PROTECTION,
         defaultEnabled = false,
+    ),
+    REMOTE_LOOKUP(
+        title = "Online caller lookup",
+        description = "Ask the Kavach server about numbers you don't have saved.",
+        category = FeatureCategory.PROTECTION,
+        defaultEnabled = true,
+        requiresPermissions = listOf(Manifest.permission.INTERNET),
+        requiresBackend = true,
     ),
 
     // ---------------- Calls ----------------

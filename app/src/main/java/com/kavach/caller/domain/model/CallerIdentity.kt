@@ -17,7 +17,14 @@ data class CallerIdentity(
     val source: Source = Source.NONE,
     val confidence: Float = 0f,
 ) {
-    enum class Source { CONTACT, LOCAL_DB, CLOUD, NONE }
+    enum class Source { CONTACT, LOCAL_DB, CLOUD, BUSINESS, NONE }
 
     val isKnown: Boolean get() = name != null
+
+    /**
+     * True when the name came from the community rather than a verified or
+     * personal source, so the UI can say "possible" instead of stating it.
+     */
+    val isTentative: Boolean
+        get() = name != null && source == Source.CLOUD && confidence < 0.8f
 }

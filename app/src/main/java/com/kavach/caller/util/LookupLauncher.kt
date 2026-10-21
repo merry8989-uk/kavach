@@ -1,5 +1,7 @@
 package com.kavach.caller.util
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -7,55 +9,88 @@ import com.kavach.caller.domain.model.LookupStrategy
 import com.kavach.caller.domain.model.LookupTarget
 
 /**
- * Opens a number in another app or a web search, so the user can try to find out
- * who is calling (F9.7).
+ * Opens a number in another app or a website, so the user can try to find out
+ * who is calling (F9.9).
  *
- * Honesty notes:
- *  - WhatsApp, Telegram, mail, Google and Truecaller use their documented public
- *    links, so they work without Kavach knowing anything about the target app.
+ * Honesty notes, all verified rather than assumed:
+ *  - WhatsApp, Telegram and mail use their documented public links.
+ *  - Google search takes the number as a query, so it works directly.
+ *  - **Caller Name (truecallers.in) has no URL that carries a number.** Its
+ *    search is entirely client-side — the address never changes and a `?number=`
+ *    parameter is ignored (confirmed by driving the live site). So instead of
+ *    faking a deep link we open the site and copy the number to the clipboard,
+ *    and the UI says so.
  *  - Arattai and Hyped have no documented public deep link, so they are handled
  *    as "open if installed, else show the store listing". Their package names are
  *    best-effort and **need checking on a real device**.
- *  - Every failure is reported back so the UI can say what happened instead of
- *    appearing to do nothing.
+ *  - Every failure is reported back so the UI can say what happened.
  */
 object LookupLauncher {
 
     sealed interface Result {
         data object Opened : Result
+
+        /** Opened, but the user needs to do one more thing — explained in [message]. */
+        data class OpenedWithNote(val message: String) : Result
+
         data class Failed(val reason: String) : Result
     }
-
-    /** ISO country code for Truecaller's search path. Defaults to India. */
-    private val countryForCallingCode = mapOf(
-        "1" to "us", "7" to "ru", "20" to "eg", "27" to "za", "33" to "fr", "34" to "es",
-        "39" to "it", "44" to "gb", "49" to "de", "60" to "my", "61" to "au", "62" to "id",
-        "63" to "ph", "65" to "sg", "66" to "th", "81" to "jp", "82" to "kr", "84" to "vn",
-        "86" to "cn", "91" to "in", "92" to "pk", "94" to "lk", "95" to "mm", "977" to "np",
-        "880" to "bd", "966" to "sa", "971" to "ae", "973" to "bh", "974" to "qa",
-        "965" to "kw", "968" to "om", "234" to "ng", "254" to "ke",
-    )
 
     fun open(context: Context, target: LookupTarget, rawNumber: String): Result {
         val digits = PhoneUtils.toE164(rawNumber).trimStart('+')
         if (digits.isEmpty()) return Result.Failed("No number to look up.")
 
-        val intent = when (target.strategy) {
-            LookupStrategy.WHATSAPP -> view("https://wa.me/$digits").withPackage(target.packageName)
-            LookupStrategy.TELEGRAM -> view("https://t.me/+$digits").withPackage(target.packageName)
-            LookupStrategy.EMAIL -> mailIntent(rawNumber)
-            LookupStrategy.WEB_SEARCH -> view(
-                "https://www.google.com/search?q=" + Uri.encode(PhoneUtils.pretty(rawNumber)),
+        return when (target.strategy) {
+            LookupStrategy.WHATSAPP -> launch(
+                context, view("https://wa.me/$digits").withPackage(target.packageName), target,
             )
-            LookupStrategy.TRUECALLER -> view(truecallerUrl(digits))
-            LookupStrategy.APP_OR_STORE -> appOrStore(context, target)
-        } ?: return Result.Failed("Could not build a link for ${target.title}.")
+            LookupStrategy.TELEGRAM -> launch(
+                context, view("https://t.me/+$digits").withPackage(target.packageName), target,
+            )
+            LookupStrategy.EMAIL -> launch(context, mailIntent(rawNumber), target)
+            LookupStrategy.WEB_SEARCH -> launch(
+                context,
+                view("https://www.google.com/search?q=" + Uri.encode(PhoneUtils.pretty(rawNumber))),
+                target,
+            )
+            LookupStrategy.SITE_WITH_CLIPBOARD -> openSiteAndCopy(context, target, rawNumber)
+            LookupStrategy.APP_OR_STORE -> launch(context, appOrStore(context, target), target)
+        }
+    }
 
+    private fun launch(context: Context, intent: Intent?, target: LookupTarget): Result {
+        if (intent == null) return Result.Failed("Could not build a link for ${target.title}.")
         return try {
             context.startActivity(intent)
             Result.Opened
         } catch (t: Throwable) {
             Result.Failed("${target.title} isn't installed on this phone.")
+        }
+    }
+
+    /**
+     * The site can't receive the number by URL, so we open it and put the number
+     * on the clipboard, then tell the user to paste it.
+     */
+    private fun openSiteAndCopy(context: Context, target: LookupTarget, rawNumber: String): Result {
+        val url = target.siteUrl ?: return Result.Failed("No site configured for ${target.title}.")
+        val pretty = PhoneUtils.pretty(rawNumber)
+
+        val copied = runCatching {
+            val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
+            clipboard.setPrimaryClip(ClipData.newPlainText("phone number", pretty))
+            true
+        }.getOrDefault(false)
+
+        return try {
+            context.startActivity(view(url))
+            if (copied) {
+                Result.OpenedWithNote("$pretty copied — paste it into the search box on the site.")
+            } else {
+                Result.OpenedWithNote("Opened the site. Type $pretty into the search box.")
+            }
+        } catch (t: Throwable) {
+            Result.Failed("Couldn't open a browser for ${target.title}.")
         }
     }
 
@@ -74,15 +109,6 @@ object LookupLauncher {
                 "&body=" + Uri.encode(PhoneUtils.pretty(rawNumber)),
         )
         return Intent(Intent.ACTION_SENDTO, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-
-    private fun truecallerUrl(digits: String): String {
-        val country = countryForCallingCode.entries
-            .sortedByDescending { it.key.length }
-            .firstOrNull { digits.startsWith(it.key) }
-            ?.value
-            ?: "in"
-        return "https://www.truecaller.com/search/$country/$digits"
     }
 
     private fun appOrStore(context: Context, target: LookupTarget): Intent? {

@@ -62,10 +62,10 @@ Backend = whether a server is needed. Privacy = data touched.
 | F8.7 | Transcription of recordings | IN_PROGRESS | 24 | — | yes | call audio | — |
 | F9.1 | Number normalisation | IMPLEMENTED | 24 | — | — | number | PhoneUtilsTest |
 | F9.2 | Local-first lookup | IMPLEMENTED | 24 | READ_CONTACTS | — | number | — |
-| F9.3 | Remote lookup | BLOCKED | 24 | INTERNET | yes | number | — |
-| F9.4 | Crowdsourced tags | BLOCKED | 24 | INTERNET | yes | number | — |
+| F9.3 | Remote lookup | IMPLEMENTED (client) | 24 | INTERNET | yes | number | needs a configured server |
+| F9.4 | Crowdsourced tags | IMPLEMENTED (client) | 24 | INTERNET | yes | number | needs a configured server |
 | F9.5 | Explainable spam score | IMPLEMENTED | 24 | — | — | number | SpamScorerTest |
-| F9.6 | Business directory | BLOCKED | 24 | INTERNET | yes | number | — |
+| F9.6 | Business directory | IMPLEMENTED (client) | 24 | INTERNET | yes | number | needs a configured server |
 | F9.7 | Offline cache | IN_PROGRESS | 24 | — | — | number | — |
 | F9.8 | Typed result + source/confidence | IN_PROGRESS | 24 | — | — | number | — |
 | F10.1 | Screening gate | IMPLEMENTED | 24 | Call-screening role | — | number | — |
@@ -97,7 +97,7 @@ Backend = whether a server is needed. Privacy = data touched.
 | F16.3 | Runtime capability check + honest failure reason | IMPLEMENTED | 24 | varies per module | varies | — | — |
 | F16.4 | Battery-saver / data-saver / offline-only modes | NOT_STARTED | 24 | — | — | — | — |
 | F16.5 | Diagnostics log (opt-in, masked, shareable) | IMPLEMENTED | 24 | — | — | masked numbers only | — |
-| F9.9 | Lookup elsewhere (WhatsApp/TG/Arattai/Hyped/mail/Google/Truecaller) | IMPLEMENTED | 24 | — | — | number only, leaves the device via the chosen app | — |
+| F9.9 | Lookup elsewhere (WhatsApp/TG/Arattai/Hyped/mail/Google/Caller Name) | IMPLEMENTED | 24 | — | — | number only, leaves the device via the chosen app | — |
 | F14.1 | First-run permission groups | IMPLEMENTED | 24 | (all) | — | — | — |
 | F14.2 | Role requests in setup | IMPLEMENTED | 29 | — | — | — | — |
 | F14.4 | Persisted setup completion | IMPLEMENTED | 24 | — | — | — | — |

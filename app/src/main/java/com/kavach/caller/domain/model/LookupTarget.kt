@@ -10,17 +10,20 @@ enum class LookupStrategy {
     EMAIL,
     /** A web search for the number. */
     WEB_SEARCH,
-    /** Truecaller's public web search. */
-    TRUECALLER,
+    /**
+     * A caller-ID website that has **no** URL that carries a number, so we open
+     * it and copy the number to the clipboard for a one-tap paste.
+     */
+    SITE_WITH_CLIPBOARD,
     /** Launch the app if installed, otherwise offer the store listing. */
     APP_OR_STORE,
 }
 
 /**
- * A place a user can look a number up to try to learn who it belongs to (F9.7).
+ * A place a user can look a number up to try to learn who it belongs to (F9.9).
  *
  * Only strategies with a documented public link are used for the big apps;
- * anything without one is honestly labelled "if installed".
+ * anything without one is honestly labelled.
  */
 enum class LookupTarget(
     val title: String,
@@ -28,9 +31,11 @@ enum class LookupTarget(
     val strategy: LookupStrategy,
     /**
      * Package to force / check. For [LookupStrategy.APP_OR_STORE] these are
-     * best-effort and unverified — see the note in [com.kavach.caller.util.LookupLauncher].
+     * best-effort and unverified — see [com.kavach.caller.util.LookupLauncher].
      */
     val packageName: String? = null,
+    /** Only used by [LookupStrategy.SITE_WITH_CLIPBOARD]. */
+    val siteUrl: String? = null,
 ) {
     WHATSAPP(
         title = "WhatsApp",
@@ -72,9 +77,10 @@ enum class LookupTarget(
         subtitle = "Web search for this number",
         strategy = LookupStrategy.WEB_SEARCH,
     ),
-    TRUECALLER(
-        title = "Search on Truecaller",
-        subtitle = "Truecaller's public web search for this number",
-        strategy = LookupStrategy.TRUECALLER,
+    CALLER_NAME(
+        title = "Caller Name (truecallers.in)",
+        subtitle = "Opens the site and copies the number — paste it in their search box",
+        strategy = LookupStrategy.SITE_WITH_CLIPBOARD,
+        siteUrl = "https://truecallers.in/",
     ),
 }

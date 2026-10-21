@@ -1,20 +1,30 @@
 package com.kavach.caller.domain.usecase
 
 import com.kavach.caller.ai.SpamScorer
+import com.kavach.caller.data.remote.CallerLookupDataSource
 import com.kavach.caller.data.repo.ContactRepository
 import com.kavach.caller.domain.model.CallerIdentity
 import com.kavach.caller.util.PhoneUtils
 import javax.inject.Inject
 
 /**
- * Resolve who is calling, local-first (F9.2).
+ * Resolve who is calling (F9.2 + F9.3).
  *
- * Never invents a name: an unknown number yields [CallerIdentity.name] == null
- * and `source = NONE`.
+ * Order of trust, highest first:
+ *  1. the user's own contacts;
+ *  2. the Kavach server, if one is configured and the answer is confident enough;
+ *  3. local heuristics (spam score) with no name.
+ *
+ * It **never invents a name**: an unknown number yields `name == null`. A
+ * low-confidence community tag is returned with a low `confidence` so the UI can
+ * present it as a possibility rather than a fact.
+ *
+ * This is not on the call-screening path — screening must stay fast and offline.
  */
 class IdentifyCallerUseCase @Inject constructor(
     private val contactRepository: ContactRepository,
     private val spamScorer: SpamScorer,
+    private val remoteLookup: CallerLookupDataSource,
 ) {
     suspend operator fun invoke(number: String?): CallerIdentity {
         val e164 = PhoneUtils.toE164(number ?: "")
@@ -23,14 +33,50 @@ class IdentifyCallerUseCase @Inject constructor(
             return CallerIdentity(number = e164, source = CallerIdentity.Source.NONE)
         }
 
-        val name = contactRepository.nameFor(number ?: "")
-        val isContact = name != null
+        // 1. Local contacts win.
+        val localName = contactRepository.nameFor(number ?: "")
+        if (localName != null) {
+            return CallerIdentity(
+                number = e164,
+                name = localName,
+                spamScore = 0,
+                source = CallerIdentity.Source.CONTACT,
+                confidence = 1f,
+            )
+        }
+
+        // 2. The server, when there is one and it is confident enough to name.
+        val remote = remoteLookup.lookup(number ?: "")
+        if (remote?.hasName == true && remote.confidence >= MIN_CONFIDENCE) {
+            return CallerIdentity(
+                number = e164,
+                name = remote.displayName,
+                company = remote.businessCategory,
+                spamScore = remote.spamRisk,
+                reports = remote.reports,
+                source = if (remote.source == SOURCE_BUSINESS) {
+                    CallerIdentity.Source.BUSINESS
+                } else {
+                    CallerIdentity.Source.CLOUD
+                },
+                confidence = remote.confidence.toFloat(),
+            )
+        }
+
+        // 3. Nothing trustworthy about the name — keep the spam signal only.
         return CallerIdentity(
             number = e164,
-            name = name,
-            spamScore = spamScorer.score(number, isContact = isContact),
-            source = if (isContact) CallerIdentity.Source.CONTACT else CallerIdentity.Source.LOCAL_DB,
-            confidence = if (isContact) 1f else 0f,
+            name = null,
+            spamScore = remote?.spamRisk ?: spamScorer.score(number, isContact = false),
+            reports = remote?.reports ?: 0,
+            source = CallerIdentity.Source.LOCAL_DB,
         )
+    }
+
+    private companion object {
+        /** Below this, a community tag is treated as too weak to show as a name. */
+        const val MIN_CONFIDENCE = 0.5
+
+        const val SOURCE_BUSINESS = "BUSINESS"
     }
 }

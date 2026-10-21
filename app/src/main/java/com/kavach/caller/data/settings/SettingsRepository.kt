@@ -39,6 +39,8 @@ class SettingsRepository @Inject constructor(
         val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val diagnosticsEnabled = booleanPreferencesKey("diagnostics_enabled")
+        val backendBaseUrl = stringPreferencesKey("backend_base_url")
+        val backendToken = stringPreferencesKey("backend_token")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -73,6 +75,8 @@ class SettingsRepository @Inject constructor(
             cloudAiEnabled = p[Keys.cloudAiEnabled] ?: false,
             onboardingDone = p[Keys.onboardingDone] ?: false,
             diagnosticsEnabled = p[Keys.diagnosticsEnabled] ?: true,
+            backendBaseUrl = p[Keys.backendBaseUrl] ?: "",
+            backendToken = p[Keys.backendToken] ?: "",
         )
     }
 
@@ -91,4 +95,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setCloudAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.cloudAiEnabled] = value }
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
     suspend fun setDiagnosticsEnabled(value: Boolean) = context.dataStore.edit { it[Keys.diagnosticsEnabled] = value }
+    suspend fun setBackendBaseUrl(value: String) = context.dataStore.edit { it[Keys.backendBaseUrl] = value.trim() }
+    suspend fun setBackendToken(value: String) = context.dataStore.edit { it[Keys.backendToken] = value.trim() }
 }

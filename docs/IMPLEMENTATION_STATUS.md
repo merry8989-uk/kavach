@@ -91,6 +91,20 @@ v3->v4 migration.
 Remaining F16 items: a global battery-saver mode, data-saver mode, an offline-only lookup
 switch and cache-size controls. These are settings, not blockers.
 
+## 2d. Backend wiring (v0.13.0)
+
+The client is now wired to the API contract:
+
+- `data/remote/KavachApiClient` — lookup, reputation, business search, report, correction.
+- `data/remote/CallerLookupDataSource` — 10-minute cache, bounded to 200 entries.
+- `IdentifyCallerUseCase` — contacts -> server -> heuristics; never invents a name.
+- `FeatureId.REMOTE_LOOKUP` — reports **Unavailable** ("No Kavach server is configured")
+  until a server URL is set, so nothing fails silently.
+- Server URL and token live in Settings; **no hosted backend is shipped**.
+
+Still open: the backend is not deployed anywhere, so none of this has been exercised
+against a live server. The client compiles and is unit-tested; end-to-end remains unverified.
+
 ## 3. What exists and compiles (app)
 
 **Foundation** — single-activity Compose, Material 3, 5 tabs + stacked routes, Hilt DI,

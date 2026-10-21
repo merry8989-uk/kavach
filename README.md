@@ -47,7 +47,7 @@ brief.
 | **Onboarding** | Runtime permissions + Call screening / Default dialer / Default SMS roles |
 | **Updates** | In-app check against GitHub Releases, download + install, optional launch check |
 | **Features screen** | Central registry: per-module on/off, live capability status, honest reasons |
-| **Caller lookup** | Send a number to WhatsApp, WhatsApp Business, Telegram, Arattai, Hyped, mail, Google or Truecaller's web search |
+| **Caller lookup** | Send a number to WhatsApp, WhatsApp Business, Telegram, Arattai, Hyped, mail, Google, or Caller Name (truecallers.in) |
 | **Diagnostics** | Opt-in local technical log with masked numbers, readable and shareable from Settings |
 
 > **Verification status: nothing here is device-verified.** The project compiles and
@@ -271,6 +271,29 @@ WhatsApp, WhatsApp Business, Telegram, Arattai, Hyped, Email, Google search, and
 - Readable in-app with level colouring, and shareable as a file via the system share sheet
   (through the existing `FileProvider`). Nothing is ever uploaded automatically.
 - Capped at 512 KB with rotation, so it cannot grow without bound. Clear button included.
+
+### Added in 0.13.0 — backend wired, and the Caller Name lookup
+
+**The Android client is now wired to the backend.** `data/remote/` adds a
+`KavachApiClient` (OkHttp + kotlinx.serialization) and a `CallerLookupDataSource`
+with a short-lived cache, implementing the endpoints in `docs/API_CONTRACT.md`:
+
+- `GET /v1/lookup`, `GET /v1/number-reputation`, `GET /v1/businesses/search`,
+  `POST /v1/reports`, `POST /v1/identity-corrections`.
+- `IdentifyCallerUseCase` now resolves **contacts -> server -> local heuristics**, and
+  never invents a name. A weak community tag is carried with a low `confidence` so the UI
+  can present it as a possibility rather than a fact.
+- **Kavach ships no hosted backend.** The server URL and token are settings; until they
+  are filled in, the new `REMOTE_LOOKUP` feature reports itself **Unavailable** with a
+  clear reason and nothing is ever called. Calls are bounded by a 4-second timeout, and
+  remote lookup is deliberately *not* on the call-screening path, which stays offline.
+
+**Caller Name (truecallers.in) replaced the old Truecaller entry.** I drove that live
+site to check how its search works, and the result changed the design: its search is
+entirely client-side — **the URL never changes and a `?number=` parameter is ignored**.
+There is therefore no deep link that can carry a number, so instead of faking one,
+Kavach opens the site **and copies the number to the clipboard**, with the UI saying
+"number copied — paste it into the search box".
 
 ## Legal & ethics
 

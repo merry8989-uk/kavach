@@ -106,6 +106,42 @@ fun SettingsScreen(
         UpdateSection()
 
         Spacer(Modifier.height(16.dp))
+        SectionHeader("Server (advanced)")
+        var baseUrl by remember(s.backendBaseUrl) { mutableStateOf(s.backendBaseUrl) }
+        var token by remember(s.backendToken) { mutableStateOf(s.backendToken) }
+        OutlinedTextField(
+            value = baseUrl,
+            onValueChange = { baseUrl = it },
+            label = { Text("Server URL") },
+            placeholder = { Text("https://your-kavach-server") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = token,
+            onValueChange = { token = it },
+            label = { Text("API token") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = {
+                vm.setBackendBaseUrl(baseUrl)
+                vm.setBackendToken(token)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Save server settings") }
+        Text(
+            "Kavach ships no hosted backend. Point it at your own deployment " +
+                "(see backend/ in the repository) to turn on online caller lookup and reporting. " +
+                "Leave empty to stay fully offline.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(16.dp))
         SectionHeader("Troubleshooting")
         OutlinedButton(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) {
             Text("Diagnostics & logs")

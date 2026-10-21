@@ -68,8 +68,12 @@ fun CallerLookupDialog(
                                 .fillMaxWidth()
                                 .clickable {
                                     when (val result = LookupLauncher.open(context, target, number)) {
-                                        is LookupLauncher.Result.Opened -> onDismiss()
-                                        is LookupLauncher.Result.Failed -> message = result.reason
+                                        LookupLauncher.Result.Opened -> onDismiss()
+                                        // Keep the sheet open so the note is actually read.
+                                        is LookupLauncher.Result.OpenedWithNote ->
+                                            message = result.message
+                                        is LookupLauncher.Result.Failed ->
+                                            message = result.reason
                                     }
                                 }
                                 .padding(vertical = 10.dp),
@@ -106,6 +110,6 @@ private fun iconFor(target: LookupTarget): ImageVector = when (target.strategy) 
     LookupStrategy.TELEGRAM -> Icons.AutoMirrored.Filled.Send
     LookupStrategy.EMAIL -> Icons.Filled.Email
     LookupStrategy.WEB_SEARCH -> Icons.Filled.Search
-    LookupStrategy.TRUECALLER -> Icons.Filled.Public
+    LookupStrategy.SITE_WITH_CLIPBOARD -> Icons.Filled.Public
     LookupStrategy.APP_OR_STORE -> Icons.Filled.Apps
 }

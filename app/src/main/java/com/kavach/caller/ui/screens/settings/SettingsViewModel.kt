@@ -48,4 +48,6 @@ class SettingsViewModel @Inject constructor(
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
     fun setOnboardingDone(value: Boolean) = viewModelScope.launch { repo.setOnboardingDone(value) }
     fun setDiagnosticsEnabled(value: Boolean) = viewModelScope.launch { repo.setDiagnosticsEnabled(value) }
+    fun setBackendBaseUrl(value: String) = viewModelScope.launch { repo.setBackendBaseUrl(value) }
+    fun setBackendToken(value: String) = viewModelScope.launch { repo.setBackendToken(value) }
 }
