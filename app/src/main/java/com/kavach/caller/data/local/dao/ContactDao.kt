@@ -14,6 +14,10 @@ interface ContactDao {
     @Query("SELECT * FROM contacts_enriched ORDER BY displayName COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<ContactEntity>>
 
+    /** One-shot variant, for callers that need a list rather than a stream. */
+    @Query("SELECT * FROM contacts_enriched ORDER BY displayName COLLATE NOCASE ASC")
+    suspend fun observeAllOnce(): List<ContactEntity>
+
     @Query("SELECT * FROM contacts_enriched WHERE systemId = :systemId LIMIT 1")
     suspend fun findBySystemId(systemId: Long): ContactEntity?
 

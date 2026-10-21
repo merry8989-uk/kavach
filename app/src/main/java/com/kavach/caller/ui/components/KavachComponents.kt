@@ -54,9 +54,11 @@ fun KavachCard(
 /** A labelled row inside a [KavachCard]. */
 @Composable
 fun InfoRow(
+    // Defaulted so a simple "label / value" row can omit it, while existing
+    // positional callers keep working.
+    icon: ImageVector = Icons.Filled.Info,
     label: String,
     value: String?,
-    icon: ImageVector = Icons.Filled.Info,
     onClick: (() -> Unit)? = null,
 ) {
     if (value.isNullOrBlank()) return
