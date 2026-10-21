@@ -2,6 +2,7 @@ package com.kavach.caller
 
 import android.app.Application
 import com.kavach.caller.data.diagnostics.DiagnosticsRepository
+import com.kavach.caller.data.diagnostics.SessionContext
 import com.kavach.caller.domain.feature.FeatureId
 import com.kavach.caller.domain.feature.FeatureRegistry
 import com.kavach.caller.service.Announcer
@@ -22,6 +23,7 @@ class KavachApp : Application() {
     @Inject lateinit var features: FeatureRegistry
     @Inject lateinit var diagnostics: DiagnosticsRepository
     @Inject lateinit var settings: com.kavach.caller.data.settings.SettingsRepository
+    @Inject lateinit var session: SessionContext
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -42,11 +44,13 @@ class KavachApp : Application() {
         // A startup breadcrumb plus the current module states, so a shared log
         // shows exactly what configuration produced a bug.
         scope.launch {
-            diagnostics.info("App", "Kavach ${BuildConfig.VERSION_NAME} started")
+            // Session context is recorded once per launch, as the standard asks.
+            diagnostics.sessionStart()
             FeatureId.entries.forEach { feature ->
-                diagnostics.debug(
-                    "Features",
-                    "${feature.name}=${features.isEnabled(feature)} status=${features.stateOf(feature).status}",
+                diagnostics.featureToggle(
+                    feature = feature.name,
+                    enabled = features.isEnabled(feature),
+                    status = features.stateOf(feature).status.name,
                 )
             }
         }

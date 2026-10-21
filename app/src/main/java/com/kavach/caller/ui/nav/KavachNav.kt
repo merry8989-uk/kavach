@@ -123,6 +123,24 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
 
+    // screen_view on every destination change, with the previous screen and how
+    // long it was shown — the standard's Part C requirement.
+    var previousScreen by remember { mutableStateOf<String?>(null) }
+    var shownAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    val route = current?.route
+    LaunchedEffect(route) {
+        if (route == null) return@LaunchedEffect
+        val now = System.currentTimeMillis()
+        settingsVm.diagnostics.screenView(
+            name = route,
+            previous = previousScreen,
+            durationMs = if (previousScreen != null) now - shownAt else null,
+        )
+        settingsVm.session.currentScreen = route
+        previousScreen = route
+        shownAt = now
+    }
+
     Scaffold(
         bottomBar = {
             NavigationBar {

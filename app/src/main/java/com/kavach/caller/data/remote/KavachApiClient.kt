@@ -264,18 +264,27 @@ class KavachApiClient @Inject constructor(
         request: Request,
         deserializer: DeserializationStrategy<T>,
     ): T? = withContext(Dispatchers.IO) {
+        val started = System.currentTimeMillis()
         runCatching {
             http.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    // 503 = the server is honest about an unconfigured provider.
-                    diagnostics.warn("Remote", "${response.code} ${request.url.encodedPath}")
-                    return@use null
-                }
+                diagnostics.apiRequest(
+                    endpoint = request.url.encodedPath,
+                    method = request.method,
+                    statusCode = response.code,
+                    latencyMs = System.currentTimeMillis() - started,
+                )
+                if (!response.isSuccessful) return@use null
                 val body = response.body?.string() ?: return@use null
                 json.decodeFromString(deserializer, body)
             }
         }.getOrElse { throwable ->
-            diagnostics.warn("Remote", "request failed: ${throwable.javaClass.simpleName}")
+            diagnostics.apiRequest(
+                endpoint = request.url.encodedPath,
+                method = request.method,
+                statusCode = 0,
+                latencyMs = System.currentTimeMillis() - started,
+                retryCount = 0,
+            )
             null
         }
     }

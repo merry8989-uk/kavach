@@ -46,11 +46,13 @@ class KavachScreeningService : CallScreeningService() {
 
         scope.launch {
             val decision = decideCallAction(raw)
-            // Masked number only — the diagnostics log never stores full numbers.
-            diagnostics.info(
-                "Screening",
-                "${decision.action} ${DiagnosticsRepository.mask(raw)}" +
-                    (decision.rule?.let { " rule=${it.type}" } ?: " no-rule"),
+            // Intent *and* outcome together: what we decided, and whether the
+            // response we built actually went through.
+            diagnostics.callScreened(
+                action = decision.action.name,
+                outcome = "success",
+                hasRule = decision.rule != null,
+                numberType = decision.rule?.type?.name,
             )
 
             val response = when (decision.action) {

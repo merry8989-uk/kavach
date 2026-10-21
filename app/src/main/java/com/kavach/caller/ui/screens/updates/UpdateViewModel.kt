@@ -36,7 +36,21 @@ class UpdateViewModel @Inject constructor(
     fun check(currentVersion: String) = viewModelScope.launch {
         _state.value = State.Checking
         val result = checkForUpdates(currentVersion)
-        diagnostics.info("Updates", "check from $currentVersion -> ${result::class.simpleName}")
+        diagnostics.updateCheck(
+            outcome = when (result) {
+                is CheckForUpdatesUseCase.Result.Available -> "success"
+                CheckForUpdatesUseCase.Result.UpToDate -> "no_op"
+                CheckForUpdatesUseCase.Result.Unreachable -> "failed"
+            },
+            currentVersion = currentVersion,
+            availableVersion = (result as? CheckForUpdatesUseCase.Result.Available)
+                ?.info?.versionName,
+            errorCode = if (result is CheckForUpdatesUseCase.Result.Unreachable) {
+                "unreachable"
+            } else {
+                null
+            },
+        )
         _state.value = when (result) {
             is CheckForUpdatesUseCase.Result.Available -> State.Available(result.info)
             CheckForUpdatesUseCase.Result.UpToDate -> State.UpToDate(currentVersion)

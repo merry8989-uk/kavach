@@ -26,8 +26,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.caller.BuildConfig
 import com.kavach.caller.data.diagnostics.DiagnosticsRepository
+import com.kavach.caller.data.diagnostics.EventSchema
 import com.kavach.caller.data.diagnostics.ExportFormat
-import com.kavach.caller.data.diagnostics.LogEntry
+import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogLevel
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
@@ -56,14 +57,20 @@ class DiagnosticsViewModel @Inject constructor(
     val appSettings = settings.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
-    private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
-    val entries: StateFlow<List<LogEntry>> = _entries.asStateFlow()
+    private val _entries = MutableStateFlow<List<LogEvent>>(emptyList())
+    val entries: StateFlow<List<LogEvent>> = _entries.asStateFlow()
+
+    private val _counts = MutableStateFlow<Map<LogLevel, Int>>(emptyMap())
+    val counts: StateFlow<Map<LogLevel, Int>> = _counts.asStateFlow()
+
+    val schemaVersion: String get() = EventSchema.VERSION
 
     var sizeText by mutableStateOf("0 B")
         private set
 
     fun refresh() = viewModelScope.launch {
         _entries.value = repository.entries()
+        _counts.value = repository.countsByLevel()
         sizeText = repository.formattedSize()
     }
 
@@ -289,42 +296,53 @@ fun DiagnosticsScreen(
 }
 
 @Composable
-private fun LogRow(entry: LogEntry) {
-    val colour = when (entry.level) {
+private fun LogRow(event: LogEvent) {
+    val colour = when (event.logLevel) {
         LogLevel.ERROR -> MaterialTheme.colorScheme.error
         LogLevel.WARN -> MaterialTheme.colorScheme.tertiary
         LogLevel.INFO -> MaterialTheme.colorScheme.primary
         LogLevel.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(entry.timestamp)),
+                SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(event.timestampMs)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                entry.level.name,
+                event.logLevel.name,
                 style = MaterialTheme.typography.labelSmall,
                 color = colour,
                 fontFamily = FontFamily.Monospace,
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                entry.tag,
+                event.eventName,
                 style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+        if (event.properties.isNotEmpty()) {
+            Text(
+                event.properties.entries.joinToString("  ") { "${it.key}=${it.value}" },
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,
             )
         }
-        Text(
-            entry.message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontFamily = FontFamily.Monospace,
-        )
+        if (event.attemptId != null) {
+            Text(
+                "attempt ${event.attemptId}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
 }

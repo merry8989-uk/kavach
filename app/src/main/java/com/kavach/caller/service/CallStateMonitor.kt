@@ -111,12 +111,14 @@ class CallStateMonitor @Inject constructor(
         scope.launch {
             runCatching { callLogRepository.syncFromSystem() }
                 .onSuccess { imported ->
-                    if (imported > 0) {
-                        diagnostics.debug("Calls", "imported $imported call-log row(s) after hang-up")
-                    }
+                    diagnostics.dataQueryResult(source = "call_log", itemCount = imported)
                 }
                 .onFailure {
-                    diagnostics.warn("Calls", "call-log import failed: ${it.javaClass.simpleName}")
+                    diagnostics.dataQueryResult(
+                        source = "call_log",
+                        itemCount = 0,
+                        errorCode = it.javaClass.simpleName,
+                    )
                 }
         }
     }
@@ -165,10 +167,11 @@ class CallStateMonitor @Inject constructor(
             )
             sessionManager.set(session)
             callNotifications.show(session)
-            diagnostics.info(
-                "Calls",
-                "${direction.name} ${phase.name} ${DiagnosticsRepository.mask(number)} " +
-                    "sim=${simLabel ?: "unknown"}",
+            diagnostics.callState(
+                direction = direction.name,
+                phase = phase.name,
+                hasSim = simLabel != null,
+                hasName = name != null,
             )
         }
     }

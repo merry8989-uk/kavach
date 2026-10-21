@@ -19,13 +19,142 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.activity.compose.BackHandler
+import com.kavach.caller.data.diagnostics.DiagnosticsRepository
+import com.kavach.caller.data.diagnostics.FrictionTracker
+import com.kavach.caller.data.diagnostics.SessionContext
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.UUID
+import javax.inject.Inject
+
+/**
+ * Tracks permission and role "fix" attempts so the log can tell intent from
+ * outcome.
+ *
+ * This is the exact failure the logging standard was written about: a log full
+ * of `access_fix_requested` with no `access_fix_result` proves a user was stuck
+ * in a loop but cannot say why. Every request here is paired with a result, and
+ * a repeating request raises `permission_loop`.
+ */
+@HiltViewModel
+class PermissionsViewModel @Inject constructor(
+    val diagnostics: DiagnosticsRepository,
+    private val session: SessionContext,
+) : ViewModel() {
+
+    private data class Pending(
+        val attemptId: String,
+        val permission: String,
+        val stateBefore: String,
+        val actionTaken: String,
+        val startedAt: Long,
+    )
+
+    private val pending = mutableMapOf<String, Pending>()
+    private val attemptCounts = mutableMapOf<String, Int>()
+
+    /** First meaningful action after launch — the `time_to_first_value` signal. */
+    private var firstValueSent = false
+
+    fun onScreenShown() {
+        viewModelScope.launch {
+            diagnostics.screenView(name = "PermissionsScreen", previous = null)
+            val snapshot = session.startedAtMs
+            if (!firstValueSent) {
+                firstValueSent = true
+                diagnostics.timeToFirstValue(
+                    durationMs = System.currentTimeMillis() - snapshot,
+                    firstAction = "permission_setup_shown",
+                )
+            }
+        }
+    }
+
+    fun requestFix(permission: String, stateBefore: String, actionTaken: String) {
+        val attemptId = "att_" + UUID.randomUUID().toString().replace("-", "").take(8)
+        pending[attemptId] = Pending(
+            attemptId = attemptId,
+            permission = permission,
+            stateBefore = stateBefore,
+            actionTaken = actionTaken,
+            startedAt = System.currentTimeMillis(),
+        )
+        val count = (attemptCounts[permission] ?: 0) + 1
+        attemptCounts[permission] = count
+
+        viewModelScope.launch {
+            diagnostics.accessFixRequested(
+                permission = permission,
+                stateBefore = stateBefore,
+                attemptId = attemptId,
+            )
+            if (count >= LOOP_THRESHOLD) {
+                diagnostics.permissionLoop(permission = permission, requestCount = count)
+            }
+        }
+    }
+
+    /**
+     * Called on every status poll. Any attempt whose state has moved — or that
+     * has waited long enough — is closed out with a real outcome.
+     */
+    fun resolvePending(currentStates: Map<String, String>) {
+        val now = System.currentTimeMillis()
+        val done = mutableListOf<Pending>()
+        pending.values.forEach { attempt ->
+            val after = currentStates[attempt.permission]
+            val settled = after != null && after != attempt.stateBefore
+            val timedOut = now - attempt.startedAt > RESOLVE_TIMEOUT_MS
+            if (settled || timedOut) done += attempt
+        }
+        if (done.isEmpty()) return
+
+        done.forEach { attempt ->
+            pending.remove(attempt.attemptId)
+            val after = currentStates[attempt.permission] ?: attempt.stateBefore
+            val outcome = when {
+                after == attempt.stateBefore -> "no_op"
+                after == "granted" -> "success"
+                after == "permanently_denied" -> "failed"
+                else -> "success"
+            }
+            viewModelScope.launch {
+                diagnostics.accessFixResult(
+                    attemptId = attempt.attemptId,
+                    actionTaken = attempt.actionTaken,
+                    stateAfter = after,
+                    outcome = outcome,
+                    errorCode = if (outcome == "no_op") "state_unchanged" else null,
+                    durationMs = now - attempt.startedAt,
+                )
+            }
+        }
+    }
+
+    private companion object {
+        const val RESOLVE_TIMEOUT_MS = 20_000L
+        const val LOOP_THRESHOLD = 3
+    }
+}
+
+/** Turn a permission check into the schema's fixed vocabulary. */
+private fun stateOf(context: Context, permission: String): String =
+    if (isGranted(context, permission)) "granted" else "denied"
+
+private fun roleStateOf(context: Context, role: String): String =
+    if (isRoleHeld(context, role)) "granted" else "denied"
 
 private data class PermGroup(val title: String, val rationale: String, val permissions: List<String>)
 
@@ -210,6 +339,13 @@ fun PermissionsScreen(
     onSkip: () -> Unit,
 ) {
     val context = LocalContext.current
+    val diagnosticsVm: PermissionsViewModel = hiltViewModel()
+    val scope = rememberCoroutineScope()
+    val friction = remember { FrictionTracker(scope, diagnosticsVm.diagnostics) }
+
+    // Back on the setup screen means the user is stuck: 3+ presses raise
+    // back_button_spam (Part E).
+    BackHandler { friction.onBack() }
     val groups = remember { permissionGroups() }
     val roles = remember { roleItems() }
     val specialAccess = remember { specialAccessItems() }
@@ -221,9 +357,21 @@ fun PermissionsScreen(
     // process, so we poll while this screen is visible instead of relying on a
     // result callback that may never fire for role requests.
     LaunchedEffect(Unit) {
+        diagnosticsVm.onScreenShown()
         while (true) {
             permStatus = groups.map { group -> group.permissions.all { isGranted(context, it) } }
             roleStatus = roles.map { isRoleHeld(context, it.role) }
+
+            // Close out any attempt whose outcome is now knowable. This is what
+            // turns "71 requests" into "71 requests, and here is why each failed".
+            val states = buildMap {
+                groups.forEach { group ->
+                    val key = group.title
+                    put(key, if (group.permissions.all { isGranted(context, it) }) "granted" else "denied")
+                }
+                roles.forEach { role -> put(role.role, roleStateOf(context, role.role)) }
+            }
+            diagnosticsVm.resolvePending(states)
             delay(800)
         }
     }
@@ -262,11 +410,25 @@ fun PermissionsScreen(
     when {
         missingGroup != null -> {
             primaryLabel = "Grant all permissions"
-            primaryAction = { permissionLauncher.launch(allPermissions()) }
+            primaryAction = {
+                diagnosticsVm.requestFix(
+                    permission = "all_permission_groups",
+                    stateBefore = "denied",
+                    actionTaken = "request_permissions",
+                )
+                permissionLauncher.launch(allPermissions())
+            }
         }
         missingRole != null -> {
             primaryLabel = "Set as ${roles[missingRole].title}"
-            primaryAction = { requestRole(roles[missingRole].role) }
+            primaryAction = {
+                diagnosticsVm.requestFix(
+                    permission = roles[missingRole].role,
+                    stateBefore = roleStateOf(context, roles[missingRole].role),
+                    actionTaken = "request_role",
+                )
+                requestRole(roles[missingRole].role)
+            }
         }
         else -> {
             primaryLabel = "Finish setup"
@@ -310,7 +472,16 @@ fun PermissionsScreen(
                 subtitle = group.rationale,
                 ok = permStatus[index],
                 actionLabel = "Grant",
-                onAction = { permissionLauncher.launch(group.permissions.toTypedArray()) },
+                onAction = {
+                    // stateChanged tells the tracker whether the tap did anything.
+                    friction.onTap("grant_${group.title}", stateChanged = !permStatus[index])
+                    diagnosticsVm.requestFix(
+                        permission = group.title,
+                        stateBefore = if (permStatus[index]) "granted" else "denied",
+                        actionTaken = "request_permissions",
+                    )
+                    permissionLauncher.launch(group.permissions.toTypedArray())
+                },
             )
         }
 
@@ -322,7 +493,14 @@ fun PermissionsScreen(
                 subtitle = role.rationale,
                 ok = roleStatus[index],
                 actionLabel = "Set",
-                onAction = { requestRole(role.role) },
+                onAction = {
+                    diagnosticsVm.requestFix(
+                        permission = role.role,
+                        stateBefore = roleStateOf(context, role.role),
+                        actionTaken = "request_role",
+                    )
+                    requestRole(role.role)
+                },
             )
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -351,7 +529,13 @@ fun PermissionsScreen(
         TextButton(onClick = { openAppSettings() }, modifier = Modifier.fillMaxWidth()) {
             Text("Open app settings")
         }
-        OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = {
+                friction.onDropOff(step = "permission_setup", lastEvent = "skip_tapped")
+                onSkip()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text("Skip for now")
         }
         Spacer(Modifier.height(24.dp))

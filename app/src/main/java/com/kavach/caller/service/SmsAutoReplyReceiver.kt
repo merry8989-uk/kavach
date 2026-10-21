@@ -57,19 +57,15 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
             if (body.trim() == current.autoReplyText.trim()) return@launch
 
             if (!sender.canSend()) {
-                diagnostics.warn("AutoReply", "skipped — SEND_SMS not granted")
+                diagnostics.autoReply(outcome = "no_op", errorCode = "send_sms_not_granted")
                 return@launch
             }
 
-            val result = sender.send(senderNumber, current.autoReplyText)
-            diagnostics.info(
-                "AutoReply",
-                when (result) {
-                    is SmsSender.Result.Sent ->
-                        "replied to ${DiagnosticsRepository.mask(senderNumber)}"
-                    is SmsSender.Result.Failed -> "failed: ${result.reason}"
-                },
-            )
+            when (val result = sender.send(senderNumber, current.autoReplyText)) {
+                is SmsSender.Result.Sent -> diagnostics.autoReply(outcome = "success")
+                is SmsSender.Result.Failed ->
+                    diagnostics.autoReply(outcome = "failed", errorCode = result.reason.take(60))
+            }
         }
     }
 }

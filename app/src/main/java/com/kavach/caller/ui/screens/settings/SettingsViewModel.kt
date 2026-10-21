@@ -19,6 +19,9 @@ class SettingsViewModel @Inject constructor(
     private val callStateMonitor: CallStateMonitor,
     /** Exposed so the nav graph can gate work on the feature registry (F16). */
     val features: FeatureRegistry,
+    /** Exposed so the nav graph can log screen views. */
+    val diagnostics: com.kavach.caller.data.diagnostics.DiagnosticsRepository,
+    val session: com.kavach.caller.data.diagnostics.SessionContext,
 ) : ViewModel() {
 
     /**
