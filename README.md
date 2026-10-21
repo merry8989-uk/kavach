@@ -46,6 +46,7 @@ brief.
 | **Themes** | Five theme packs that apply app-wide, persisted in settings |
 | **Onboarding** | Runtime permissions + Call screening / Default dialer / Default SMS roles |
 | **Updates** | In-app check against GitHub Releases, download + install, optional launch check |
+| **Features screen** | Central registry: per-module on/off, live capability status, honest reasons |
 
 > **Verification status: nothing here is device-verified.** The project compiles and
 > passes CI, but it has never been run on a phone or emulator. See
@@ -219,6 +220,30 @@ Before this, Kavach showed **nothing** during a call. Now:
 - **SIM attribution in the call log** — `phoneAccountId` is now read and mapped to a SIM label (DB migration v2→v3).
 
 Honest limits: the full in-call UI needs the **default-dialer role**; without it the fallback notification is reduced (the first moments of a ringing call may not be attributable, since the call-log row is written as the call starts). Video calling remains unimplemented and says so.
+
+### Added in 0.11.0 — Phase 12: the feature registry (F16)
+
+- **A central registry** (`FeatureId` + `FeatureRegistry`) now declares, for every optional
+  module: a stable id, title, category, default state, whether it is essential, the
+  permissions and Android role it needs, and its dependencies.
+- **A Features screen** (Settings -> Features & modules) lists every module grouped by
+  category with a **live status**: *On*, *Off*, *Limited*, or *Unavailable* — and a
+  plain-language reason when it can't run ("Needs the caller ID & spam role", "Requires
+  \"Call screening\" to be on first").
+- **Toggles now control real behaviour.** Disabling a module stops its work:
+  - call screening off -> every call is allowed through untouched;
+  - recording off -> no recorder is started;
+  - AI assistant off -> calls are never handed to the assistant;
+  - background sync off -> the WorkManager job is **cancelled**, not just hidden;
+  - update checks off -> no network call on launch.
+- **Essential modules are locked** with an explanation rather than a switch that lies.
+- The four old scattered toggles (AI, record-all, missed reminders, update checks) were
+  **migrated into the registry**, so there is exactly one source of truth.
+- **Fixed the SMS-role bug**: onboarding no longer offers a role Kavach can never hold
+  (it declares no SMS intent filters, so Android would refuse). Message features run from
+  the READ_SMS permission instead.
+- Added a unit test asserting the registry's structure: no self-dependencies, no cycles,
+  essential modules default to on, and every feature is labelled.
 
 ## Legal & ethics
 

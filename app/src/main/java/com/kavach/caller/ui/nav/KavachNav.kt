@@ -32,11 +32,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.kavach.caller.BuildConfig
+import com.kavach.caller.domain.feature.FeatureId
 import com.kavach.caller.ui.screens.assistant.AssistantScreen
 import com.kavach.caller.ui.screens.blocklist.BlocklistScreen
 import com.kavach.caller.ui.screens.calllog.CallLogScreen
 import com.kavach.caller.ui.screens.contacts.ContactsScreen
 import com.kavach.caller.ui.screens.dialer.DialerScreen
+import com.kavach.caller.ui.screens.features.FeaturesScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
 import com.kavach.caller.ui.screens.onboarding.hasCorePermissions
@@ -103,8 +105,8 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
         // Past onboarding now, so the phone permission is granted — start the
         // fallback call monitor.
         settingsVm.startCallMonitoring()
-        // Optional launch-time update check (toggle in Settings).
-        if (appSettings.autoCheckUpdates) {
+        // Optional launch-time update check (toggle in Settings -> Features).
+        if (settingsVm.features.isEnabled(FeatureId.UPDATE_CHECK)) {
             updateVm.check(BuildConfig.VERSION_NAME)
         }
     }
@@ -157,11 +159,13 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                     SettingsScreen(
                         onOpenBlocklist = { nav.navigate("block") },
                         onOpenRecordings = { nav.navigate("recordings") },
+                        onOpenFeatures = { nav.navigate("features") },
                     )
                 }
                 composable("block") { BlocklistScreen(onBack = { nav.popBackStack() }) }
                 composable("assistant") { AssistantScreen(onBack = { nav.popBackStack() }) }
                 composable("recordings") { RecordingsScreen(onBack = { nav.popBackStack() }) }
+                composable("features") { FeaturesScreen(onBack = { nav.popBackStack() }) }
             }
         }
     }

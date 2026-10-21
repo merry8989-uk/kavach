@@ -73,6 +73,24 @@ Dialer / contacts / call history are no longer partial:
 Schema: DB v4 (adds `contacts_enriched.ringtoneUri` and the `speed_dial` table) with a
 v3->v4 migration.
 
+## 2c. Phase 12 completed (v0.11.0) — feature registry (F16)
+
+- `domain/feature/` adds `FeatureId` (10 modules with category, default state, essential
+  flag, required permissions, required Android role, dependencies), `FeatureState` /
+  `FeatureStatus` (ENABLED / DISABLED / UNAVAILABLE / DEGRADED) and `FeatureRegistry`
+  (capability checks, enable-blocking reasons, persisted overrides).
+- Overrides persist in DataStore as `FEATURE_NAME=true` entries, so the registry stays
+  forward-compatible as features are added.
+- A **Features screen** shows each module's live status and the exact reason it cannot run.
+- Background components consult the registry, so a disabled module genuinely stops working
+  (screening short-circuits, recording is not started, the sync worker is cancelled).
+- The four previously scattered toggles were folded into the registry.
+- **SMS role bug fixed** — the onboarding no longer offers `ROLE_SMS`, which Android could
+  never grant because Kavach declares no SMS intent filters.
+
+Remaining F16 items: a global battery-saver mode, data-saver mode, an offline-only lookup
+switch and cache-size controls. These are settings, not blockers.
+
 ## 3. What exists and compiles (app)
 
 **Foundation** — single-activity Compose, Material 3, 5 tabs + stacked routes, Hilt DI,
@@ -145,10 +163,10 @@ capability check, failure reason, and independent enable/disable per module. It 
 no backend and unblocks the spec's rule that every setting must control real behaviour.
 
 Ordered plan after that:
-1. **F16 feature registry** (next).
+1. ~~F16 feature registry~~ — **done in v0.11.0**.
 2. **Wire the Android client to the backend** — a `data/remote/` layer + `CallerLookupDataSource`, closing the four BLOCKED items.
 3. **Security hardening** — SQLCipher + EncryptedFile (highest-risk gap).
-4. **Phase 6 remainder** — in-call screen, favourites, speed dial, contact detail.
+4. ~~Phase 4 caller UI + Phase 6 remainder~~ — **done** (v0.9.0 / v0.10.0).
 5. **Phase 9** — recording capability assessment in the UI, encryption, quota, consent.
 6. ~~Phase 11 — billing~~ — **cancelled**: Kavach is free.
 7. **Testing** — Room migration tests, Compose UI smoke tests, lint in CI.

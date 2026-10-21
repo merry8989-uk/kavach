@@ -5,7 +5,8 @@ import android.telecom.CallScreeningService
 import android.telecom.CallScreeningService.CallResponse
 import com.kavach.caller.ai.AssistantOrchestrator
 import com.kavach.caller.data.local.entity.BlockAction
-import com.kavach.caller.data.settings.SettingsRepository
+import com.kavach.caller.domain.feature.FeatureId
+import com.kavach.caller.domain.feature.FeatureRegistry
 import com.kavach.caller.domain.usecase.DecideCallActionUseCase
 import com.kavach.caller.recording.CallRecorderService
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,12 +29,19 @@ class KavachScreeningService : CallScreeningService() {
     @Inject lateinit var decideCallAction: DecideCallActionUseCase
     @Inject lateinit var announcer: Announcer
     @Inject lateinit var assistant: AssistantOrchestrator
-    @Inject lateinit var settings: SettingsRepository
+    @Inject lateinit var features: FeatureRegistry
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onScreenCall(details: Call.Details) {
         val raw = details.handle?.schemeSpecificPart
+
+        // Module switched off in Features: let every call through untouched.
+        if (!features.isEnabled(FeatureId.CALL_SCREENING)) {
+            respondToCall(details, CallResponse.Builder().setDisallowCall(false).build())
+            return
+        }
+
         scope.launch {
             val decision = decideCallAction(raw)
 
@@ -51,14 +59,19 @@ class KavachScreeningService : CallScreeningService() {
                     .build()
 
                 BlockAction.SEND_TO_AI -> {
-                    assistant.queueForAssistant(raw ?: "", details)
-                    CallAssistantService.start(applicationContext, raw ?: "")
+                    // Only hand the call to the assistant if that module is on.
+                    if (features.isEnabled(FeatureId.AI_ASSISTANT)) {
+                        assistant.queueForAssistant(raw ?: "", details)
+                        CallAssistantService.start(applicationContext, raw ?: "")
+                    }
                     CallResponse.Builder().setDisallowCall(false).build()
                 }
 
                 BlockAction.ALLOW -> {
-                    announcer.announceIncoming(raw)
-                    if (settings.snapshot.recordAll) {
+                    if (features.isEnabled(FeatureId.ANNOUNCER)) {
+                        announcer.announceIncoming(raw)
+                    }
+                    if (features.isEnabled(FeatureId.CALL_RECORDING)) {
                         CallRecorderService.start(applicationContext, raw ?: "")
                     }
                     CallResponse.Builder().setDisallowCall(false).build()

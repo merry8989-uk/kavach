@@ -11,8 +11,9 @@ import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import com.kavach.caller.data.repo.ContactRepository
-import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.data.system.CallLogReader
+import com.kavach.caller.domain.feature.FeatureId
+import com.kavach.caller.domain.feature.FeatureRegistry
 import com.kavach.caller.domain.model.CallDirection
 import com.kavach.caller.domain.model.CallPhase
 import com.kavach.caller.domain.model.CallSession
@@ -46,7 +47,7 @@ class CallStateMonitor @Inject constructor(
     private val callNotifications: CallNotificationManager,
     private val contactRepository: ContactRepository,
     private val callLogReader: CallLogReader,
-    private val settings: SettingsRepository,
+    private val features: FeatureRegistry,
     private val missedCallNotifier: MissedCallNotifier,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -104,7 +105,8 @@ class CallStateMonitor @Inject constructor(
      * the default-dialer role.
      */
     private fun remindIfMissed() {
-        if (!settings.snapshot.missedCallReminders) return
+        // Respects both the toggle and the permissions the feature needs.
+        if (!features.stateOf(FeatureId.MISSED_REMINDERS).isUsable) return
         scope.launch {
             val entry = runCatching { callLogReader.readRecent(1).firstOrNull() }.getOrNull()
                 ?: return@launch

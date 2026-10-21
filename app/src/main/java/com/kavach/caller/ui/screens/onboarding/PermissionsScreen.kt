@@ -106,6 +106,11 @@ private fun permissionGroups(): List<PermGroup> = buildList {
     }
 }
 
+//
+// Only roles Kavach can actually hold are listed. ROLE_SMS was removed: the
+// app declares no SMS intent filters, so Android would never grant it, and
+// offering a button that cannot work is the dishonest UI we avoid. Message
+// features run from the READ_SMS permission instead.
 private fun roleItems(): List<RoleItem> = listOf(
     RoleItem(
         "Default dialer",
@@ -118,12 +123,6 @@ private fun roleItems(): List<RoleItem> = listOf(
         "Identifies and blocks callers before the phone rings",
         RoleManager.ROLE_CALL_SCREENING,
         required = true,
-    ),
-    RoleItem(
-        "SMS app",
-        "Read, reply and filter messages (optional)",
-        RoleManager.ROLE_SMS,
-        required = false,
     ),
 )
 

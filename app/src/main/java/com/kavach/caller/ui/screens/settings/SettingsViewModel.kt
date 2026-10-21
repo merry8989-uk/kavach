@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
+import com.kavach.caller.domain.feature.FeatureRegistry
 import com.kavach.caller.service.CallStateMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,6 +17,8 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
     private val callStateMonitor: CallStateMonitor,
+    /** Exposed so the nav graph can gate work on the feature registry (F16). */
+    val features: FeatureRegistry,
 ) : ViewModel() {
 
     /**
@@ -42,10 +45,6 @@ class SettingsViewModel @Inject constructor(
     fun setThemePack(value: String) = viewModelScope.launch { repo.setThemePack(value) }
     fun setAnnouncerMode(value: String) = viewModelScope.launch { repo.setAnnouncerMode(value) }
     fun setAnnounceSpamVerdict(value: Boolean) = viewModelScope.launch { repo.setAnnounceSpamVerdict(value) }
-    fun setAiEnabled(value: Boolean) = viewModelScope.launch { repo.setAiEnabled(value) }
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
-    fun setRecordAll(value: Boolean) = viewModelScope.launch { repo.setRecordAll(value) }
-    fun setAutoCheckUpdates(value: Boolean) = viewModelScope.launch { repo.setAutoCheckUpdates(value) }
-    fun setMissedCallReminders(value: Boolean) = viewModelScope.launch { repo.setMissedCallReminders(value) }
     fun setOnboardingDone(value: Boolean) = viewModelScope.launch { repo.setOnboardingDone(value) }
 }

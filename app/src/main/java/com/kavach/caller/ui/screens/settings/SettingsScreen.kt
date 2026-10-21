@@ -21,6 +21,7 @@ private val announcerModes = listOf("ALWAYS", "KNOWN_ONLY", "UNKNOWN_ONLY", "HEA
 fun SettingsScreen(
     onOpenBlocklist: () -> Unit = {},
     onOpenRecordings: () -> Unit = {},
+    onOpenFeatures: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.settings.collectAsState()
@@ -32,10 +33,12 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(16.dp))
 
-        SectionHeader("Calls")
-        SwitchRow("Missed-call reminders", s.missedCallReminders) { vm.setMissedCallReminders(it) }
+        SectionHeader("Modules")
+        OutlinedButton(onClick = onOpenFeatures, modifier = Modifier.fillMaxWidth()) {
+            Text("Features & modules")
+        }
         Text(
-            "Shows a notification with the caller's name when you miss a call.",
+            "Turn individual modules on or off, and see exactly why one can't run on this device.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -68,7 +71,6 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("AI assistant (F10)")
-        SwitchRow("Answer unknown calls with AI", s.aiEnabled) { vm.setAiEnabled(it) }
         SwitchRow("Use cloud transcription & summaries", s.cloudAiEnabled) { vm.setCloudAiEnabled(it) }
         Text(
             "Cloud AI sends audio to Kavach's servers for transcription. Off by default for privacy.",
@@ -78,7 +80,6 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("Recording (F8)")
-        SwitchRow("Record all calls", s.recordAll) { vm.setRecordAll(it) }
         Text(
             "Recording is announced to callers and disabled automatically in two-party-consent regions.",
             style = MaterialTheme.typography.bodyMedium,
@@ -100,7 +101,6 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("Updates")
-        SwitchRow("Check for updates on launch", s.autoCheckUpdates) { vm.setAutoCheckUpdates(it) }
         Spacer(Modifier.height(8.dp))
         UpdateSection()
 

@@ -92,12 +92,15 @@ Backend = whether a server is needed. Privacy = data touched.
 | F12.8 | Crash/telemetry | NOT_STARTED | 24 | INTERNET | yes | diagnostics | — |
 | F12.9 | Billing | N/A | — | — | — | — | Removed: Kavach is free |
 | F13.x | Free by design (no paywall) | IMPLEMENTED | — | — | — | — | — |
+| F16.1 | Feature registry: stable IDs, state, requirements | IMPLEMENTED | 24 | — | — | — | — |
+| F16.2 | Per-module enable/disable with real effect | IMPLEMENTED | 24 | — | — | — | — |
+| F16.3 | Runtime capability check + honest failure reason | IMPLEMENTED | 24 | varies per module | varies | — | — |
+| F16.4 | Battery-saver / data-saver / offline-only modes | NOT_STARTED | 24 | — | — | — | — |
 | F14.1 | First-run permission groups | IMPLEMENTED | 24 | (all) | — | — | — |
 | F14.2 | Role requests in setup | IMPLEMENTED | 29 | — | — | — | — |
 | F14.4 | Persisted setup completion | IMPLEMENTED | 24 | — | — | — | — |
 | F15.1 | Update check | IMPLEMENTED | 24 | INTERNET | — | version only | UpdateCheckerTest |
 | F15.2 | Download + install | IMPLEMENTED | 24 | REQUEST_INSTALL_PACKAGES | — | — | — |
-| F16.x | Central feature registry | NOT_STARTED | 24 | — | — | — | — |
 
 ---
 

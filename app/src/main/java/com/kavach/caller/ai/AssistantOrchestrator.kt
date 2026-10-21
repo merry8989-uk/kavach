@@ -5,6 +5,8 @@ import com.kavach.caller.data.local.entity.TranscriptEntity
 import com.kavach.caller.data.repo.CallLogRepository
 import com.kavach.caller.data.repo.ContactRepository
 import com.kavach.caller.data.settings.SettingsRepository
+import com.kavach.caller.domain.feature.FeatureId
+import com.kavach.caller.domain.feature.FeatureRegistry
 import com.kavach.caller.service.Announcer
 import com.kavach.caller.util.PhoneUtils
 import javax.inject.Inject
@@ -27,6 +29,7 @@ class AssistantOrchestrator @Inject constructor(
     private val callLog: CallLogRepository,
     private val announcer: Announcer,
     private val settings: SettingsRepository,
+    private val features: FeatureRegistry,
 ) {
     enum class State { IDLE, RINGING, ANSWERED, LISTENING, DIALOGUE, SUMMARISING, DONE }
 
@@ -58,7 +61,11 @@ class AssistantOrchestrator @Inject constructor(
         val name = contacts.nameFor(number)
         val isContact = name != null
         val score = spamScorer.score(number, isContact = isContact)
-        val answer = screener.shouldAnswer(isContact, score, settings.snapshot.aiEnabled)
+        val answer = screener.shouldAnswer(
+            isContact = isContact,
+            spamScore = score,
+            aiEnabled = features.isEnabled(FeatureId.AI_ASSISTANT),
+        )
         val greeting = if (isContact) {
             "Hi, this is $name's Kavach assistant. They can't take the call right now. How can I help?"
         } else {

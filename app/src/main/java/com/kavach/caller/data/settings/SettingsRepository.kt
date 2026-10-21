@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -34,14 +35,29 @@ class SettingsRepository @Inject constructor(
     private object Keys {
         val themePack = stringPreferencesKey("theme_pack")
         val announcerMode = stringPreferencesKey("announcer_mode")
-        val announceSpamVerdict = booleanPreferencesKey("announce_spam_verdict")
-        val aiEnabled = booleanPreferencesKey("ai_enabled")
-        val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
-        val recordAll = booleanPreferencesKey("record_all")
-        val onboardingDone = booleanPreferencesKey("onboarding_done")
-        val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
-        val missedCallReminders = booleanPreferencesKey("missed_call_reminders")
+        val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
+
+    /**
+     * Per-feature on/off overrides (F16). Stored as "FEATURE_NAME=true" entries so
+     * the registry can keep them in one key and stay forward-compatible when new
+     * features are added.
+     */
+    val featureOverrides: Flow<Map<String, Boolean>> = context.dataStore.data.map { prefs ->
+        (prefs[Keys.featureOverrides] ?: emptySet()).mapNotNull { entry ->
+            val parts = entry.split('=')
+            if (parts.size != 2) return@mapNotNull null
+            parts[0] to (parts[1].toBooleanStrictOrNull() ?: true)
+        }.toMap()
+    }
+
+    suspend fun setFeatureOverride(feature: String, enabled: Boolean) =
+        context.dataStore.edit { prefs ->
+            val current = (prefs[Keys.featureOverrides] ?: emptySet()).toMutableSet()
+            current.removeAll { it.startsWith("$feature=") }
+            current.add("$feature=$enabled")
+            prefs[Keys.featureOverrides] = current
+        }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -50,12 +66,8 @@ class SettingsRepository @Inject constructor(
             themePack = p[Keys.themePack] ?: "AURORA",
             announcerMode = p[Keys.announcerMode] ?: "KNOWN_ONLY",
             announceSpamVerdict = p[Keys.announceSpamVerdict] ?: true,
-            aiEnabled = p[Keys.aiEnabled] ?: true,
             cloudAiEnabled = p[Keys.cloudAiEnabled] ?: false,
-            recordAll = p[Keys.recordAll] ?: false,
             onboardingDone = p[Keys.onboardingDone] ?: false,
-            autoCheckUpdates = p[Keys.autoCheckUpdates] ?: true,
-            missedCallReminders = p[Keys.missedCallReminders] ?: true,
         )
     }
 
@@ -71,10 +83,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
     suspend fun setAnnouncerMode(value: String) = context.dataStore.edit { it[Keys.announcerMode] = value }
     suspend fun setAnnounceSpamVerdict(value: Boolean) = context.dataStore.edit { it[Keys.announceSpamVerdict] = value }
-    suspend fun setAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.aiEnabled] = value }
-    suspend fun setCloudAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.cloudAiEnabled] = value }
-    suspend fun setRecordAll(value: Boolean) = context.dataStore.edit { it[Keys.recordAll] = value }
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
-    suspend fun setAutoCheckUpdates(value: Boolean) = context.dataStore.edit { it[Keys.autoCheckUpdates] = value }
-    suspend fun setMissedCallReminders(value: Boolean) = context.dataStore.edit { it[Keys.missedCallReminders] = value }
 }
