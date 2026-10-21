@@ -2,6 +2,7 @@ package com.kavach.caller.data.notion
 
 import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogEventCodec
+import com.kavach.caller.data.diagnostics.LogLevel
 import android.content.Context
 import com.kavach.caller.data.diagnostics.SessionContext
 import com.kavach.caller.data.settings.SettingsRepository
@@ -45,6 +46,34 @@ class NotionSyncRepository @Inject constructor(
     private val http: OkHttpClient = OkHttpClient.Builder()
         .callTimeout(20, TimeUnit.SECONDS)
         .build()
+
+    /**
+     * How a new page is parented.
+     *
+     * Notion's 2025-09-03 API introduced data sources, but which parent shape a
+     * given workspace accepts depends on how the database was created. Rather
+     * than guess and fail silently, we try one, fall back to the other, and
+     * remember what worked.
+     */
+    private enum class ParentMode(val wire: String) {
+        DATA_SOURCE("data_source_id"),
+        DATABASE("database_id"),
+    }
+
+    private val prefs by lazy {
+        context.getSharedPreferences("kavach_notion", Context.MODE_PRIVATE)
+    }
+
+    private var parentMode: ParentMode
+        get() = runCatching {
+            ParentMode.valueOf(prefs.getString("parent_mode", null) ?: ParentMode.DATA_SOURCE.name)
+        }.getOrDefault(ParentMode.DATA_SOURCE)
+        set(value) {
+            prefs.edit().putString("parent_mode", value.name).apply()
+        }
+
+    private fun otherMode(mode: ParentMode): ParentMode =
+        if (mode == ParentMode.DATA_SOURCE) ParentMode.DATABASE else ParentMode.DATA_SOURCE
 
     data class Status(
         val enabled: Boolean,
