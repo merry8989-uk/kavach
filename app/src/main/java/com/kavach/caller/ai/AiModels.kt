@@ -22,19 +22,6 @@ data class CallBrief(
     val timestamp: Long = System.currentTimeMillis(),
 )
 
-/** A caller identity result, from local DB or cloud (F9). */
-data class CallerIdentity(
-    val number: String,
-    val name: String? = null,
-    val company: String? = null,
-    val tags: List<String> = emptyList(),
-    val spamScore: Int = 0,
-    val reports: Int = 0,
-    val source: Source = Source.LOCAL,
-) {
-    enum class Source { LOCAL, CLOUD, CONTACT, NONE }
-}
-
 /** What the assistant should do with an incoming call. */
 data class AssistantDecision(
     val answer: Boolean,

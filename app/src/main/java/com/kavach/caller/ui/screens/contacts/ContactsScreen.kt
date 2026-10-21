@@ -14,14 +14,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.compose.AsyncImage
 import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.repo.ContactDraft
 import com.kavach.caller.data.repo.ContactRepository
+import com.kavach.caller.domain.usecase.SaveContactUseCase
+import com.kavach.caller.domain.usecase.SyncContactsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -31,16 +35,37 @@ import javax.inject.Inject
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
     private val repo: ContactRepository,
+    private val saveContact: SaveContactUseCase,
+    private val syncContacts: SyncContactsUseCase,
 ) : ViewModel() {
 
     val contacts = repo.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     var query by mutableStateOf("")
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
 
-    fun sync() = viewModelScope.launch { repo.syncFromSystem() }
+    fun dismissError() {
+        errorMessage = null
+    }
 
-    fun save(draft: ContactDraft) = viewModelScope.launch { repo.saveDraft(draft) }
+    fun sync() = viewModelScope.launch {
+        errorMessage = null
+        runCatching { syncContacts() }
+            .onFailure { errorMessage = "Could not import contacts: ${it.message}" }
+    }
+
+    fun save(draft: ContactDraft) = viewModelScope.launch {
+        errorMessage = null
+        when (val result = saveContact(draft)) {
+            is SaveContactUseCase.Result.Saved -> Unit
+            SaveContactUseCase.Result.NeedsNameOrNumber ->
+                errorMessage = "Add a name or at least one number."
+            is SaveContactUseCase.Result.InvalidNumber ->
+                errorMessage = "\"${result.number}\" doesn't look like a valid number."
+        }
+    }
 
     fun delete(contact: ContactEntity) = viewModelScope.launch { repo.deleteContact(contact) }
 
@@ -92,6 +117,21 @@ fun ContactsScreen(vm: ContactsViewModel = hiltViewModel()) {
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
+            vm.errorMessage?.let { message ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        message,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    TextButton(onClick = { vm.dismissError() }) { Text("Dismiss") }
+                }
+            }
+
             OutlinedTextField(
                 value = vm.query,
                 onValueChange = { vm.query = it },
@@ -133,7 +173,17 @@ private fun ContactRow(contact: ContactEntity, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MonogramAvatar(contact.displayName)
+        // Real profile photo when the device contact has one (Coil), else a monogram.
+        if (contact.photoUri != null) {
+            AsyncImage(
+                model = contact.photoUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(44.dp).clip(CircleShape),
+            )
+        } else {
+            MonogramAvatar(contact.displayName)
+        }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(contact.displayName, fontWeight = FontWeight.SemiBold,

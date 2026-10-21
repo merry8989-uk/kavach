@@ -1,0 +1,40 @@
+# Local development stack: Postgres + Redis + the API.
+# Redis is provisioned for the rate limiter / cache; the current limiter is
+# in-process, so Redis is optional until multi-instance deployment.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kavach
+      POSTGRES_PASSWORD: kavach
+      POSTGRES_DB: kavach
+    ports:
+      - "5432:5432"
+    volumes:
+      - kavach_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kavach"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://kavach:kavach@db:5432/kavach
+      API_TOKEN: dev-token-change-me
+      AUTO_CREATE_TABLES: "false"
+      RATE_LIMIT_PER_MINUTE: "60"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  kavach_pgdata:

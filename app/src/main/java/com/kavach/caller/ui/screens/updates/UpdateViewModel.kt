@@ -3,9 +3,9 @@ package com.kavach.caller.ui.screens.updates
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kavach.caller.data.update.UpdateChecker
 import com.kavach.caller.data.update.UpdateInfo
 import com.kavach.caller.data.update.UpdateInstaller
+import com.kavach.caller.domain.usecase.CheckForUpdatesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UpdateViewModel @Inject constructor(
-    private val checker: UpdateChecker,
+    private val checkForUpdates: CheckForUpdatesUseCase,
     private val installer: UpdateInstaller,
 ) : ViewModel() {
 
@@ -33,11 +33,11 @@ class UpdateViewModel @Inject constructor(
 
     fun check(currentVersion: String) = viewModelScope.launch {
         _state.value = State.Checking
-        val info = checker.latest()
-        _state.value = when {
-            info == null -> State.Error("Could not reach the update server. Check your connection.")
-            UpdateChecker.isNewer(info.versionName, currentVersion) -> State.Available(info)
-            else -> State.UpToDate(currentVersion)
+        _state.value = when (val result = checkForUpdates(currentVersion)) {
+            is CheckForUpdatesUseCase.Result.Available -> State.Available(result.info)
+            CheckForUpdatesUseCase.Result.UpToDate -> State.UpToDate(currentVersion)
+            CheckForUpdatesUseCase.Result.Unreachable ->
+                State.Error("Could not reach the update server. Check your connection.")
         }
     }
 

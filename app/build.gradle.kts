@@ -117,12 +117,17 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
+    // Image loading (device contact photos)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     // On-device AI: the scaffold ships a keyword-based screener (see
     // OnDeviceScreener.kt). Add the TFLite text-task dependency here when you
     // drop in the trained intent model:
     // implementation("org.tensorflow:tensorflow-lite-task-text:0.4.4")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")

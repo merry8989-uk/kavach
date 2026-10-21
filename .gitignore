@@ -22,3 +22,14 @@ keystore.properties
 # --- Secrets ---
 secrets.properties
 *.env
+!*.env.example
+
+# --- Backend (Python) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.db
+*.sqlite3
+backend/.env
