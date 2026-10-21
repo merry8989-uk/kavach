@@ -109,6 +109,18 @@ class ContactRepository @Inject constructor(
      * Single indexed-ish SQL query — safe to call on the call-screening
      * hot path.
      */
+    /**
+     * The saved contact this number belongs to, matched on the subscriber key
+     * so formatting and country code do not matter.
+     */
+    suspend fun findByNumber(number: String): ContactEntity? {
+        val key = PhoneUtils.subscriberKey(number)
+        if (key.isEmpty()) return null
+        return dao.observeAllOnce().firstOrNull { contact ->
+            contact.numbers.any { PhoneUtils.subscriberKey(it.number) == key }
+        }
+    }
+
     suspend fun nameFor(number: String): String? {
         val key = PhoneUtils.subscriberKey(number)
         if (key.isEmpty()) return null

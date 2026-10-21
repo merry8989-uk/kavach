@@ -95,8 +95,8 @@
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
         <package android:name="org.telegram.messenger" />
-        <package android:name="com.zoho.arattai" />
-        <package android:name="com.hyped.app" />
+        <package android:name="com.aratai.chat" />
+        <package android:name="com.friendsV" />
         <!-- Browsers, for the web-search and Caller Name targets. -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -117,9 +117,9 @@
     <application
         android:name=".KavachApp"
         android:allowBackup="false"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Kavach">
 

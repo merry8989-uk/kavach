@@ -55,6 +55,7 @@ object LookupLauncher {
             )
             LookupStrategy.SITE_WITH_CLIPBOARD -> openSiteAndCopy(context, target, rawNumber)
             LookupStrategy.APP_OR_STORE -> launch(context, appOrStore(context, target), target)
+            LookupStrategy.APP_THEN_SITE -> openAppOrSite(context, target, rawNumber)
         }
     }
 
@@ -76,15 +77,7 @@ object LookupLauncher {
         val url = target.siteUrl ?: return Result.Failed("No site configured for ${target.title}.")
         val pretty = PhoneUtils.pretty(rawNumber)
 
-        val copied = runCatching {
-            val clipboard = context.getSystemService(ClipboardManager::class.java)
-            if (clipboard == null) {
-                false
-            } else {
-                clipboard.setPrimaryClip(ClipData.newPlainText("phone number", pretty))
-                true
-            }
-        }.getOrDefault(false)
+        val copied = copyToClipboard(context, pretty)
 
         return try {
             context.startActivity(view(url))
@@ -114,6 +107,45 @@ object LookupLauncher {
         )
         return Intent(Intent.ACTION_SENDTO, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
+
+    /**
+     * Both Arattai and Hyped are installed on the target device, but neither
+     * documents a URL that carries a phone number (Hyped explicitly avoids
+     * numbers, using its own chat ids). So: open the app, put the number on the
+     * clipboard, and say exactly that — rather than inventing a deep link that
+     * would silently do nothing.
+     */
+    private fun openAppOrSite(context: Context, target: LookupTarget, rawNumber: String): Result {
+        val pretty = PhoneUtils.pretty(rawNumber)
+        val copied = copyToClipboard(context, pretty)
+
+        val launch = target.packageName?.let { context.packageManager.getLaunchIntentForPackage(it) }
+        val site = target.siteUrl?.let { view(it) }
+        val intent = launch ?: site
+            ?: return Result.Failed("${target.title} isn't installed on this phone.")
+
+        return try {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            Result.OpenedWithNote(
+                if (copied) {
+                    "$pretty copied — paste it into ${target.title}'s search to find the person."
+                } else {
+                    "Opened ${target.title}. Type $pretty into its search."
+                },
+            )
+        } catch (t: Throwable) {
+            Result.Failed("Couldn't open ${target.title}.")
+        }
+    }
+
+    private fun copyToClipboard(context: Context, text: String): Boolean = runCatching {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        if (clipboard == null) false
+        else {
+            clipboard.setPrimaryClip(ClipData.newPlainText("phone number", text))
+            true
+        }
+    }.getOrDefault(false)
 
     private fun appOrStore(context: Context, target: LookupTarget): Intent? {
         val pkg = target.packageName ?: return null

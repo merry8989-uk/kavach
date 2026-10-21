@@ -215,4 +215,5 @@ private fun iconFor(target: LookupTarget): ImageVector = when (target.strategy) 
     LookupStrategy.WEB_SEARCH -> Icons.Filled.Search
     LookupStrategy.SITE_WITH_CLIPBOARD -> Icons.Filled.Public
     LookupStrategy.APP_OR_STORE -> Icons.Filled.Apps
+    LookupStrategy.APP_THEN_SITE -> Icons.Filled.Apps
 }

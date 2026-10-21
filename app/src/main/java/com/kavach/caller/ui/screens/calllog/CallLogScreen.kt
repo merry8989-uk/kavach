@@ -84,12 +84,17 @@ class CallLogViewModel @Inject constructor(
 @Composable
 fun CallLogScreen(
     onOpenAssistant: () -> Unit = {},
+    onOpenNumber: (String) -> Unit = {},
     vm: CallLogViewModel = hiltViewModel(),
 ) {
     val all by vm.entries.collectAsState()
     val matching = vm.matching(all)
     val filtered = matching.take(vm.visibleCount)
     var lookupNumber by remember { mutableStateOf<String?>(null) }
+
+    // Import from the device log every time this tab appears, so a call placed a
+    // moment ago is already here instead of waiting for the 6-hourly worker.
+    LaunchedEffect(Unit) { vm.sync() }
 
     // Group into Today / Yesterday / Older so a long history stays readable.
     val grouped: Map<String, List<CallLogEntity>> = filtered.groupBy { dayBucket(it.timestamp) }
@@ -134,7 +139,11 @@ fun CallLogScreen(
                 grouped.forEach { (bucket, items) ->
                     item(key = "header-$bucket") { SectionHeader(bucket) }
                     items(items, key = { it.id }) { entry ->
-                        CallRow(entry, onLongPress = { lookupNumber = entry.number })
+                        CallRow(
+                            entry = entry,
+                            onTap = { onOpenNumber(entry.number) },
+                            onLongPress = { lookupNumber = entry.number },
+                        )
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
                         )
@@ -158,7 +167,11 @@ fun CallLogScreen(
 }
 
 @Composable
-private fun CallRow(entry: CallLogEntity, onLongPress: () -> Unit) {
+private fun CallRow(
+    entry: CallLogEntity,
+    onTap: () -> Unit,
+    onLongPress: () -> Unit,
+) {
     val (icon, tint) = when (entry.type) {
         CallLog.Calls.MISSED_TYPE -> Icons.Filled.CallMissed to MaterialTheme.colorScheme.error
         CallLog.Calls.OUTGOING_TYPE -> Icons.Filled.CallMade to MaterialTheme.colorScheme.primary
@@ -170,7 +183,10 @@ private fun CallRow(entry: CallLogEntity, onLongPress: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .pointerInput(entry.id) {
-                detectTapGestures(onLongPress = { onLongPress() })
+                detectTapGestures(
+                    onTap = { onTap() },
+                    onLongPress = { onLongPress() },
+                )
             }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
@@ -53,9 +54,9 @@ fun KavachCard(
 /** A labelled row inside a [KavachCard]. */
 @Composable
 fun InfoRow(
-    icon: ImageVector,
     label: String,
     value: String?,
+    icon: ImageVector = Icons.Filled.Info,
     onClick: (() -> Unit)? = null,
 ) {
     if (value.isNullOrBlank()) return

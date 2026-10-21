@@ -17,6 +17,12 @@ enum class LookupStrategy {
     SITE_WITH_CLIPBOARD,
     /** Launch the app if installed, otherwise offer the store listing. */
     APP_OR_STORE,
+    /**
+     * Launch the installed app; if it is absent, open its verified web link
+     * instead of a store listing. Either way the number is copied, because
+     * these apps have no documented link that carries a phone number.
+     */
+    APP_THEN_SITE,
 }
 
 /**
@@ -57,15 +63,22 @@ enum class LookupTarget(
     ),
     ARATTAI(
         title = "Arattai",
-        subtitle = "Opens Arattai if it is installed",
-        strategy = LookupStrategy.APP_OR_STORE,
-        packageName = "com.zoho.arattai",
+        subtitle = "Opens Arattai and copies the number — paste it in the chat search",
+        strategy = LookupStrategy.APP_THEN_SITE,
+        // Verified package (Arattai Messenger by Zoho). The earlier
+        // "com.zoho.arattai" guess was wrong.
+        packageName = "com.aratai.chat",
+        // Verified link domains, used when the app is not installed.
+        siteUrl = "https://web.arattai.in/",
     ),
     HYPED(
         title = "Hyped",
-        subtitle = "Opens Hyped if it is installed",
-        strategy = LookupStrategy.APP_OR_STORE,
-        packageName = "com.hyped.app",
+        subtitle = "Opens Hyped and copies the number — Hyped hides numbers by design",
+        strategy = LookupStrategy.APP_THEN_SITE,
+        // Verified package (Hyped by Anuvadini AI). The earlier
+        // "com.hyped.app" guess was wrong.
+        packageName = "com.friendsV",
+        siteUrl = "https://samvadiniprod.anuvadiniturn.com/",
     ),
     EMAIL(
         title = "Email",

@@ -29,7 +29,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import android.net.Uri
+import androidx.navigation.NavType
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navArgument
 import androidx.navigation.compose.rememberNavController
 import com.kavach.caller.BuildConfig
 import com.kavach.caller.domain.feature.FeatureId
@@ -43,6 +46,7 @@ import com.kavach.caller.ui.screens.policy.DataPolicyScreen
 import com.kavach.caller.ui.screens.dialer.DialerScreen
 import com.kavach.caller.ui.screens.features.FeaturesScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
+import com.kavach.caller.ui.screens.numberdetails.NumberDetailsScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
 import com.kavach.caller.ui.screens.onboarding.hasCorePermissions
 import com.kavach.caller.ui.screens.recordings.RecordingsScreen
@@ -126,10 +130,20 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                     NavigationBarItem(
                         selected = selected,
                         onClick = {
-                            nav.navigate(tab.route) {
-                                popUpTo(nav.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            val onThisTab = current?.hierarchy?.any { it.route == tab.route } == true
+                            val atRoot = current?.route == tab.route
+                            when {
+                                // Already on this tab's root: nothing to do.
+                                atRoot -> Unit
+                                // On a sub-screen of this tab (Settings -> Features,
+                                // Calls -> Number details, ...): come back out to
+                                // the tab root instead of stacking another copy.
+                                onThisTab -> nav.popBackStack(tab.route, inclusive = false)
+                                else -> nav.navigate(tab.route) {
+                                    popUpTo(nav.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
@@ -152,10 +166,19 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 startDestination = "dialer",
                 modifier = Modifier.weight(1f),
             ) {
-                composable("dialer") { DialerScreen() }
+                composable("dialer") {
+                    DialerScreen(onOpenNumber = { number ->
+                        nav.navigate("number/${Uri.encode(number)}")
+                    })
+                }
                 composable("contacts") { ContactsScreen() }
                 composable("calls") {
-                    CallLogScreen(onOpenAssistant = { nav.navigate("assistant") })
+                    CallLogScreen(
+                        onOpenAssistant = { nav.navigate("assistant") },
+                        onOpenNumber = { number ->
+                            nav.navigate("number/${Uri.encode(number)}")
+                        },
+                    )
                 }
                 composable("messages") { MessagesScreen() }
                 composable("settings") {
@@ -174,6 +197,26 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 composable("features") { FeaturesScreen(onBack = { nav.popBackStack() }) }
                 composable("diagnostics") { DiagnosticsScreen(onBack = { nav.popBackStack() }) }
                 composable("account") { AccountScreen(onBack = { nav.popBackStack() }) }
+                composable(
+                    route = "number/{number}",
+                    arguments = listOf(navArgument("number") { type = NavType.StringType }),
+                ) { entry ->
+                    val number = entry.arguments?.getString("number").orEmpty()
+                    NumberDetailsScreen(
+                        number = number,
+                        onBack = { nav.popBackStack() },
+                        onOpenContact = { contact ->
+                            // The contact list owns its own detail screen, so just
+                            // send the user to the tab rather than duplicating it.
+                            nav.navigate("contacts") {
+                                launchSingleTop = true
+                            }
+                        },
+                        onAddContact = {
+                            nav.navigate("contacts") { launchSingleTop = true }
+                        },
+                    )
+                }
                 composable("policy") { DataPolicyScreen(onBack = { nav.popBackStack() }) }
             }
         }

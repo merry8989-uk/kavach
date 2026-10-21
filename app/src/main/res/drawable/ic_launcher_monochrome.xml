@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Single-colour layer for Android 13+ themed icons.
+
+  The system tints this whole layer one colour, so a filled shield would hide
+  anything drawn inside it. Instead the shield is an outline and the handset is
+  solid, which keeps both readable when recoloured.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- shield outline -->
+    <path
+        android:pathData="M54,27 L76,35 L76,55 C76,69.5 67,80.5 54,85.5 C41,80.5 32,69.5 32,55 L32,35 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
+
+    <!-- handset, filled -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M44.2,61.8 C46.6,59.4 49.4,57.2 51.9,55 C54.4,52.8 56.4,50.9 56.4,49.2 C56.4,47.6 55.2,46.4 53.7,46.4 C52.2,46.4 51,47.6 51,49.2 L46.6,49.2 C46.6,45.2 49.7,42.2 53.7,42.2 C57.7,42.2 60.8,45.2 60.8,49.2 C60.8,52.9 57.9,55.8 54.8,58.5 C52.7,60.4 50.6,62.1 48.6,63.8 L61,63.8 L61,67.6 L44.2,67.6 Z" />
+</vector>

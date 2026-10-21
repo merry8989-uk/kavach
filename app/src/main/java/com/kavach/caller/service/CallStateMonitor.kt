@@ -12,6 +12,7 @@ import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import com.kavach.caller.data.repo.ContactRepository
 import com.kavach.caller.data.diagnostics.DiagnosticsRepository
+import com.kavach.caller.data.repo.CallLogRepository
 import com.kavach.caller.data.system.CallLogReader
 import com.kavach.caller.domain.feature.FeatureId
 import com.kavach.caller.domain.feature.FeatureRegistry
@@ -51,6 +52,7 @@ class CallStateMonitor @Inject constructor(
     private val features: FeatureRegistry,
     private val missedCallNotifier: MissedCallNotifier,
     private val diagnostics: DiagnosticsRepository,
+    private val callLogRepository: CallLogRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -97,7 +99,25 @@ class CallStateMonitor @Inject constructor(
                 remindIfMissed()
                 sessionManager.clear()
                 callNotifications.clear()
+                // The system writes the call-log row when the call ends, so
+                // import it now. Without this, a call placed from Kavach would
+                // not appear in Recent until the periodic worker next ran.
+                syncCallLog()
             }
+        }
+    }
+
+    private fun syncCallLog() {
+        scope.launch {
+            runCatching { callLogRepository.syncFromSystem() }
+                .onSuccess { imported ->
+                    if (imported > 0) {
+                        diagnostics.debug("Calls", "imported $imported call-log row(s) after hang-up")
+                    }
+                }
+                .onFailure {
+                    diagnostics.warn("Calls", "call-log import failed: ${it.javaClass.simpleName}")
+                }
         }
     }
 

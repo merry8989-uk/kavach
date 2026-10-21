@@ -2,6 +2,9 @@ package com.kavach.caller.ui.screens.diagnostics
 
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext as LocalCtx
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,7 +24,9 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kavach.caller.BuildConfig
 import com.kavach.caller.data.diagnostics.DiagnosticsRepository
+import com.kavach.caller.data.diagnostics.ExportFormat
 import com.kavach.caller.data.diagnostics.LogEntry
 import com.kavach.caller.data.diagnostics.LogLevel
 import com.kavach.caller.data.settings.AppSettings
@@ -35,6 +41,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.runtime.rememberCoroutineScope
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,6 +78,10 @@ class DiagnosticsViewModel @Inject constructor(
     }
 
     fun logFile(): File? = repository.logFile()
+
+    suspend fun export(format: ExportFormat): File? = repository.export(format)
+
+    fun emailBody(): String = repository.emailBody(entries.value.size)
 }
 
 /**
@@ -88,6 +99,28 @@ fun DiagnosticsScreen(
     val context = LocalContext.current
     val settings by vm.appSettings.collectAsState()
     val entries by vm.entries.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    var showFormats by remember { mutableStateOf(false) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+    var pendingExport by remember { mutableStateOf<File?>(null) }
+
+    // One launcher, generic MIME: the chosen format decides the file name and
+    // extension, which is what the receiving app keys off.
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        val file = pendingExport
+        pendingExport = null
+        if (uri == null || file == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                file.inputStream().use { it.copyTo(out) }
+            }
+            true
+        }.getOrDefault(false)
+        exportMessage = if (ok) "Exported ${file.name}" else "Could not write the file."
+    }
 
     LaunchedEffect(Unit) { vm.refresh() }
 
@@ -165,8 +198,24 @@ fun DiagnosticsScreen(
                             }
                         }
                         Spacer(Modifier.height(12.dp))
+                        // Sends straight to the maintainer with the log attached,
+                        // so nothing has to be typed or attached by hand.
+                        Button(
+                            onClick = { emailLog(context, vm.logFile(), vm.emailBody()) },
+                            enabled = entries.isNotEmpty(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Email to $DEVELOPER_EMAIL") }
+
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { showFormats = true },
+                            enabled = entries.isNotEmpty(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Export as…") }
+
+                        Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
+                            OutlinedButton(
                                 onClick = { vm.logFile()?.let { shareLog(context, it) } },
                                 enabled = vm.logFile() != null,
                                 modifier = Modifier.weight(1f),
@@ -180,6 +229,15 @@ fun DiagnosticsScreen(
                                 onClick = { vm.refresh() },
                                 modifier = Modifier.weight(1f),
                             ) { Text("Refresh") }
+                        }
+
+                        exportMessage?.let { text ->
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     }
                 }
@@ -209,6 +267,25 @@ fun DiagnosticsScreen(
             }
         }
     }
+
+    ExportFormatDialogHost(
+        visible = showFormats,
+        onDismiss = { showFormats = false },
+        onPick = { format ->
+            showFormats = false
+            scope.launch {
+                val file = vm.export(format)
+                if (file == null) {
+                    exportMessage = "Nothing to export yet."
+                } else {
+                    pendingExport = file
+                    // The system save dialog is where the user picks the folder
+                    // and confirms the file name and extension.
+                    saveLauncher.launch(file.name)
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -250,6 +327,81 @@ private fun LogRow(entry: LogEntry) {
         )
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+}
+
+@Composable
+private fun ExportFormatDialog(
+    onDismiss: () -> Unit,
+    onPick: (ExportFormat) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export as") },
+        text = {
+            Column {
+                Text(
+                    "Pick a format. Only formats something can actually open are offered.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                    items(ExportFormat.entries.toList()) { format ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(format) }
+                                .padding(vertical = 10.dp),
+                        ) {
+                            Text(format.label, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                format.detail,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/**
+ * Compose a mail to the maintainer with the log already attached and the
+ * device details already written. The user only has to describe the problem.
+ */
+private fun emailLog(context: Context, file: File?, body: String) {
+    runCatching {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, "Kavach diagnostics — ${BuildConfig.VERSION_NAME}")
+            putExtra(Intent.EXTRA_TEXT, body)
+            if (file != null) {
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file,
+                )
+                putExtra(Intent.EXTRA_STREAM, uri)
+            }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Email diagnostics"))
+    }
+}
+
+private const val DEVELOPER_EMAIL = "br19shc39@gmail.com"
+
+@Composable
+private fun ExportFormatDialogHost(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    onPick: (ExportFormat) -> Unit,
+) {
+    if (visible) ExportFormatDialog(onDismiss = onDismiss, onPick = onPick)
 }
 
 private fun shareLog(context: Context, file: File) {

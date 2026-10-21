@@ -146,7 +146,10 @@ private fun activeSims(context: Context): List<SimOption> {
 }
 
 @Composable
-fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
+fun DialerScreen(
+    onOpenNumber: (String) -> Unit = {},
+    vm: DialerViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
     var input by rememberSaveable { mutableStateOf("") }
     var identity by remember { mutableStateOf<CallerIdentity?>(null) }
@@ -219,7 +222,11 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // Tapping the card opens the full profile for this
+                        // number rather than doing nothing.
+                        .clickable { onOpenNumber(input) },
                 ) {
                     Row(
                         Modifier.padding(14.dp),
@@ -237,6 +244,11 @@ fun DialerScreen(vm: DialerViewModel = hiltViewModel()) {
                                 lastCallLabel(lastCallAt),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                "Tap for full details",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                         IconButton(onClick = { placeCall(input) }) {
