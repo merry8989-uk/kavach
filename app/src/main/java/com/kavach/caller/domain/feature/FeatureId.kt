@@ -59,6 +59,22 @@ enum class FeatureId(
         category = FeatureCategory.PROTECTION,
         defaultEnabled = false,
     ),
+    CONSENT_PROFILE(
+        title = "Verified profile",
+        description = "Verify your number and choose whether your own name is published.",
+        category = FeatureCategory.PROTECTION,
+        defaultEnabled = true,
+        requiresPermissions = listOf(Manifest.permission.INTERNET),
+        requiresBackend = true,
+    ),
+    CONTRIBUTE_NAMES(
+        title = "Community reports",
+        description = "Report spam numbers and suggest names. Reports are weighted by trust.",
+        category = FeatureCategory.PROTECTION,
+        defaultEnabled = true,
+        requiresPermissions = listOf(Manifest.permission.INTERNET),
+        requiresBackend = true,
+    ),
     REMOTE_LOOKUP(
         title = "Online caller lookup",
         description = "Ask the Kavach server about numbers you don't have saved.",

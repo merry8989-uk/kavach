@@ -12,8 +12,14 @@ class LookupResponse(BaseModel):
     verificationStatus: str = "UNVERIFIED"   # VERIFIED|UNVERIFIED|DISPUTED
     spamRisk: int = 0
     reports: int = 0
+    distinctReporters: int = 0
     lastUpdated: int = 0
     freshness: str = "UNKNOWN"               # FRESH|STALE|UNKNOWN
+    # Added for docs/CALLER-ID-PLAN.md: honest provenance on every result.
+    nameSource: str | None = None            # self_declared|business|null
+    spamLabel: str = "clean"                 # clean|likely_spam|spam
+    carrier: str | None = None
+    telecomCircle: str | None = None
     unavailableReason: str | None = None
 
 
@@ -72,3 +78,80 @@ class PrivacyResponse(BaseModel):
 class DeletionResponse(BaseModel):
     deleted: bool
     detail: str
+
+
+# ---------------------------------------------------------------------------
+# Consent-based caller ID (docs/CALLER-ID-PLAN.md).
+# ---------------------------------------------------------------------------
+
+
+class OtpRequestBody(BaseModel):
+    phone: str = Field(min_length=4, max_length=24)
+    country: str = Field(default="IN", max_length=2)
+
+
+class OtpRequestResponse(BaseModel):
+    request_id: str
+    expires_in: int
+    # Present ONLY when OTP_DEBUG_RETURN is enabled (local development).
+    debug_code: str | None = None
+
+
+class OtpVerifyBody(BaseModel):
+    request_id: str = Field(min_length=4, max_length=64)
+    otp: str = Field(min_length=4, max_length=10)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    is_new: bool
+    user_id: str
+
+
+class ProfileBody(BaseModel):
+    display_name: str | None = Field(default=None, max_length=120)
+    publish_name: bool = False
+    allow_spam_reports: bool | None = None
+
+
+class MeResponse(BaseModel):
+    user_id: str
+    # The server stores only a hash of the number, so it cannot reconstruct a
+    # mask. The client holds its own number; this is None by design.
+    phone_masked: str | None = None
+    display_name: str | None = None
+    publish_name: bool = False
+    allow_spam_reports: bool = True
+    is_verified: bool = False
+    trust_score: int = 0
+    created_at: int = 0
+
+
+class ConsentEventOut(BaseModel):
+    action: str
+    detail: str | None = None
+    created_at: int
+
+
+class CategoryCount(BaseModel):
+    category: str
+    count: int
+
+
+class NumberReportsResponse(BaseModel):
+    count: int
+    distinct_reporters: int
+    top_categories: list[CategoryCount]
+    score: int
+    label: str
+    last_report_at: int
+
+
+class ContributeBody(BaseModel):
+    """A crowd-sourced name suggestion. Held for moderation; never auto-published."""
+
+    number: str = Field(min_length=3, max_length=24)
+    name: str = Field(min_length=1, max_length=200)
+    evidence: str | None = Field(default=None, max_length=500)

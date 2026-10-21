@@ -23,6 +23,8 @@ fun SettingsScreen(
     onOpenRecordings: () -> Unit = {},
     onOpenFeatures: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
+    onOpenAccount: () -> Unit = {},
+    onOpenPolicy: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.settings.collectAsState()
@@ -104,6 +106,22 @@ fun SettingsScreen(
         SectionHeader("Updates")
         Spacer(Modifier.height(8.dp))
         UpdateSection()
+
+        Spacer(Modifier.height(16.dp))
+        SectionHeader("Your identity")
+        OutlinedButton(onClick = onOpenAccount, modifier = Modifier.fillMaxWidth()) {
+            Text("My number & consent")
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onOpenPolicy, modifier = Modifier.fillMaxWidth()) {
+            Text("How Kavach identifies callers")
+        }
+        Text(
+            "Verify your own number, choose whether your name is published, and read exactly " +
+                "where caller names come from.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("Server (advanced)")

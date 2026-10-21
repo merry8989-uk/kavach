@@ -92,3 +92,153 @@ class ConsentRecord(Base):
     scope: Mapped[str] = mapped_column(String(40))
     granted: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[int] = mapped_column(BigInteger)
+
+
+# ---------------------------------------------------------------------------
+# Consent-based caller ID (docs/CALLER-ID-PLAN.md).
+#
+# These tables are the source of truth for the three lawful sources of a name:
+#   1. self_declared — the number's owner opted in;
+#   2. business      — a verified public listing;
+#   3. community     — spam labels, which are opinions about a number, never a
+#                      claim about a person's identity.
+#
+# Phone numbers appear here ONLY as `phone_hash` (HMAC_SHA256 + pepper).
+# `NumberIdentity` above remains the fast public projection the lookup endpoint
+# reads, so the Android client keeps a stable contract.
+# ---------------------------------------------------------------------------
+
+
+class User(Base):
+    """A verified account. Identified by a hashed number, never a raw one."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)  # uuid4
+    phone_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    phone_country: Mapped[str] = mapped_column(String(2), default="IN")
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Grows with account age and good behaviour; weights their spam reports.
+    trust_score: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[int] = mapped_column(BigInteger)
+    last_seen_at: Mapped[int] = mapped_column(BigInteger)
+
+
+class Profile(Base):
+    """What the owner wants shown, and what they consent to."""
+
+    __tablename__ = "profiles"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), primary_key=True,
+    )
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Consent to publish the name publicly. Default OFF, always.
+    publish_name: Mapped[bool] = mapped_column(Boolean, default=False)
+    allow_spam_reports: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class Number(Base):
+    """A number we know about. Keyed by hash; the raw value is not stored."""
+
+    __tablename__ = "numbers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    phone_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    country: Mapped[str] = mapped_column(String(2), default="IN")
+    carrier: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    telecom_circle: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # mobile | landline | voip | unknown
+    line_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    first_seen_at: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class NameEntry(Base):
+    """A candidate name for a number, with its lawful source and confidence."""
+
+    __tablename__ = "name_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number_id: Mapped[int] = mapped_column(ForeignKey("numbers.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    # self_declared | business | community
+    source: Mapped[str] = mapped_column(String(20), default="community")
+    confidence: Mapped[int] = mapped_column(Integer, default=0)  # 0..100
+    contributor_user: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    __table_args__ = (
+        Index("ix_name_entries_number_active", "number_id", "is_active"),
+    )
+
+
+class SpamReport(Base):
+    """A community opinion about a number. One per user, number and category."""
+
+    __tablename__ = "spam_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number_id: Mapped[int] = mapped_column(ForeignKey("numbers.id"), index=True)
+    reporter_user: Mapped[str] = mapped_column(String(36), index=True)
+    # fraud | telemarketing | robocall | other
+    category: Mapped[str] = mapped_column(String(40))
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Derived from the reporter's trust score, so new accounts count for less.
+    weight: Mapped[int] = mapped_column(Integer, default=10)
+    created_at: Mapped[int] = mapped_column(BigInteger)
+
+    __table_args__ = (
+        Index(
+            "ix_spam_reports_unique",
+            "number_id", "reporter_user", "category",
+            unique=True,
+        ),
+    )
+
+
+class SpamScore(Base):
+    """The aggregated, explainable score for a number."""
+
+    __tablename__ = "spam_scores"
+
+    number_id: Mapped[int] = mapped_column(
+        ForeignKey("numbers.id"), primary_key=True,
+    )
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    report_count: Mapped[int] = mapped_column(Integer, default=0)
+    distinct_reporters: Mapped[int] = mapped_column(Integer, default=0)
+    last_report_at: Mapped[int] = mapped_column(BigInteger, default=0)
+    updated_at: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class ConsentEvent(Base):
+    """Append-only audit trail of every consent decision (DPDP requirement)."""
+
+    __tablename__ = "consent_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    # publish_name_on | publish_name_off | profile_updated | delete_account | ...
+    action: Mapped[str] = mapped_column(String(40))
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[int] = mapped_column(BigInteger)
+
+
+class ModerationItem(Base):
+    """Something a human should look at before it is published."""
+
+    __tablename__ = "moderation_queue"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number_id: Mapped[int | None] = mapped_column(
+        ForeignKey("numbers.id"), nullable=True, index=True,
+    )
+    # flagged_by_threshold | user_appeal | business_claim | burst_reports
+    reason: Mapped[str] = mapped_column(String(40))
+    # pending | approved | rejected
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[int] = mapped_column(BigInteger, default=0)

@@ -100,29 +100,160 @@ class KavachApiClient @Inject constructor(
 
     // ---------------- plumbing ----------------
 
-    private fun newRequest(url: String): Request.Builder {
+    /**
+     * Two kinds of auth: the shared service token for lookup/report endpoints,
+     * and a per-user JWT for anything acting on the user's own record.
+     */
+    private fun newRequest(url: String, userToken: String? = null): Request.Builder {
         val builder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
-        settings.snapshot.backendToken
-            .takeIf { it.isNotBlank() }
-            ?.let { builder.header("Authorization", "Bearer $it") }
+        val bearer = userToken?.takeIf { it.isNotBlank() }
+            ?: settings.snapshot.backendToken.takeIf { it.isNotBlank() }
+        bearer?.let { builder.header("Authorization", "Bearer $it") }
         return builder
     }
 
     private suspend fun <T> get(
         url: String,
         deserializer: DeserializationStrategy<T>,
-    ): T? = execute(newRequest(url).get().build(), deserializer)
+        userToken: String? = null,
+    ): T? = execute(newRequest(url, userToken).get().build(), deserializer)
 
     private suspend fun <B, T> post(
         url: String,
         body: B,
         serializer: SerializationStrategy<B>,
         deserializer: DeserializationStrategy<T>,
+        userToken: String? = null,
     ): T? {
         val payload = json.encodeToString(serializer, body)
-        return execute(newRequest(url).post(payload.toRequestBody(jsonMedia)).build(), deserializer)
+        return execute(
+            newRequest(url, userToken).post(payload.toRequestBody(jsonMedia)).build(),
+            deserializer,
+        )
+    }
+
+    // ---------------- consent-based account (plan sections 4.1, 4.5) ----------------
+
+    /** Step 1 of sign-in. Returns null when no server is configured. */
+    suspend fun requestOtp(phone: String): OtpRequestResponseDto? {
+        val url = baseUrl() ?: return null
+        return post(
+            "$url/v1/auth/otp/request",
+            OtpRequestBodyDto(phone = phone),
+            OtpRequestBodyDto.serializer(),
+            OtpRequestResponseDto.serializer(),
+        )
+    }
+
+    /** Step 2. The returned token authenticates every `/v1/me` call. */
+    suspend fun verifyOtp(requestId: String, otp: String): TokenDto? {
+        val url = baseUrl() ?: return null
+        return post(
+            "$url/v1/auth/otp/verify",
+            OtpVerifyBodyDto(request_id = requestId, otp = otp),
+            OtpVerifyBodyDto.serializer(),
+            TokenDto.serializer(),
+        )
+    }
+
+    suspend fun profile(userToken: String): ProfileDto? {
+        val url = baseUrl() ?: return null
+        return get("$url/v1/me", ProfileDto.serializer(), userToken)
+    }
+
+    suspend fun updateProfile(
+        userToken: String,
+        displayName: String?,
+        publishName: Boolean,
+        allowSpamReports: Boolean? = null,
+    ): ProfileDto? {
+        val url = baseUrl() ?: return null
+        return put(
+            "$url/v1/me/profile",
+            ProfileUpdateDto(
+                display_name = displayName,
+                publish_name = publishName,
+                allow_spam_reports = allowSpamReports,
+            ),
+            ProfileUpdateDto.serializer(),
+            ProfileDto.serializer(),
+            userToken,
+        )
+    }
+
+    suspend fun consentHistory(userToken: String): List<ConsentEventDto>? {
+        val url = baseUrl() ?: return null
+        return get(
+            "$url/v1/me/consent",
+            kotlinx.serialization.builtins.ListSerializer(ConsentEventDto.serializer()),
+            userToken,
+        )
+    }
+
+    suspend fun deleteAccount(userToken: String): Boolean {
+        val url = baseUrl() ?: return false
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                http.newCall(newRequest("$url/v1/me", userToken).delete().build())
+                    .execute().use { it.isSuccessful }
+            }.getOrDefault(false)
+        }
+    }
+
+    /** A spam report from a verified user, weighted by their trust score. */
+    suspend fun reportAsUser(
+        userToken: String,
+        number: String,
+        category: String,
+        note: String? = null,
+    ): ReportResponseDto? {
+        val url = baseUrl() ?: return null
+        return post(
+            "$url/v1/me/reports",
+            ReportRequestDto(number = number, category = category, note = note),
+            ReportRequestDto.serializer(),
+            ReportResponseDto.serializer(),
+            userToken,
+        )
+    }
+
+    /** Suggest a name. Stored for review — never published as somebody's name. */
+    suspend fun contributeName(
+        userToken: String,
+        number: String,
+        name: String,
+        evidence: String? = null,
+    ): Boolean {
+        val url = baseUrl() ?: return false
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val payload = json.encodeToString(
+                    ContributeDto.serializer(),
+                    ContributeDto(number = number, name = name, evidence = evidence),
+                )
+                http.newCall(
+                    newRequest("$url/v1/me/contributions", userToken)
+                        .post(payload.toRequestBody(jsonMedia))
+                        .build(),
+                ).execute().use { it.isSuccessful }
+            }.getOrDefault(false)
+        }
+    }
+
+    private suspend fun <B, T> put(
+        url: String,
+        body: B,
+        serializer: SerializationStrategy<B>,
+        deserializer: DeserializationStrategy<T>,
+        userToken: String? = null,
+    ): T? {
+        val payload = json.encodeToString(serializer, body)
+        return execute(
+            newRequest(url, userToken).put(payload.toRequestBody(jsonMedia)).build(),
+            deserializer,
+        )
     }
 
     private suspend fun <T> execute(

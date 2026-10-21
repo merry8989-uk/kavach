@@ -9,6 +9,14 @@ import os
 os.environ["AUTO_CREATE_TABLES"] = "false"
 os.environ["API_TOKEN"] = "test-token"
 os.environ["RATE_LIMIT_PER_MINUTE"] = "1000"
+# Deterministic pepper so hashes are stable within a test run, and no production
+# default is ever exercised.
+os.environ["PHONE_PEPPER"] = "test-pepper"
+os.environ["JWT_SECRET"] = "test-jwt-secret"
+# Echo the OTP back so the auth flow can be tested without an SMS gateway.
+# This flag must stay false in production.
+os.environ["OTP_DEBUG_RETURN"] = "true"
+os.environ["OTP_RESEND_SECONDS"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

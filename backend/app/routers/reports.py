@@ -46,7 +46,7 @@ def create_report(
         record = resolve(db, e164)
         return ReportResponse(
             accepted=True,
-            reports=record.report_count if record else 0,
+            reports=record.reports if record else 0,
             detail="already reported within the deduplication window",
         )
 

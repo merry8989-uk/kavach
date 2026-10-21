@@ -21,4 +21,14 @@ data class AppSettings(
     val backendBaseUrl: String = "",
     /** Bearer token for that server. Stored in DataStore; see SECURITY.md. */
     val backendToken: String = "",
+
+    /**
+     * Consent-based account (docs/CALLER-ID-PLAN.md).
+     * The token is the per-user JWT from the OTP flow; the rest mirrors what the
+     * user last told the server, so the UI can render before a network round trip.
+     */
+    val accountToken: String = "",
+    val accountUserId: String = "",
+    val accountDisplayName: String = "",
+    val accountPublishName: Boolean = false,
 )

@@ -2,6 +2,10 @@ package com.kavach.caller.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -19,10 +23,38 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.kavach.caller.data.account.AccountRepository
 import com.kavach.caller.domain.model.LookupStrategy
 import com.kavach.caller.domain.model.LookupTarget
 import com.kavach.caller.util.LookupLauncher
 import com.kavach.caller.util.PhoneUtils
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/** Spam flagging and name suggestions, from the lookup sheet. */
+@HiltViewModel
+class ContributeViewModel @Inject constructor(
+    private val account: AccountRepository,
+) : ViewModel() {
+
+    /** Only offered when a server is configured and the user is signed in. */
+    val available: Boolean get() = account.isConfigured && account.isSignedIn
+
+    fun report(number: String, category: String, onResult: (String) -> Unit) =
+        viewModelScope.launch {
+            account.reportSpam(number, category)
+                .onSuccess(onResult)
+                .onFailure { onResult(it.message ?: "Could not send the report.") }
+        }
+
+    fun suggest(number: String, name: String, onResult: (String) -> Unit) =
+        viewModelScope.launch {
+            account.contributeName(number, name)
+                .onSuccess(onResult)
+                .onFailure { onResult(it.message ?: "Could not send the suggestion.") }
+        }
+}
 
 /**
  * "Who is this?" — the list of places a number can be looked up (F9.7).
@@ -36,6 +68,8 @@ fun CallerLookupDialog(
 ) {
     val context = LocalContext.current
     var message by remember { mutableStateOf<String?>(null) }
+    var suggestFor by remember { mutableStateOf<String?>(null) }
+    val contribute: ContributeViewModel = hiltViewModel()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -97,12 +131,81 @@ fun CallerLookupDialog(
                         }
                     }
                 }
+
+                if (contribute.available) {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Help others",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        "Reports are weighted by how much your account is trusted. A name " +
+                            "suggestion is held for review — only the number's owner can name it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { contribute.report(number, "fraud") { message = it } },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("Report spam") }
+                        OutlinedButton(
+                            onClick = { suggestFor = number },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("Suggest name") }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Close") }
         },
     )
+
+    suggestFor?.let { target ->
+        var name by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { suggestFor = null },
+            title = { Text("Suggest a name") },
+            text = {
+                Column {
+                    Text(
+                        "This is held for review. It is never shown as somebody's name — only " +
+                            "the number's owner or a verified business can name a number.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Suggested name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val value = name.trim()
+                        suggestFor = null
+                        if (value.isNotEmpty()) {
+                            contribute.suggest(target, value) { message = it }
+                        }
+                    },
+                    enabled = name.isNotBlank(),
+                ) { Text("Send") }
+            },
+            dismissButton = {
+                TextButton(onClick = { suggestFor = null }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 private fun iconFor(target: LookupTarget): ImageVector = when (target.strategy) {
