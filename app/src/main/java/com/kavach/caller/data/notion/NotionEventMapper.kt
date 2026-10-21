@@ -21,10 +21,21 @@ object NotionEventMapper {
     /** The data source the rows go into. */
     const val DATA_SOURCE_ID = "1d7ea74f-fe10-4ce1-9262-f085eafccc26"
 
+    /** The database those rows live in, used as an alternate parent shape. */
+    const val DATABASE_ID = "e8af8aa3f9d044f7896f0525caa1a088"
+
     /** Notion requires a versioned API; this workspace exposes data sources. */
     const val NOTION_VERSION = "2025-09-03"
 
-    fun toPage(event: LogEvent, userCode: String, appVersion: String, os: String, network: String): JsonObject {
+    fun toPage(
+        event: LogEvent,
+        userCode: String,
+        appVersion: String,
+        os: String,
+        network: String,
+        parentType: String = "data_source_id",
+        parentId: String = DATA_SOURCE_ID,
+    ): JsonObject {
         val properties = buildJsonObject {
             put("Log", title(titleFor(event)))
             put("Timestamp", date(event.iso8601()))
@@ -47,8 +58,8 @@ object NotionEventMapper {
             put(
                 "parent",
                 buildJsonObject {
-                    put("type", JsonPrimitive("data_source_id"))
-                    put("data_source_id", JsonPrimitive(DATA_SOURCE_ID))
+                    put("type", JsonPrimitive(parentType))
+                    put(parentType, JsonPrimitive(parentId))
                 },
             )
             put("properties", properties)

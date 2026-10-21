@@ -2,6 +2,7 @@ package com.kavach.caller.data.telemetry
 
 import android.content.Context
 import com.kavach.caller.data.diagnostics.LogEventCodec
+import com.kavach.caller.data.diagnostics.SessionContext
 import com.kavach.caller.data.settings.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ import javax.inject.Singleton
 class TelemetryUploader @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
+    private val session: SessionContext,
 ) {
     private val http: OkHttpClient = OkHttpClient.Builder()
         .callTimeout(20, TimeUnit.SECONDS)
@@ -84,7 +86,9 @@ class TelemetryUploader @Inject constructor(
             }
 
             val payload = buildJsonObject {
-                put("user_code", JsonPrimitive(settings.snapshot.accountUserId.ifBlank { "KV-UNKNOWN" }))
+                // The random per-install pseudonym, not the account id. Sending
+                // the account id here would have leaked a real identifier.
+                put("user_code", JsonPrimitive(session.userCode))
                 put(
                     "events",
                     JsonArray(

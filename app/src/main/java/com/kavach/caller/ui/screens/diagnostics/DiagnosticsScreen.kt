@@ -99,7 +99,8 @@ class DiagnosticsViewModel @Inject constructor(
     fun setTelemetryUpload(enabled: Boolean) = viewModelScope.launch {
         settings.setTelemetryUploadEnabled(enabled)
         syncMessage = if (enabled) {
-            "Events will be sent to your Kavach server."
+            val queued = notionSync.backfillFromLog(repository.allLines())
+            "Server upload on. Queued $queued existing event(s)."
         } else {
             "Server upload off."
         }
@@ -109,7 +110,10 @@ class DiagnosticsViewModel @Inject constructor(
     fun setNotionEnabled(enabled: Boolean) = viewModelScope.launch {
         settings.setNotionSyncEnabled(enabled)
         syncMessage = if (enabled) {
-            "Automatic sync on. Events will upload as they happen."
+            // Catch up on everything already logged, so switching this on has a
+            // visible effect instead of looking broken.
+            val queued = notionSync.backfillFromLog(repository.allLines())
+            "Automatic sync on. Queued $queued existing event(s); new ones upload as they happen."
         } else {
             "Automatic sync off. Nothing leaves this phone."
         }
@@ -118,6 +122,12 @@ class DiagnosticsViewModel @Inject constructor(
 
     fun setNotionWifiOnly(wifiOnly: Boolean) = viewModelScope.launch {
         settings.setNotionWifiOnly(wifiOnly)
+        refreshNotion()
+    }
+
+    fun testNotion() = viewModelScope.launch {
+        syncMessage = "Testing…"
+        syncMessage = notionSync.testConnection()
         refreshNotion()
     }
 
@@ -350,6 +360,10 @@ fun DiagnosticsScreen(
 
                         Spacer(Modifier.height(10.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { vm.testNotion() },
+                                enabled = notion?.hasToken == true,
+                            ) { Text("Test connection") }
                             Button(onClick = { vm.syncNow() }, enabled = notion?.enabled == true) {
                                 Text("Sync now")
                             }

@@ -113,9 +113,31 @@ class NotionSyncRepository @Inject constructor(
                 // retrying it forever.
                 continue
             }
-            when (val result = post(event, bearer)) {
+            var result = post(event, bearer, parentMode)
+
+            // A 400/404 on the very first row is almost always the parent shape,
+            // not the row. Try the other one once and remember what worked.
+            if (looksLikeParentProblem(result)) {
+                val alternate = otherMode(parentMode)
+                val retry = post(event, bearer, alternate)
+                if (retry is PostResult.Sent) {
+                    parentMode = alternate
+                    result = retry
+                }
+            }
+
+            when (result) {
                 PostResult.Sent -> sent++
-                PostResult.Rejected -> Unit // bad row: drop, do not block the queue
+
+                is PostResult.Rejected -> {
+                    // Stop and say why. The old code dropped these silently,
+                    // which is exactly why "no logs are arriving" had no
+                    // explanation anywhere.
+                    failure = "Notion ${result.status} (${result.code}): ${result.message}"
+                    remaining.add(line)
+                    break
+                }
+
                 is PostResult.Retry -> {
                     failure = result.reason
                     remaining.add(line)
@@ -136,11 +158,21 @@ class NotionSyncRepository @Inject constructor(
 
     private sealed interface PostResult {
         data object Sent : PostResult
-        data object Rejected : PostResult
+
+        /** The request itself is wrong. Carries what Notion actually said. */
+        data class Rejected(val status: Int, val code: String, val message: String) : PostResult
+
+        /** Worth trying again later: network, timeout, 5xx. */
         data class Retry(val reason: String) : PostResult
     }
 
-    private fun post(event: LogEvent, bearer: String): PostResult {
+    /** True when the problem is the parent shape rather than the row. */
+    private fun looksLikeParentProblem(result: PostResult): Boolean = when (result) {
+        is PostResult.Rejected -> result.status == 400 || result.status == 404
+        else -> false
+    }
+
+    private fun post(event: LogEvent, bearer: String, mode: ParentMode): PostResult {
         val snapshot = settings.snapshot
         val body = NotionEventMapper.toPage(
             event = event,
@@ -148,6 +180,12 @@ class NotionSyncRepository @Inject constructor(
             appVersion = session.appVersion,
             os = session.os,
             network = "unknown",
+            parentType = mode.wire,
+            parentId = if (mode == ParentMode.DATABASE) {
+                NotionEventMapper.DATABASE_ID
+            } else {
+                NotionEventMapper.DATA_SOURCE_ID
+            },
         )
         val payload = NotionEventMapper.json.encodeToString(
             kotlinx.serialization.json.JsonObject.serializer(),
@@ -164,16 +202,95 @@ class NotionSyncRepository @Inject constructor(
 
         return runCatching {
             http.newCall(request).execute().use { response ->
-                when {
-                    response.isSuccessful -> PostResult.Sent
-                    // 4xx means the row itself is wrong; retrying will not help.
-                    response.code in 400..499 -> PostResult.Rejected
-                    else -> PostResult.Retry("Notion returned ${response.code}")
+                if (response.isSuccessful) return@use PostResult.Sent
+                if (response.code >= 500) {
+                    return@use PostResult.Retry("Notion returned ${response.code}")
                 }
+                val body = response.body?.string().orEmpty()
+                // Notion replies {"code":"validation_error","message":"..."}.
+                // Showing that is the difference between "it does not work" and
+                // "it does not work because the database is not shared".
+                val code = Regex("\"code\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.get(1)
+                    ?: "http_${response.code}"
+                val message = Regex("\"message\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.get(1)
+                    ?: body.take(160).ifBlank { "no detail returned" }
+                PostResult.Rejected(response.code, code, message.take(200))
             }
         }.getOrElse { throwable ->
             PostResult.Retry(throwable.javaClass.simpleName)
         }
+    }
+
+    /**
+     * Send one synthetic event and report exactly what Notion said.
+     *
+     * This exists because the first version could not be debugged: a rejected
+     * row was dropped without a word. Now the user can press one button and see
+     * the real status, code and message.
+     */
+    suspend fun testConnection(): String = withContext(Dispatchers.IO) {
+        val bearer = token()
+        if (bearer.isNullOrBlank()) return@withContext "No Notion token saved yet."
+
+        val probe = LogEvent(
+            eventName = "session_start",
+            logLevel = LogLevel.INFO,
+            timestampMs = System.currentTimeMillis(),
+            sessionId = session.sessionId,
+            screenOrRoute = "settings",
+            userId = null,
+            properties = mapOf("start_type" to "cold"),
+        )
+
+        var mode = parentMode
+        var result = post(probe, bearer, mode)
+        if (looksLikeParentProblem(result)) {
+            mode = otherMode(mode)
+            result = post(probe, bearer, mode)
+        }
+
+        when (result) {
+            PostResult.Sent -> {
+                parentMode = mode
+                "Connected. Notion accepted a test row using '${mode.wire}'. " +
+                    "Your database is shared with the integration and the schema matches."
+            }
+            is PostResult.Rejected -> {
+                val hint = when (result.status) {
+                    401 -> "The token is not valid — copy it again from the integration."
+                    403 -> "The integration lacks permission. Enable 'Insert content' on it."
+                    404 -> "The database was not found. Share the Kavach Diagnostics page " +
+                        "with the integration (⋯ → Connections)."
+                    400 -> "Notion rejected the row shape. Send this message on and it can " +
+                        "be mapped: ${result.message}"
+                    else -> result.message
+                }
+                "Notion said ${result.status} (${result.code}): ${result.message}\n\n$hint"
+            }
+            is PostResult.Retry -> "Could not reach Notion: ${result.reason}"
+        }
+    }
+
+    /**
+     * Queue everything already logged.
+     *
+     * Called when a destination is switched on, so the user sees it actually do
+     * something instead of waiting for the next event to be written.
+     */
+    suspend fun backfillFromLog(lines: List<String>): Int {
+        if (lines.isEmpty()) return 0
+        val existing = runCatching { queueFile().takeIf { it.exists() }?.readLines() }.getOrNull()
+            .orEmpty()
+            .toHashSet()
+        val fresh = lines.filterNot { it in existing }
+        if (fresh.isEmpty()) return 0
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val file = queueFile()
+                file.appendText(fresh.joinToString("\n", postfix = "\n"))
+            }
+        }
+        return fresh.size
     }
 
     suspend fun clearQueue() = withContext(Dispatchers.IO) {

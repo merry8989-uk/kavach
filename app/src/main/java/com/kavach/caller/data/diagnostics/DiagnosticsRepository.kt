@@ -108,9 +108,14 @@ class DiagnosticsRepository @Inject constructor(
         )
         val line = LogEventCodec.encode(event, session.envelope, networkType())
 
-        // Mirror into the Notion queue *before* the file write, so an event that
-        // reaches the dashboard is never lost to a rotation.
-        if (settings.snapshot.notionSyncEnabled) {
+        // Mirror into the upload queue *before* the file write, so an event that
+        // reaches a dashboard is never lost to a rotation.
+        //
+        // This used to check only `notionSyncEnabled`, which meant the server
+        // destination queued nothing at all — it looked enabled and silently
+        // sent zero events.
+        val snapshot = settings.snapshot
+        if (snapshot.notionSyncEnabled || snapshot.telemetryUploadEnabled) {
             runCatching { notionSync.get().enqueue(line) }
         }
 
@@ -180,6 +185,18 @@ class DiagnosticsRepository @Inject constructor(
             if (!file.exists()) return@runCatching emptyList()
             file.readLines().asReversed().take(limit).mapNotNull { LogEventCodec.decode(it) }
         }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Every event already on disk, as raw JSON lines.
+     *
+     * Used to catch up when a destination is switched on: without this, turning
+     * sync on appears to do nothing, because the queue only fills from events
+     * written *after* the switch.
+     */
+    suspend fun allLines(): List<String> = withContext(Dispatchers.IO) {
+        runCatching { if (file.exists()) file.readLines().filter { it.startsWith("{") } else emptyList() }
+            .getOrDefault(emptyList())
     }
 
     suspend fun clear() = withContext(Dispatchers.IO) {
