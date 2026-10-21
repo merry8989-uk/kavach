@@ -16,12 +16,16 @@ brief.
 
 ## Why Kavach is different
 
-1. **An AI that takes the call first.** Unknown number rings → Kavach's assistant
-   answers, greets, transcribes, classifies intent (delivery / appointment /
-   emergency / sales / spam / personal), texts the caller if configured, and
-   sends you the transcript, summary, sentiment and a spam-risk score.
-2. **A living, futuristic UI.** Dynamic Material 3 with Aurora, Carbon, Daylight
-   and Neon Noir theme packs, animated caller radar, spam gauge and waveforms.
+1. **An assistant that takes the call first.** Unknown number rings → Kavach's
+   assistant answers, speaks a consent notice and greeting, captures the audio and
+   posts a brief (transcript, summary, intent, sentiment, spam risk).
+   *Honest scope:* the answer / announce / capture / brief plumbing is implemented.
+   Full transcription and summarisation need the backend, which is **not built**.
+   Intent classification currently uses **keyword rules, not a trained model**.
+   Android also forbids injecting audio into a cellular call uplink, so the assistant
+   speaks via the speaker rather than holding a natural two-way conversation.
+2. **A living, futuristic UI.** Dynamic Material 3 with five theme packs (Aurora,
+   Carbon, Daylight, Neon Noir, Dynamic) that apply app-wide and persist.
 
 ## What's inside
 
@@ -41,8 +45,23 @@ brief.
 | **Onboarding** | Runtime permissions + Call screening / Default dialer / Default SMS roles |
 | **Updates** | In-app check against GitHub Releases, download + install, optional launch check |
 
-Full breakdown: [`docs/PLAN.md`](docs/PLAN.md) — every function split into parts
-with a phased build roadmap.
+> **Verification status: nothing here is device-verified.** The project compiles and
+> passes CI, but it has never been run on a phone or emulator. See
+> [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+
+## Docs
+
+| Document | Contents |
+|---|---|
+| [`docs/PLAN.md`](docs/PLAN.md) | Every function split into parts + phased roadmap |
+| [`docs/PRODUCT_REQUIREMENTS.md`](docs/PRODUCT_REQUIREMENTS.md) | Requirements, personas, constraints, acceptance |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, package map, data flows, dependency deviations |
+| [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md) | Per-feature status, API, permissions, privacy, tests |
+| [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md) | Permission + role matrix and request policy |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, data inventory, encryption gaps |
+| [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | What passed, what hasn't run, manual scripts |
+| [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) | Honest status per feature |
+| [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | Backend contract (server not built) |
 
 ## Architecture
 
