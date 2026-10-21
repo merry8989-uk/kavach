@@ -56,10 +56,13 @@ class LoggingSchemaTest {
 
     @Test
     fun `every event name follows object_action snake_case`() {
-        val pattern = Regex("^[a-z][a-z0-9]*(_[a-z0-9]+)+$")
+        // The standard's own catalogue has single-word events ("crash", "anr"),
+        // so zero underscore groups is legal. camelCase is not.
+        val pattern = Regex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
         EventSchema.CATALOGUE.keys.forEach { name ->
             assertTrue("$name is not snake_case", pattern.matches(name))
         }
+        assertFalse("camelCase must be rejected", pattern.matches("FixAccessResult"))
     }
 
     @Test

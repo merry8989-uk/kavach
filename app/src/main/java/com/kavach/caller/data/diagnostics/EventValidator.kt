@@ -10,6 +10,8 @@ package com.kavach.caller.data.diagnostics
  */
 object EventValidator {
 
+    private val SNAKE_CASE = Regex("[a-z][a-z0-9]*(_[a-z0-9]+)*")
+
     data class Report(val valid: Boolean, val problems: List<String>) {
         val summary: String get() = problems.joinToString("; ")
     }
@@ -49,7 +51,10 @@ object EventValidator {
     fun validateCatalogue(): List<String> {
         val problems = mutableListOf<String>()
         EventSchema.CATALOGUE.values.forEach { spec ->
-            if (!spec.name.matches(Regex("[a-z][a-z0-9]*(_[a-z0-9]+)+"))) {
+            // snake_case. Zero underscore groups is allowed on purpose: the
+            // standard's own catalogue contains single-word events such as
+            // "crash" and "anr". camelCase and spaces are still rejected.
+            if (!spec.name.matches(SNAKE_CASE)) {
                 problems += "${spec.name} is not snake_case object_action"
             }
             if (spec.required.isEmpty()) {
