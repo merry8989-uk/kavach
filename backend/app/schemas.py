@@ -155,3 +155,30 @@ class ContributeBody(BaseModel):
     number: str = Field(min_length=3, max_length=24)
     name: str = Field(min_length=1, max_length=200)
     evidence: str | None = Field(default=None, max_length=500)
+
+
+# ---------------------------------------------------------------------------
+# Telemetry collection (server-side counterpart of the app's logging standard).
+# ---------------------------------------------------------------------------
+
+
+class TelemetryBatch(BaseModel):
+    """A batch of schema events from one install."""
+
+    user_code: str = Field(min_length=3, max_length=16)
+    events: list[dict] = Field(min_length=1, max_length=200)
+
+
+class TelemetryAck(BaseModel):
+    accepted: int
+    rejected: int
+    # A few reasons, not all of them — enough to debug a bad build without
+    # turning the response into a log dump.
+    reasons: list[str] = []
+
+
+class NotionPushResult(BaseModel):
+    pushed: int
+    failed: int
+    remaining: int
+    detail: str | None = None

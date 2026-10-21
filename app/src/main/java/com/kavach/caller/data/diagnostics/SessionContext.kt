@@ -3,6 +3,7 @@ package com.kavach.caller.data.diagnostics
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import com.kavach.caller.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
@@ -25,10 +26,18 @@ class SessionContext @Inject constructor(
 
     val startedAtMs: Long = System.currentTimeMillis()
 
-    /** Startup timings, filled in by the app once it knows them. */
-    @Volatile var coldStartMs: Long? = null
-    @Volatile var warmStartMs: Long? = null
-    @Volatile var startType: String = "cold"
+    /**
+     * Elapsed-realtime at process start, so startup cost can actually be
+     * measured instead of guessed.
+     */
+    val processStartElapsedMs: Long = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        android.os.Process.getStartElapsedRealtime()
+    } else {
+        SystemClock.elapsedRealtime()
+    }
+
+    /** Emitted once, when the first screen appears. */
+    @Volatile var appStartReported: Boolean = false
 
     /**
      * Which screen the user is on. Kept here so every event carries it without
@@ -48,8 +57,22 @@ class SessionContext @Inject constructor(
 
     val os: String = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
 
-    /** A device *class*, not a unique identifier. */
-    val deviceModel: String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+    /**
+     * A device *class*, not a unique identifier.
+     *
+     * Manufacturers often already prefix the model with their own name
+     * ("TECNO" + "TECNO LH8n"), which produced "TECNO TECNO LH8n" in a real
+     * export. The prefix is dropped when it repeats.
+     */
+    val deviceModel: String = buildString {
+        val maker = Build.MANUFACTURER.trim()
+        val model = Build.MODEL.trim()
+        append(maker)
+        if (model.isNotEmpty() && !model.lowercase().startsWith(maker.lowercase())) {
+            append(' ')
+            append(model)
+        }
+    }.trim().ifBlank { "unknown device" }
 
     val releaseChannel: String =
         if (BuildConfig.DEBUG) "debug" else "production"

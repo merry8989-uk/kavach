@@ -52,6 +52,7 @@ class SettingsRepository @Inject constructor(
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
         val autoReplyText = stringPreferencesKey("auto_reply_text")
         val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
+        val telemetryUploadEnabled = booleanPreferencesKey("telemetry_upload_enabled")
         val notionSyncEnabled = booleanPreferencesKey("notion_sync_enabled")
         val notionWifiOnly = booleanPreferencesKey("notion_wifi_only")
         val notionLastSyncAt = longPreferencesKey("notion_last_sync_at")
@@ -103,6 +104,7 @@ class SettingsRepository @Inject constructor(
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
             autoReplyText = p[Keys.autoReplyText] ?: "I'll get back to you soon.",
             hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
+            telemetryUploadEnabled = p[Keys.telemetryUploadEnabled] ?: false,
             notionSyncEnabled = p[Keys.notionSyncEnabled] ?: false,
             notionWifiOnly = p[Keys.notionWifiOnly] ?: true,
             notionLastSyncAt = p[Keys.notionLastSyncAt] ?: 0L,
@@ -137,6 +139,17 @@ class SettingsRepository @Inject constructor(
         prefs[Keys.hiddenSmsIds] = (prefs[Keys.hiddenSmsIds] ?: emptySet()) + ids
     }
     suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
+    suspend fun setTelemetryUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.telemetryUploadEnabled] = value }
+
+    /** Envelope for an upload, built from the app's own session context. */
+    fun envelopeForUpload(): com.kavach.caller.data.diagnostics.EnvelopeFields =
+        uploadEnvelope ?: com.kavach.caller.data.diagnostics.EnvelopeFields(
+            appVersion = "unknown", os = "unknown", deviceModel = "unknown",
+        )
+
+    /** Set once at startup so the uploader needs no Context. */
+    @Volatile
+    var uploadEnvelope: com.kavach.caller.data.diagnostics.EnvelopeFields? = null
     suspend fun setNotionSyncEnabled(value: Boolean) = context.dataStore.edit { it[Keys.notionSyncEnabled] = value }
     suspend fun setNotionWifiOnly(value: Boolean) = context.dataStore.edit { it[Keys.notionWifiOnly] = value }
     suspend fun setNotionLastSyncAt(value: Long) = context.dataStore.edit { it[Keys.notionLastSyncAt] = value }

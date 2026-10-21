@@ -93,6 +93,19 @@ class DiagnosticsViewModel @Inject constructor(
         refreshNotion()
     }
 
+    val hasServerUrl: Boolean
+        get() = settings.snapshot.backendBaseUrl.isNotBlank()
+
+    fun setTelemetryUpload(enabled: Boolean) = viewModelScope.launch {
+        settings.setTelemetryUploadEnabled(enabled)
+        syncMessage = if (enabled) {
+            "Events will be sent to your Kavach server."
+        } else {
+            "Server upload off."
+        }
+        refreshNotion()
+    }
+
     fun setNotionEnabled(enabled: Boolean) = viewModelScope.launch {
         settings.setNotionSyncEnabled(enabled)
         syncMessage = if (enabled) {
@@ -246,7 +259,29 @@ fun DiagnosticsScreen(
                             )
                         }
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Send to the Kavach server",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    "Use this for many installs. Your server stores the events and " +
+                                        "writes them into your Notion database, so users never need " +
+                                        "a Notion token. Needs a server URL in Settings.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = vm.appSettings.collectAsState().value.telemetryUploadEnabled,
+                                enabled = vm.hasServerUrl,
+                                onCheckedChange = { vm.setTelemetryUpload(it) },
+                            )
+                        }
+
+                        Spacer(Modifier.height(12.dp))
                         OutlinedTextField(
                             value = tokenDraft,
                             onValueChange = { tokenDraft = it },

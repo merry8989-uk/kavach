@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from . import models  # noqa: F401  (register models with Base.metadata)
 from .config import get_settings
 from .db import Base, get_engine
-from .routers import account, ai, auth, businesses, lookup, me, reports
+from .routers import account, ai, auth, businesses, lookup, me, reports, telemetry
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app = FastAPI(
 app.include_router(lookup.router)
 app.include_router(businesses.router)
 app.include_router(reports.router)
+app.include_router(telemetry.router)
 app.include_router(ai.router)
 app.include_router(auth.router)
 app.include_router(me.router)

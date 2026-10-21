@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.kavach.caller.data.notion.NotionSyncRepository
+import com.kavach.caller.data.telemetry.TelemetryUploader
 import com.kavach.caller.data.repo.CallLogRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -22,6 +23,7 @@ import java.io.File
 interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
     fun notionSyncRepository(): NotionSyncRepository
+    fun telemetryUploader(): TelemetryUploader
 }
 
 /**
@@ -41,8 +43,15 @@ class NotionSyncWorker(
             applicationContext,
             WorkerEntryPoint::class.java,
         )
-        val sync = entryPoint.notionSyncRepository()
-        val (sent, failure) = sync.flush()
+        // One queue, two destinations: the operator's server (the path that
+        // works for many installs) or the user's own Notion (the path that
+        // works for one). Whichever is switched on drains the same events.
+        val uploader = entryPoint.telemetryUploader()
+        val (sent, failure) = if (uploader.isConfigured()) {
+            uploader.flush()
+        } else {
+            entryPoint.notionSyncRepository().flush()
+        }
         if (failure != null && sent == 0) Result.retry() else Result.success()
     } catch (t: Throwable) {
         Result.retry()

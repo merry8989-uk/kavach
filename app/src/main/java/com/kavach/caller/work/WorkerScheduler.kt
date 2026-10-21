@@ -24,11 +24,12 @@ object WorkerScheduler {
         backgroundSyncEnabled: Boolean = true,
         dataSaver: Boolean = false,
         notionSyncEnabled: Boolean = false,
+        telemetryUploadEnabled: Boolean = false,
         notionWifiOnly: Boolean = true,
     ) {
         val manager = WorkManager.getInstance(context)
 
-        if (notionSyncEnabled) {
+        if (notionSyncEnabled || telemetryUploadEnabled) {
             // Wi-Fi-only when the user asked for it, so a metered plan is not
             // spent on telemetry.
             val notionConstraints = Constraints.Builder()

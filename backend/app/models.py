@@ -242,3 +242,38 @@ class ModerationItem(Base):
     # pending | approved | rejected
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class TelemetryEvent(Base):
+    """One diagnostics event received from an install.
+
+    This is what makes the dashboard work at scale: every phone sends the same
+    schema to *this* server, so the operator owns one database instead of asking
+    each user to create their own Notion integration.
+
+    The `user_code` is the app's random per-install pseudonym (KV-XXX-XXX), not
+    an account or a device id.
+    """
+
+    __tablename__ = "telemetry_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    received_at: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_code: Mapped[str] = mapped_column(String(16), index=True)
+    event_name: Mapped[str] = mapped_column(String(64), index=True)
+    schema_version: Mapped[str] = mapped_column(String(16))
+    event_timestamp: Mapped[str] = mapped_column(String(32))
+    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    level: Mapped[str] = mapped_column(String(8), index=True)
+    app_version: Mapped[str] = mapped_column(String(32))
+    os: Mapped[str] = mapped_column(String(64))
+    device_model: Mapped[str] = mapped_column(String(64))
+    platform: Mapped[str] = mapped_column(String(16), default="android")
+    network_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    screen_or_route: Mapped[str] = mapped_column(String(64))
+    release_channel: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    properties_json: Mapped[str] = mapped_column(Text, default="{}")
+
+    pushed_to_notion: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    notion_error: Mapped[str | None] = mapped_column(String(200), nullable=True)

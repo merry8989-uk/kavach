@@ -36,6 +36,11 @@ object EventSchema {
         "granted", "partial", "denied", "permanently_denied", "not_applicable",
     )
 
+    /**
+     * A session is created once per process, so every session_start Kavach can
+     * observe is a cold start. "warm" stays in the vocabulary for the day the
+     * app can distinguish an activity re-entry without a new process.
+     */
     val START_TYPES = setOf("cold", "warm")
 
     // ---------------- envelope (Part B) ----------------
@@ -67,7 +72,10 @@ object EventSchema {
         EventSpec(
             name = "session_start",
             required = setOf("start_type"),
-            optional = setOf("cold_start_ms", "warm_start_ms"),
+            // cold_start_ms / warm_start_ms were declared but never measured, so
+            // a real export showed them missing every time. Removed rather than
+            // left as a promise the app does not keep. Startup cost is reported
+            // properly by performance_marker(flow=app_start).
             enums = mapOf("start_type" to START_TYPES),
         ),
         EventSpec(

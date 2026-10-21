@@ -49,6 +49,12 @@ data class AppSettings(
     /** Message ids the user removed from Kavach's view. See MessagesScreen. */
     val hiddenSmsIds: Set<String> = emptySet(),
 
+    /**
+     * Send diagnostics events to the Kavach server instead of (or as well as)
+     * the user's own Notion. This is the path that works for many installs.
+     */
+    val telemetryUploadEnabled: Boolean = false,
+
     /** Automatic push of diagnostics events into the user's Notion database. */
     val notionSyncEnabled: Boolean = false,
     val notionWifiOnly: Boolean = true,

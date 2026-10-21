@@ -118,3 +118,39 @@ and turning it off stops the worker and leaves the queue untouched.
 - Rows that Notion rejects with a 4xx are dropped rather than retried forever;
   the rest of the queue continues.
 - The `Device` and `Release` columns are written as fixed values for now.
+
+## What a real export taught us
+
+A diagnostics export from a TECNO LH8n (Android 14, three sessions) exposed six
+things worth fixing, all now done:
+
+| What the export showed | Fix |
+|---|---|
+| 9 of 14 rows were `feature_toggle`, identical on every launch | Emit it **only when a module's state changes**, diffed against the last launch |
+| The config snapshot was **sampled**, so each session showed a different, incomplete subset | Snapshots are never sampled — a half-missing config reads as fact |
+| `screen_name=number/{number}` — a raw route pattern | Routes map to readable names (`number_details`); parameterised segments never reach the log |
+| `cold_start_ms` / `warm_start_ms` declared but always empty | Removed from the schema; startup cost is now a real `performance_marker(flow=app_start)` |
+| Device `TECNO TECNO LH8n` | The repeated manufacturer prefix is dropped |
+| No `crash` row anywhere, ever | An uncaught-exception handler now emits `crash` with a stack hash |
+
+The `crash` gap was the most serious: the event was declared from the beginning
+and nothing ever called it, so a crash produced no row at all — which reads as
+"the user closed the app".
+
+## Many installs
+
+Direct-to-Notion only works for the handful of users willing to create a Notion
+integration and paste a token, and their rows would land in *their* workspace,
+not yours. So there are two destinations, sharing one queue:
+
+| Destination | Use it when | Where the token lives |
+|---|---|---|
+| The user's own Notion | one person, their own dashboard | on their device, Keystore-encrypted |
+| **The Kavach server** | **any number of installs** | **on the server, never in the app** |
+
+The server path is `POST /v1/telemetry/events` — the app batches up to 100
+schema events per run, the server validates each against `telemetry_schema.py`
+and stores it in `telemetry_events`, and `POST /v1/admin/notion/push` drains the
+table into the operator's Notion database. Both sides keep the same rules: off
+by default, queued locally first, invalid events counted and skipped rather than
+blocking the batch.

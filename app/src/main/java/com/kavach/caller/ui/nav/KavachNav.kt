@@ -73,6 +73,19 @@ private val tabs = listOf(
  * Entry point. Shows the first-run setup until it has been completed (or
  * skipped) *and* the core permissions are held — then hands off to [KavachMain].
  */
+/**
+ * Turn a navigation route pattern into a stable, readable screen name.
+ *
+ * Parameterised routes are collapsed ("number/+9198…" -> "number_details") so
+ * rows from different devices group together instead of each forming its own
+ * value — and so nothing resembling a phone number ever reaches the log.
+ */
+private fun screenLabel(route: String): String = when {
+    route.startsWith("number/") -> "number_details"
+    route.startsWith("thread/") -> "message_thread"
+    else -> route
+}
+
 @Composable
 fun KavachNav() {
     val context = LocalContext.current
@@ -131,13 +144,18 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
     LaunchedEffect(route) {
         if (route == null) return@LaunchedEffect
         val now = System.currentTimeMillis()
+        // Route *patterns* leaked into the log — a real export showed
+        // `screen_name=number/{number}`. Map them to names a person would use.
+        val label = screenLabel(route)
         settingsVm.diagnostics.screenView(
-            name = route,
+            name = label,
             previous = previousScreen,
             durationMs = if (previousScreen != null) now - shownAt else null,
         )
-        settingsVm.session.currentScreen = route
-        previousScreen = route
+        // The first screen is when startup is genuinely finished.
+        settingsVm.diagnostics.appStartIfFirstScreen()
+        settingsVm.session.currentScreen = label
+        previousScreen = label
         shownAt = now
     }
 

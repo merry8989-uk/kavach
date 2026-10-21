@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.SystemClock
 import com.kavach.caller.BuildConfig
 import com.kavach.caller.data.notion.NotionSyncRepository
 import com.kavach.caller.data.settings.SettingsRepository
@@ -230,12 +231,67 @@ class DiagnosticsRepository @Inject constructor(
 
     suspend fun sessionStart() = emit(
         "session_start",
-        properties = buildMap {
-            put("start_type", session.startType)
-            session.coldStartMs?.let { put("cold_start_ms", it.toString()) }
-            session.warmStartMs?.let { put("warm_start_ms", it.toString()) }
-        },
+        properties = mapOf("start_type" to "cold"),
     )
+
+    /**
+     * The real startup cost: process start to the first screen appearing.
+     *
+     * Reported once per session as a `performance_marker`, because the old
+     * `cold_start_ms` property on `session_start` was declared and never
+     * measured — which a real export showed as a permanently empty field.
+     */
+    suspend fun appStartIfFirstScreen() {
+        if (session.appStartReported) return
+        session.appStartReported = true
+        val elapsed = SystemClock.elapsedRealtime() - session.processStartElapsedMs
+        emit(
+            "performance_marker",
+            properties = mapOf("flow" to "app_start", "duration_ms" to elapsed.toString()),
+        )
+    }
+
+    /**
+     * Emit `feature_toggle` **only when a module's state actually changed**.
+     *
+     * A real export had 9 of 14 rows as feature toggles, repeated identically on
+     * every launch, and — worse — sampled, so each session reported a different,
+     * incomplete subset of the configuration. A configuration snapshot that is
+     * partly missing is worse than none, because it reads as fact.
+     *
+     * @param current map of feature name to "enabled|STATUS"
+     */
+    suspend fun featureSnapshot(current: Map<String, String>) = withContext(Dispatchers.IO) {
+        val previous = readFeatureSnapshot()
+        current.forEach { (feature, state) ->
+            if (previous[feature] == state) return@forEach
+            val parts = state.split('|', limit = 2)
+            emit(
+                "feature_toggle",
+                properties = mapOf(
+                    "feature" to feature,
+                    "enabled" to (parts.getOrNull(0) ?: "false"),
+                    "status" to (parts.getOrNull(1) ?: "UNKNOWN"),
+                ),
+            )
+        }
+        runCatching {
+            directory.mkdirs()
+            featureStateFile.writeText(
+                current.entries.joinToString("\n") { "${it.key}=${it.value}" },
+            )
+        }
+    }
+
+    private fun readFeatureSnapshot(): Map<String, String> = runCatching {
+        if (!featureStateFile.exists()) return@runCatching emptyMap()
+        featureStateFile.readLines().mapNotNull { line ->
+            val idx = line.indexOf('=')
+            if (idx <= 0) null else line.substring(0, idx) to line.substring(idx + 1)
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
+    private val featureStateFile: File get() = File(directory, "feature-state.txt")
 
     suspend fun screenView(name: String, previous: String?, durationMs: Long? = null) = emit(
         "screen_view",
@@ -614,9 +670,17 @@ class DiagnosticsRepository @Inject constructor(
         private const val RAGE_WINDOW_MS = 2_000L
 
         /** Events worth every occurrence, however noisy they look. */
+        /**
+         * Events that must never be sampled away.
+         *
+         * `feature_toggle` is here because it is now a *change* record: sampling
+         * it would silently lose the fact that a module was switched off, which
+         * is exactly the context a bug report needs.
+         */
         private val ALWAYS_KEEP = setOf(
             "session_start", "access_fix_result", "access_fix_requested",
             "permission_state_resolved", "error_state_shown", "crash",
+            "feature_toggle", "performance_marker",
         )
 
         /** Kept for call sites that only need a masked number. */
