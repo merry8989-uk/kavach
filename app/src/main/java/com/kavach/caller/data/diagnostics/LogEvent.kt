@@ -49,7 +49,7 @@ data class EnvelopeFields(
     val appVersion: String,
     val os: String,
     val deviceModel: String,
-    val releaseChannel: String,
+    val releaseChannel: String = "production",
     /** Readable per-install pseudonym, e.g. KV-4F9-K2Q. Not personal data. */
     val userCode: String = "KV-000-000",
 )
