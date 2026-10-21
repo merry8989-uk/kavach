@@ -11,9 +11,16 @@
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │  Presentation state   ViewModels (Hilt), StateFlow / mutableStateOf                      │
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│  Domain / data access   repositories                                                    │
+│  Domain (Clean Architecture)                                                             │
+│    model/    CallerIdentity                                                              │
+│    usecase/  DecideCallAction · IdentifyCaller · SaveContact · SyncContacts ·             │
+│              CheckForUpdates                                                             │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│  Data access   repositories                                                              │
 │    ContactRepository · BlockRepository (+RuleMatcher) · CallLogRepository                │
 │    SettingsRepository · UpdateChecker / UpdateInstaller                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│  Background work   work/  CallLogSyncWorker · CacheCleanupWorker · WorkerScheduler        │
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │  Data sources                                                                           │
 │    local/    Room: contacts_enriched, block_rules, call_log, recordings, transcripts     │
@@ -53,6 +60,8 @@ app/src/main/java/com/kavach/caller/
     update/ UpdateInfo, UpdateChecker, UpdateInstaller
     repo/   ContactRepository, ContactDraft, BlockRepository, RuleMatcher,
             CallLogRepository
+  domain/   model/CallerIdentity, usecase/ (5 use cases)
+  work/     Workers (sync + retention), WorkerScheduler
   ai/       AiModels, SpamScorer, OnDeviceScreener, CloudAiClient,
             AssistantOrchestrator
   service/  KavachScreeningService, KavachInCallService, CallAssistantController,
@@ -111,14 +120,15 @@ ContactEditScreen → ContactsViewModel.save(draft)
 
 | Concern | Spec asked for | Kavach uses | Why |
 |---|---|---|---|
-| Networking | Retrofit or Ktor + OkHttp | **OkHttp + kotlinx.serialization directly** | One less dependency surface; Retrofit's kotlinx converter failed to resolve in CI. Functionally equivalent for two endpoints. |
-| Image loading | Coil | **Not used** — monogram avatars | No remote images exist yet; Coil becomes necessary when business logos/profile photos load. **Gap to close.** |
+| Networking | Retrofit or Ktor + OkHttp | **OkHttp + kotlinx.serialization directly** | One less dependency surface; Retrofit's kotlinx converter failed to resolve in CI. Functionally equivalent for the endpoints involved. |
+| Image loading | Coil | **coil-compose 2.6.0** — device contact photos in `ContactsScreen` | ✓ |
 | DI | "dependency injection" | Hilt | ✓ |
 | DB | Room | Room | ✓ |
 | Prefs | DataStore | DataStore | ✓ |
-| Background | WorkManager | Declared, **not yet used** | Scheduled sync/cleanup not implemented. **Gap.** |
-| Architecture | Clean Architecture, MVVM | MVVM + repository, **without a separate domain layer of use-case classes** | Deviation: repositories are called directly from ViewModels. Acceptable at this size; a `domain/usecase` layer should be introduced when business logic grows. |
-| Backend | REST + PostgreSQL + Redis | **Not built** | `API_CONTRACT.md` specifies it. |
+| Background | WorkManager | **Used**: `CallLogSyncWorker` (6 h, network-constrained) + `CacheCleanupWorker` (daily retention) | ✓ |
+| Architecture | Clean Architecture, MVVM | MVVM + repository + **`domain/usecase` layer** (5 use cases) | ✓ — services and ViewModels now call use cases for cross-source logic |
+| Backend | REST + PostgreSQL + Redis | **Built**: `backend/` (FastAPI + SQLAlchemy + Postgres + Alembic), 40 tests passing | Not deployed, and the Android client does not call it yet |
+| Backend framework | "maintainable server framework" | FastAPI (Python) rather than Ktor | Chosen because its tests can actually be **run and verified** in this environment, which the spec requires before claiming anything works |
 
 ## 6. Build & release
 
@@ -130,9 +140,20 @@ ContactEditScreen → ContactsViewModel.save(draft)
   publishes a GitHub Release.
 - Signing key never enters the repo (`.gitignore` + `keystore/README.md`).
 
-## 7. What is deliberately absent
+## 7. Backend
 
-- No backend, no crowdsourced database, no trained ML model.
+A separate service lives in `backend/` (FastAPI + SQLAlchemy + PostgreSQL +
+Alembic, Docker Compose, its own CI). It implements `API_CONTRACT.md`, including
+the honest `503` behaviour for the AI endpoints when no provider is configured.
+
+**It is not deployed and the Android client does not call it yet** —
+`CloudAiClient` still points at `https://api.kavach.app/`, which does not exist.
+Wiring the client to the real backend is a pending task.
+
+## 8. What is deliberately absent
+
+- No crowdsourced database population (the service exists; no data does).
+- No trained ML model — `OnDeviceScreener` is keyword rules.
 - No analytics/crash SDK.
 - No billing.
 - Nothing is device-verified (no Android SDK or emulator in the build environment).

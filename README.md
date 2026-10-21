@@ -71,6 +71,20 @@ UI (Compose)  →  Domain (use cases, repositories)  →  Data (Room, ContactsCo
               ↘  AI (OnDeviceScreener · CloudAiClient · AssistantOrchestrator)
 ```
 
+## Backend
+
+`backend/` is a real, tested service implementing [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
+— caller lookup, explainable reputation scoring, spam reports, identity corrections,
+business search, privacy/deletion, and ASR/LLM adapters that return `503` rather than
+fabricating a result.
+
+```bash
+cd backend && docker compose up --build     # Postgres + Redis + API
+cd backend && pytest                        # 40 tests
+```
+
+It is **not deployed**, and the Android client does not call it yet.
+
 ## Build & run
 
 Requirements: JDK 17, Android SDK (compileSdk 34).
@@ -108,13 +122,16 @@ See [`RELEASING.md`](RELEASING.md) and [`keystore/README.md`](keystore/README.md
 ```
 app/                     Android app module (Kotlin, Compose)
   src/main/java/com/kavach/caller/
-    data/                Room, DAOs, system readers (contacts/call log/SMS), repos, DataStore settings
-    ai/                  On-device screener, cloud client, orchestrator
-    service/             CallScreeningService, InCallService, Announcer
-    recording/           CallRecorder, CallRecorderService
-    ui/                  theme/, nav/, screens/ (dialer, contacts, calls, messages, blocklist, assistant, onboarding, settings)
-docs/                    GitHub Pages site + PLAN.md
-.github/workflows/       build + auto-release
+    domain/              Clean Architecture: model/ + usecase/ (5 use cases)
+    data/                Room, DAOs, system readers/writers, repos, DataStore settings, update
+    work/                WorkManager workers (call-log sync, retention cleanup)
+    ai/                  On-device screener (keyword rules), cloud client, orchestrator
+    service/             CallScreeningService, InCallService, CallAssistantService, Announcer
+    recording/           CallRecorder, CallRecorderService, AudioCaptureEngine
+    ui/                  theme/, nav/, screens/ (dialer, contacts, calls, messages, blocklist, assistant, recordings, onboarding, settings, updates)
+backend/                 FastAPI + SQLAlchemy + Postgres service (40 tests passing)
+docs/                    GitHub Pages site + the eight specification documents
+.github/workflows/       app CI, backend CI, build + auto-release
 keystore/                signing docs (key itself is git-ignored)
 ```
 

@@ -15,13 +15,30 @@ Consequences, stated plainly:
 ## 2. Status of test execution
 
 ### Tests passed
+
+**Android app — 36 JVM unit tests**
 | Suite | What it covers | Where it ran |
 |---|---|---|
-| `PhoneUtilsTest` (7 cases) | E.164 for Indian numbers, leading zero, existing `+`, subscriber key, T9 mapping, private/blank detection, pretty formatting | GitHub Actions `CI` |
-| `RuleMatcherTest` (7 cases) | country, prefix, wildcard regex escaping, regex, private, non-contact, range | GitHub Actions `CI` |
-| `SpamScorerTest` (4 cases) | contacts never spam, repeated digits, sequential digits, report weighting | GitHub Actions `CI` |
-| `UpdateCheckerTest` (7 cases) | semver comparison incl. shorter strings and blank input | GitHub Actions `CI` |
+| `PhoneUtilsTest` (7) | E.164 for Indian numbers, leading zero, existing `+`, subscriber key, T9 mapping, private/blank detection, pretty formatting | GitHub Actions `CI` |
+| `RuleMatcherTest` (7) | country, prefix, wildcard regex escaping, regex, private, non-contact, range | GitHub Actions `CI` |
+| `SpamScorerTest` (4) | contacts never spam, repeated digits, sequential digits, report weighting | GitHub Actions `CI` |
+| `UpdateCheckerTest` (7) | semver comparison incl. shorter strings and blank input | GitHub Actions `CI` |
+| `SaveContactUseCaseTest` (4) | MockK: name-or-number required, invalid number rejected, valid draft saved, number-only accepted | GitHub Actions `CI` |
+| `CheckForUpdatesUseCaseTest` (4) | MockK: newer / same / older / unreachable (never reported as up-to-date) | GitHub Actions `CI` |
+| `DecideCallActionUseCaseTest` (3) | MockK: known number → contact, unknown → not a contact, blank number never triggers a contact lookup | GitHub Actions `CI` |
 | Compilation | `:app:assembleDebug` and `:app:assembleRelease` | GitHub Actions `CI` + `Release` |
+
+**Backend — 40 tests, executed locally and in CI**
+| Suite | What it covers |
+|---|---|
+| `test_normalizer.py` (7) | E.164, leading zero, subscriber key, private detection, structural validation |
+| `test_scoring.py` (9) | no-signal baseline, reports raise score, one reporter cannot dominate, distinct-reporter cap, verified-business cap, false-positive discount, bounds, bands, pattern detection |
+| `test_lookup.py` (7) | unknown → explicit no-result, known identity, source-trust ordering both ways, invalid number, missing/invalid token |
+| `test_reports.py` (7) | acceptance, deduplication, reputation effect, explainability + versioning, invalid input, corrections held for moderation, corrections never auto-apply |
+| `test_businesses.py` (3) | filtering, category filter, pagination |
+| `test_account.py` (3) | privacy disclosure, deletion removes the actor's data, auth required |
+| `test_ai_unavailable.py` (4) | transcribe/summarise/dialogue return `503` rather than fabricating, and require auth |
+| Alembic | `upgrade head` → `downgrade base` → `upgrade head` round trip |
 
 ### Tests failed
 None currently. (Historically: 5 compile failures and 1 R8 failure were found and
@@ -36,36 +53,38 @@ artifact, Retrofit converter, TFLite R8 keep rules.)
 - Dependency vulnerability scan — not wired.
 - Anything requiring a device.
 
-## 3. Automated test inventory (JVM, `app/src/test/`)
+## 3. Automated test inventory
 
-| File | Focus |
-|---|---|
-| `PhoneUtilsTest.kt` | Number normalisation and T9 |
-| `RuleMatcherTest.kt` | Block-rule evaluation (pure logic) |
-| `SpamScorerTest.kt` | Heuristic spam scoring |
-| `UpdateCheckerTest.kt` | Version comparison |
+**App (JVM, `app/src/test/`)** — `PhoneUtilsTest`, `RuleMatcherTest`, `SpamScorerTest`,
+`UpdateCheckerTest`, `SaveContactUseCaseTest`, `CheckForUpdatesUseCaseTest`,
+`DecideCallActionUseCaseTest`.
 
 `testOptions { unitTests.isReturnDefaultValues = true }` lets Android framework stubs
-return defaults so pure logic is testable off-device.
-
-Run locally:
+return defaults so pure logic is testable off-device. MockK provides the mocks for the
+use-case tests; `kotlinx-coroutines-test` drives the suspend functions.
 
 ```bash
 ./gradlew :app:testDebugUnitTest
+```
+
+**Backend (`backend/tests/`)** — 7 files, 40 tests, plus the Alembic round trip.
+
+```bash
+cd backend && pytest
 ```
 
 ## 4. Required test coverage (from the master spec) — gap analysis
 
 | Area | Covered? |
 |---|---|
-| Number normalisation | ✅ |
-| Identity resolution | ❌ |
+| Number normalisation | ✅ app + backend |
+| Identity resolution | ⚠️ backend (source-trust ordering, no-result); app side untested |
 | Cache invalidation | ❌ |
-| Spam scoring | ✅ (heuristics only) |
+| Spam scoring | ✅ app heuristics + backend explainable scoring |
 | Blocklist/allowlist priority | ⚠️ partial (rule matching tested; ordering by type is not) |
-| API errors | ❌ |
-| Authentication | ❌ (no auth) |
-| Database migrations | ❌ |
+| API errors | ✅ backend (auth, 422, 503, provider errors) |
+| Authentication | ✅ backend (bearer, 401/403) |
+| Database migrations | ✅ backend (Alembic round trip); ❌ app Room migration 1→2 untested |
 | Permission denial/revocation | ❌ |
 | Role changes | ❌ |
 | Settings persistence | ❌ |
