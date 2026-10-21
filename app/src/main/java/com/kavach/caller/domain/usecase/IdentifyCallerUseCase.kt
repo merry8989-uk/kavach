@@ -64,10 +64,14 @@ class IdentifyCallerUseCase @Inject constructor(
         }
 
         // 3. Nothing trustworthy about the name — keep the spam signal only.
+        // Take the *higher* of the local heuristic and the server score: a server
+        // record that simply has no spam signal (0) must not erase a local one.
+        val localScore = spamScorer.score(number, isContact = false)
+        val remoteScore = remote?.spamRisk ?: 0
         return CallerIdentity(
             number = e164,
             name = null,
-            spamScore = remote?.spamRisk ?: spamScorer.score(number, isContact = false),
+            spamScore = maxOf(localScore, remoteScore),
             reports = remote?.reports ?: 0,
             source = CallerIdentity.Source.LOCAL_DB,
         )
