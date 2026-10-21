@@ -295,6 +295,18 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
+### Added in 0.21.2 — the server is deployable
+
+The backend now ships as a multi-architecture container image on GitHub
+Container Registry, built and published by `.github/workflows/server-release.yml`.
+Deploying is `docker compose -f docker-compose.prod.yml up -d` on any small VPS.
+
+It also refuses to start insecurely: on boot it checks `API_TOKEN`,
+`PHONE_PEPPER`, `JWT_SECRET`, `AUTO_CREATE_TABLES`, `OTP_DEBUG_RETURN` and the
+database URL, and exits with a list of problems rather than running with a
+secret that is published in this repository. Full walkthrough:
+`docs/SERVER_DEPLOY.md`.
+
 ### Added in 0.20.0 — automatic Notion sync
 
 Diagnostics events can now push themselves into the user's own Notion database

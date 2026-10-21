@@ -11,6 +11,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # "development" or "production". In production the app refuses to start on
+    # any development default — see validate_for_production().
+    environment: str = "development"
+
     # Postgres in production; SQLite is used for local dev and tests.
     database_url: str = "sqlite:///./kavach.db"
 
@@ -52,6 +56,43 @@ class Settings(BaseSettings):
     spam_threshold: int = 70
     # Reports older than this stop counting toward the score.
     spam_report_half_life_days: int = 90
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in {"production", "prod"}
+
+    def validate_for_production(self) -> list[str]:
+        """Return the reasons this configuration must not be deployed.
+
+        Shipping with a documented default secret is worse than not shipping:
+        the values below are in the public repository, so anyone could mint a
+        token or reverse a phone hash. An empty list means it is safe to run.
+        """
+        problems: list[str] = []
+
+        if self.api_token in {"", "dev-token", "replace-me-with-a-long-random-value"}:
+            problems.append("API_TOKEN is empty or still the development default")
+        elif len(self.api_token) < 24:
+            problems.append("API_TOKEN is shorter than 24 characters")
+
+        if self.phone_pepper in {"", "dev-pepper-change-me"}:
+            problems.append("PHONE_PEPPER is still the development default — phone hashes would be reversible")
+        elif len(self.phone_pepper) < 16:
+            problems.append("PHONE_PEPPER is shorter than 16 characters")
+
+        if self.jwt_secret in {"", "dev-jwt-secret-change-me"}:
+            problems.append("JWT_SECRET is still the development default — anyone could mint user tokens")
+
+        if self.auto_create_tables:
+            problems.append("AUTO_CREATE_TABLES must be false in production; run Alembic instead")
+
+        if self.database_url.startswith("sqlite"):
+            problems.append("DATABASE_URL points at SQLite; use Postgres in production")
+
+        if self.otp_debug_return:
+            problems.append("OTP_DEBUG_RETURN must be false in production — it hands out login codes")
+
+        return problems
 
     # External providers. When unset the AI endpoints return 503 rather than
     # fabricating a result.
