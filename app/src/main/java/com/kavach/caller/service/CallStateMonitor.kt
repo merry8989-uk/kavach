@@ -132,20 +132,23 @@ class CallStateMonitor @Inject constructor(
                 else -> CallDirection.UNKNOWN
             }
 
+            val simLabel = simLabelFor(entry.phoneAccountId)
+
             val session = CallSession(
                 number = number,
                 displayName = name,
                 isKnownContact = name != null,
                 direction = direction,
                 phase = phase,
-                simLabel = simLabelFor(entry.phoneAccountId),
+                simLabel = simLabel,
                 connectedAtMillis = if (phase == CallPhase.ACTIVE) entry.timestamp else null,
             )
             sessionManager.set(session)
             callNotifications.show(session)
             diagnostics.info(
                 "Calls",
-                "$direction ${phase.name} ${DiagnosticsRepository.mask(number)} sim=${simLabel ?: "unknown"}",
+                "${direction.name} ${phase.name} ${DiagnosticsRepository.mask(number)} " +
+                    "sim=${simLabel ?: "unknown"}",
             )
         }
     }
