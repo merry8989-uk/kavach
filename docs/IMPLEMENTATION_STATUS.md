@@ -105,6 +105,28 @@ The client is now wired to the API contract:
 Still open: the backend is not deployed anywhere, so none of this has been exercised
 against a live server. The client compiles and is unit-tested; end-to-end remains unverified.
 
+## 2e. Consent-based database (v0.14.0)
+
+Built to `docs/CALLER-ID-PLAN.md`, which is now bundled in the app.
+
+| Layer | Tables | Endpoints |
+|-------|--------|-----------|
+| Crowd-sourced names | `numbers`, `name_entries` | `POST /v1/me/contributions` |
+| Consent-based profile | `users`, `profiles`, `consent_events` | `/v1/auth/otp/*`, `GET|PUT|DELETE /v1/me`, `GET /v1/me/consent` |
+| Spam flagging | `spam_reports`, `spam_scores`, `moderation_queue` | `POST /v1/me/reports`, `GET /v1/numbers/{n}/reports` |
+
+- Numbers are stored only as `HMAC_SHA256(pepper, e164)`; a test asserts no raw
+  number appears in the consent tables.
+- `services.names.best_publishable_name` is the single gate: only `self_declared`
+  and `business` names are ever returned.
+- Auth is OTP -> HS256 JWT, implemented without extra dependencies (`jwtutil.py`).
+- Alembic `0002_consent_layer` adds all eight tables; the upgrade/downgrade
+  round trip is verified.
+- 21 new backend tests (61 total).
+
+**Not done:** no SMS gateway, so OTPs are not delivered (dev echo only); the
+backend is not deployed, so none of it has run end to end.
+
 ## 3. What exists and compiles (app)
 
 **Foundation** — single-activity Compose, Material 3, 5 tabs + stacked routes, Hilt DI,

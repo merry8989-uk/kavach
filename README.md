@@ -295,6 +295,47 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
+### Added in 0.14.0 — our own consent-based database
+
+The plan in `docs/CALLER-ID-PLAN.md` is now **bundled inside the app** (in
+`assets/`, readable offline) and summarised on a new **"How Kavach identifies
+callers"** screen in Settings.
+
+The backend gained the plan's full three-layer data model, and the app gained the
+screens to use it.
+
+**1. Crowd-sourced names — `name_entries`.** Candidate names carry a lawful source
+(`self_declared` / `business` / `community`) and a confidence. The rule that the
+product rests on is enforced in exactly one place,
+`services.names.best_publishable_name`: **only self-declared and verified-business
+names are ever returned.** A community suggestion — however many people make it —
+is stored for review and never published. There is a test named
+`test_a_community_name_is_never_published` that fails if that ever changes.
+
+**2. Consent-based profile — `users` / `profiles` / `consent_events`.** Phone
+verification by OTP, then an explicit, **default-off** "publish my name" consent.
+Every decision is appended to an audit trail the user can read in the app.
+Withdrawing consent removes the name immediately; deleting the account withdraws it
+and erases the profile.
+
+**3. Spam flagging — `spam_reports` / `spam_scores` / `moderation_queue`.** Reports
+are weighted by reporter trust, decay with a ~90-day half-life, and count for more
+when they come from many distinct people than from one person repeating. Score
+bands: 0–39 clean, 40–69 likely spam, 70–100 spam. A verified business or a
+self-declared number is discounted.
+
+**Privacy by construction.** Numbers are stored **only** as
+`HMAC_SHA256(pepper, e164)` — there is no column anywhere in the consent tables
+holding a raw number, and a test asserts it. Because the server cannot reverse a
+hash, it also cannot reproduce your number: `/v1/me` returns no mask by design, and
+the client shows its own number from local state. That is a deliberate trade of
+convenience for not holding the data at all.
+
+**Honest limits.** No SMS gateway is wired up, so OTPs are not delivered — in
+development `OTP_DEBUG_RETURN` echoes the code and the response says so. The
+backend is still not deployed anywhere, so none of this has run against a live
+server.
+
 ## Legal & ethics
 
 Kavach does **not** reverse-engineer, scrape, or reuse any competitor's app,

@@ -63,6 +63,9 @@ Backend = whether a server is needed. Privacy = data touched.
 | F9.1 | Number normalisation | IMPLEMENTED | 24 | — | — | number | PhoneUtilsTest |
 | F9.2 | Local-first lookup | IMPLEMENTED | 24 | READ_CONTACTS | — | number | — |
 | F9.3 | Remote lookup | IMPLEMENTED (client) | 24 | INTERNET | yes | number | needs a configured server |
+| F9.10 | Crowd-sourced name entries (consent-gated) | IMPLEMENTED | 24 | INTERNET | yes | hashed number only | never publishes community names |
+| F9.11 | Self-declared profile + OTP verification | IMPLEMENTED | 24 | INTERNET | yes | hashed number only | consent defaults off |
+| F9.12 | Weighted spam reports + aggregation | IMPLEMENTED | 24 | INTERNET | yes | hashed number only | one report per user/category |
 | F9.4 | Crowdsourced tags | IMPLEMENTED (client) | 24 | INTERNET | yes | number | needs a configured server |
 | F9.5 | Explainable spam score | IMPLEMENTED | 24 | — | — | number | SpamScorerTest |
 | F9.6 | Business directory | IMPLEMENTED (client) | 24 | INTERNET | yes | number | needs a configured server |
