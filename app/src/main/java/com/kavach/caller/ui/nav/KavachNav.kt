@@ -67,6 +67,7 @@ import com.kavach.caller.ui.screens.settings.SettingsViewModel
 import com.kavach.caller.ui.screens.updates.UpdateBanner
 import com.kavach.caller.ui.screens.updates.UpdateViewModel
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.animation.ExitTransition
 
 private data class Tab(
     val route: String,
@@ -257,7 +258,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                     }
                 },
                 exitTransition = {
-                    if (!motionEnabled) EnterTransition.None else fadeOut(tween(140))
+                    if (!motionEnabled) ExitTransition.None else fadeOut(tween(140))
                 },
                 popEnterTransition = {
                     if (!motionEnabled) {
@@ -267,7 +268,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                     }
                 },
                 popExitTransition = {
-                    if (!motionEnabled) EnterTransition.None else fadeOut(tween(140))
+                    if (!motionEnabled) ExitTransition.None else fadeOut(tween(140))
                 },
             ) {
                 composable("home") {
