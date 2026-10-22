@@ -170,6 +170,13 @@ private val corePermissions = listOf(
     Manifest.permission.READ_PHONE_STATE,
 )
 
+/**
+ * Are the three permissions that make the dialer useful all held?
+ *
+ * **Not a gate.** The app no longer refuses to open without these — see
+ * KavachNav. It is a status predicate, for anywhere that wants to say "Kavach
+ * is fully set up" rather than "Kavach will open".
+ */
 fun hasCorePermissions(context: Context): Boolean = corePermissions.all { isGranted(context, it) }
 
 private fun isGranted(context: Context, permission: String): Boolean =
@@ -403,20 +410,22 @@ fun PermissionsScreen(
     val missingGroup = groups.indices.firstOrNull { !permStatus[it] }
     val missingRole = roles.indices.firstOrNull { roles[it].required && !roleStatus[it] }
 
+    // The order here is the whole point.
+    //
+    // **Roles come first.** Holding the dialer role is what makes Kavach *the*
+    // phone app, and it is the one thing worth asking for before the app has
+    // shown anything — it is a statement about what the app is, not a request
+    // for data. The spec's rule is about permissions, and about the fact that a
+    // dialog nobody can answer is a dialog that gets refused.
+    //
+    // **Permissions come second, and are labelled optional**, because they are.
+    // Every screen asks for what it needs when it needs it (see
+    // ui/permissions/PermissionGate.kt), so a user who taps "Not now" here loses
+    // nothing but a second tap later. What they avoid is nine dialogs in a row
+    // before they have seen a single screen.
     val primaryLabel: String
     val primaryAction: () -> Unit
     when {
-        missingGroup != null -> {
-            primaryLabel = "Grant all permissions"
-            primaryAction = {
-                diagnosticsVm.requestFix(
-                    permission = "all_permission_groups",
-                    stateBefore = "denied",
-                    actionTaken = "request_permissions",
-                )
-                permissionLauncher.launch(allPermissions())
-            }
-        }
         missingRole != null -> {
             primaryLabel = "Set as ${roles[missingRole].title}"
             primaryAction = {
@@ -426,6 +435,17 @@ fun PermissionsScreen(
                     actionTaken = "request_role",
                 )
                 requestRole(roles[missingRole].role)
+            }
+        }
+        missingGroup != null -> {
+            primaryLabel = "Grant the rest now (optional)"
+            primaryAction = {
+                diagnosticsVm.requestFix(
+                    permission = "all_permission_groups",
+                    stateBefore = "denied",
+                    actionTaken = "request_permissions",
+                )
+                permissionLauncher.launch(allPermissions())
             }
         }
         else -> {
@@ -444,8 +464,11 @@ fun PermissionsScreen(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Kavach works best as your dialer and caller-ID app. Grant the permissions below and set " +
-                "the two roles, then you're ready. Everything can be changed later in Settings.",
+            "Kavach works best as your dialer and caller-ID app. Set the two roles below and you're " +
+                "ready.\n\n" +
+                "The permissions are optional here — each screen asks for the one it needs, when it " +
+                "needs it, and explains why. Grant them now if you'd rather not be asked again. " +
+                "Everything can be changed later in Settings.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 

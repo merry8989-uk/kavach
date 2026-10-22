@@ -50,7 +50,6 @@ import com.kavach.caller.ui.screens.features.FeaturesScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
 import com.kavach.caller.ui.screens.numberdetails.NumberDetailsScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
-import com.kavach.caller.ui.screens.onboarding.hasCorePermissions
 import com.kavach.caller.ui.screens.recordings.RecordingsScreen
 import com.kavach.caller.ui.screens.selftest.SelfTestScreen
 import com.kavach.caller.ui.screens.settings.SettingsScreen
@@ -108,7 +107,18 @@ fun KavachNav() {
         return
     }
 
-    val needsSetup = !appSettings.onboardingDone || !hasCorePermissions(context)
+    // Setup is a screen you see once, not a wall you have to climb.
+    //
+    // This used to be `!onboardingDone || !hasCorePermissions(context)`, which
+    // meant the app would not open until READ_CONTACTS, READ_CALL_LOG and
+    // READ_PHONE_STATE were all granted — no matter how many times the user
+    // tapped Skip. That made the spec's contextual rule impossible to follow:
+    // there was no way to reach a screen that could ask for what it needed,
+    // because every screen was behind the gate.
+    //
+    // The permissions are now asked for where they are used, by
+    // ui/permissions/PermissionGate.kt, and each screen says why.
+    val needsSetup = !appSettings.onboardingDone
     if (needsSetup && !setupSkipped) {
         PermissionsScreen(
             onFinished = {

@@ -60,7 +60,7 @@ is visible.
 
 ---
 
-**A1 · Permissions are requested all at once, and the spec forbids it**
+**A1 · Permissions are requested all at once, and the spec forbids it** — *fixed in v0.32.0*
 
 - **Evidence:** `PermissionsScreen.kt:417` → `permissionLauncher.launch(allPermissions())`.
   The spec, Phase 2: *"Request permissions contextually, not all at first launch."*
@@ -68,12 +68,31 @@ is visible.
   is the single biggest reason people refuse, and a refusal at that moment costs
   every dependent feature at once. It is also the most visible way the app differs
   from the spec it was built from.
-- **This was flagged early and never resolved.** It has been carried as "awaiting
-  the user's call" for the whole project. Carrying it further is the problem.
-- **Work:** move each request to the point of use, keep the onboarding screen for
-  the two that genuinely gate everything (dialer role, call screening), and let
-  the rest ask when they are first needed.
-- **Effort:** medium. **Blocks:** nothing. **Blocked by:** a decision.
+- **This was flagged early and never resolved.** It was carried as "awaiting the
+  user's call" for the whole project. Carrying it further was the problem.
+
+**Fixed.** What the fix turned out to be about:
+
+1. **The real cause was a gate, not a dialog.** `KavachNav` refused to open the
+   app until `READ_CONTACTS`, `READ_CALL_LOG` and `READ_PHONE_STATE` were all
+   granted — no matter how many times the user tapped Skip. That made the spec's
+   contextual rule *impossible*: there was no way to reach a screen that could ask
+   for what it needed, because every screen was behind the wall. Changing the
+   dialogs without changing the gate would have achieved nothing.
+2. **Roles now come first in setup.** Holding the dialer role is what makes Kavach
+   *the* phone app, and it is the one thing worth asking before the app has shown
+   anything — it is a statement about what the app is, not a request for data. The
+   spec's rule is about permissions.
+3. **Permissions moved to the point of use.** `ui/permissions/PermissionNotice.kt`
+   puts a card on Contacts, Calls, Messages and the Dialer that appears *only*
+   when the permission is missing, says why in one sentence, and asks for that one
+   thing. The onboarding screen still offers "grant the rest now (optional)" for
+   someone who would rather get it over with — the choice is now the user's
+   rather than the app's.
+4. **Contextual requests are logged** as `access_fix_requested`, with the same
+   event the onboarding loop uses, so a future review can answer the empirical
+   question this change rests on: did asking at the point of use actually work
+   better than asking everything up front?
 
 ---
 

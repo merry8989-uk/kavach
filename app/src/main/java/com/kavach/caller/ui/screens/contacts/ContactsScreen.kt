@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.ui.permissions.PermissionNotice
 
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
@@ -157,6 +158,12 @@ fun ContactsScreen(vm: ContactsViewModel = hiltViewModel()) {
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
+            PermissionNotice(
+                permissions = listOf(android.Manifest.permission.READ_CONTACTS),
+                title = "Kavach cannot see your contacts yet",
+                rationale = "Reading contacts is what lets Kavach put a name to a number, " +
+                    "and show company, tags and notes on the caller screen.",
+            )
             vm.errorMessage?.let { message ->
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp),

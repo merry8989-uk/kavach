@@ -45,6 +45,7 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.ui.permissions.PermissionNotice
 
 @HiltViewModel
 class CallLogViewModel @Inject constructor(
@@ -102,6 +103,15 @@ fun CallLogScreen(
     val grouped: Map<String, List<CallLogEntity>> = filtered.groupBy { dayBucket(it.timestamp) }
 
     Column(Modifier.fillMaxSize()) {
+        PermissionNotice(
+            permissions = listOf(
+                android.Manifest.permission.READ_CALL_LOG,
+                android.Manifest.permission.READ_PHONE_STATE,
+            ),
+            title = "Kavach cannot read your call history yet",
+            rationale = "This is where the call list comes from, and what lets a call be " +
+                "matched to a contact.",
+        )
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

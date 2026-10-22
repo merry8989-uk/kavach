@@ -77,6 +77,7 @@ import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
 import com.kavach.caller.util.holds
+import com.kavach.caller.ui.permissions.PermissionNotice
 
 /** Conventional dialer green — deliberately fixed so it reads as "call" in every theme. */
 private val CallGreen = Color(0xFF8FE39B)
@@ -257,6 +258,12 @@ fun DialerScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
+        PermissionNotice(
+            permissions = listOf(android.Manifest.permission.CALL_PHONE),
+            title = "Kavach cannot place calls yet",
+            rationale = "Android needs this to dial from the keypad. Without it you can still " +
+                "look numbers up and copy them into another dialer.",
+        )
         // ---- Top: who is this, and what can I do with them ----
         Column(
             Modifier

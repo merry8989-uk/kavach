@@ -65,6 +65,7 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.ui.permissions.PermissionNotice
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -394,6 +395,12 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
     val current = open
     if (current == null) {
         Column(Modifier.fillMaxSize()) {
+            PermissionNotice(
+                permissions = listOf(android.Manifest.permission.READ_SMS),
+                title = "Kavach cannot read your messages yet",
+                rationale = "Reading SMS is what powers the thread list, spam filtering and " +
+                    "one-time-password detection.",
+            )
             Text(stringResource(R.string.messages),
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(16.dp),
