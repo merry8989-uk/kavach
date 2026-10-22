@@ -71,6 +71,14 @@ fun SelfTestScreen(
 ) {
     val report by vm.report.collectAsState()
 
+    // Read the theme here. LazyColumn's content lambda is a LazyListScope
+    // builder rather than a composable context, so a MaterialTheme read inside
+    // it does not compile — and the colours are constant for the screen anyway.
+    val passedColour = MaterialTheme.colorScheme.primary
+    val failedColour = MaterialTheme.colorScheme.error
+    val notRunColour = MaterialTheme.colorScheme.tertiary
+    val deviceColour = MaterialTheme.colorScheme.onSurfaceVariant
+
     LaunchedEffect(Unit) { if (report == null) vm.run() }
 
     Column(Modifier.fillMaxSize()) {
@@ -118,10 +126,10 @@ fun SelfTestScreen(
             }
 
             report?.let { r ->
-                section("Passed", r.passed, MaterialTheme.colorScheme.primary)
-                section("Failed", r.failed, MaterialTheme.colorScheme.error)
-                section("Not run", r.notRun, MaterialTheme.colorScheme.tertiary)
-                section("Needs a device", r.needsDevice, MaterialTheme.colorScheme.onSurfaceVariant)
+                section("Passed", r.passed, passedColour)
+                section("Failed", r.failed, failedColour)
+                section("Not run", r.notRun, notRunColour)
+                section("Needs a device", r.needsDevice, deviceColour)
             }
 
             item { Spacer(Modifier.height(32.dp)) }
