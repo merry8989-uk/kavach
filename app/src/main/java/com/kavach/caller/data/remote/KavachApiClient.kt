@@ -15,6 +15,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.data.secure.SecretStore
 
 /**
  * Client for the Kavach backend (F9.3 / F9.4 / F9.5 / F9.6).

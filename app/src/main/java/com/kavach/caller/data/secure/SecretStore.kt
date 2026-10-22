@@ -59,17 +59,6 @@ class SecretStore @Inject constructor(
     /** No decryption needed — presence is a plain-preference read. */
     fun has(name: String): Boolean = !prefs.getString(name, null).isNullOrBlank()
 
-    companion object {
-        /**
-         * The bootstrap token for a self-hosted lookup server.
-         *
-         * In the Keystore rather than DataStore: it is a registration key, and a
-         * key in a plain preference is readable by anything that can read app
-         * storage.
-         */
-        const val SERVER_TOKEN = "kavach_server_token"
-    }
-
     // ---------------- crypto ----------------
 
     private fun keystoreKey(): SecretKey {
@@ -113,6 +102,15 @@ class SecretStore @Inject constructor(
          * supabase/schema.sql is what protects the table, not this value.
          */
         const val SUPABASE_ANON_KEY = "supabase_anon_key"
+
+        /**
+         * The bootstrap token for a self-hosted lookup server.
+         *
+         * In the Keystore rather than DataStore: it is a registration key, and a
+         * key in a plain preference is readable by anything that can read app
+         * storage.
+         */
+        const val SERVER_TOKEN = "kavach_server_token"
 
         private const val KEYSTORE = "AndroidKeyStore"
         private const val ALIAS = "kavach_secret_store"
