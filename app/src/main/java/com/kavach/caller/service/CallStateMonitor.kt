@@ -26,6 +26,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.util.holds
 
 /**
  * Fallback call-state monitor (F4).
@@ -178,6 +179,7 @@ class CallStateMonitor @Inject constructor(
 
     private fun simLabelFor(accountId: String?): String? {
         if (accountId.isNullOrBlank()) return null
+        if (!context.holds(Manifest.permission.READ_PHONE_STATE)) return null
         val telecom = context.getSystemService(TelecomManager::class.java) ?: return null
         return runCatching {
             telecom.callCapablePhoneAccounts

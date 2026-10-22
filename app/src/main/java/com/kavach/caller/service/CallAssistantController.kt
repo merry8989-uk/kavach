@@ -2,12 +2,14 @@ package com.kavach.caller.service
 
 import android.content.Context
 import android.media.AudioManager
+import android.Manifest
 import android.os.Build
 import android.telecom.TelecomManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.util.holds
 
 /**
  * Thin wrapper over the platform call controls the assistant needs: answer,
@@ -29,7 +31,9 @@ class CallAssistantController @Inject constructor(
         // Prefer a call we own (default-dialer mode), else ask Telecom.
         if (KavachInCallService.answerCurrent()) {
             true
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            context.holds(Manifest.permission.ANSWER_PHONE_CALLS)
+        ) {
             context.getSystemService(TelecomManager::class.java)?.acceptRingingCall()
             true
         } else {
@@ -43,7 +47,9 @@ class CallAssistantController @Inject constructor(
     fun endCall(): Boolean = try {
         if (KavachInCallService.hangupCurrent()) {
             true
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+            context.holds(Manifest.permission.ANSWER_PHONE_CALLS)
+        ) {
             context.getSystemService(TelecomManager::class.java)?.endCall()
             true
         } else {

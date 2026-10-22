@@ -3,7 +3,6 @@ package com.kavach.caller.diagnostics
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
@@ -183,14 +182,19 @@ class SelfTest @Inject constructor(
     // ----------------------------------------------------------- permissions --
 
     private fun permissionChecks(): List<Check> {
-        val wanted = listOf(
-            Manifest.permission.READ_CONTACTS to "Contacts",
-            Manifest.permission.READ_PHONE_STATE to "Phone state",
-            Manifest.permission.READ_CALL_LOG to "Call log",
-            Manifest.permission.RECORD_AUDIO to "Microphone",
-            Manifest.permission.READ_SMS to "SMS",
-            Manifest.permission.POST_NOTIFICATIONS to "Notifications",
-        )
+        val wanted = buildList {
+            add(Manifest.permission.READ_CONTACTS to "Contacts")
+            add(Manifest.permission.READ_PHONE_STATE to "Phone state")
+            add(Manifest.permission.READ_CALL_LOG to "Call log")
+            add(Manifest.permission.RECORD_AUDIO to "Microphone")
+            add(Manifest.permission.READ_SMS to "SMS")
+            // POST_NOTIFICATIONS only exists from API 33. Below that, a
+            // notification needs no permission at all, so there is nothing to
+            // report rather than a missing grant.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS to "Notifications")
+            }
+        }
         return wanted.map { (permission, label) ->
             val granted = ContextCompat.checkSelfPermission(context, permission) ==
                 PackageManager.PERMISSION_GRANTED
@@ -207,13 +211,32 @@ class SelfTest @Inject constructor(
 
     // ----------------------------------------------------------------- roles --
 
-    private fun roleChecks(): List<Check> = listOf(
-        roleCheck(RoleManager.ROLE_DIALER, "Default dialer"),
-        roleCheck(RoleManager.ROLE_SMS, "Default SMS app"),
-        roleCheck(RoleManager.ROLE_CALL_SCREENING, "Call screening"),
-    )
+    /**
+     * Roles arrived in API 29. Below that there is nothing to hold, which is a
+     * "not run" rather than a failure — the features that need a role simply
+     * cannot exist on that device.
+     */
+    private fun roleChecks(): List<Check> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return listOf(
+                Check(
+                    "Default dialer, SMS and screening roles",
+                    Outcome.NOT_RUN,
+                    "roles need Android 10 (API 29); this device is API ${Build.VERSION.SDK_INT}",
+                ),
+            )
+        }
+        return listOf(
+            roleCheck(RoleManager.ROLE_DIALER, "Default dialer"),
+            roleCheck(RoleManager.ROLE_SMS, "Default SMS app"),
+            roleCheck(RoleManager.ROLE_CALL_SCREENING, "Call screening"),
+        )
+    }
 
     private fun roleCheck(role: String, label: String): Check = runCatching {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return Check(label, Outcome.NOT_RUN, "roles need Android 10 or newer")
+        }
         val manager = context.getSystemService(RoleManager::class.java)
         if (manager == null) {
             Check(label, Outcome.NOT_RUN, "this device has no role manager")

@@ -1,7 +1,6 @@
 package com.kavach.caller.data.local
 
 import android.content.Context
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -82,11 +81,8 @@ class DatabaseKey @Inject constructor(
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
-                .apply {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        setRandomizedEncryptionRequired(true)
-                    }
-                }
+                // minSdk is 24, so this is always available; the check was dead.
+                .setRandomizedEncryptionRequired(true)
                 .build(),
         )
         return generator.generateKey()

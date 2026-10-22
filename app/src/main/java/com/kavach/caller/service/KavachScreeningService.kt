@@ -95,10 +95,21 @@ class KavachScreeningService : CallScreeningService() {
                     .setSkipNotification(true)
                     .build()
 
-                BlockAction.SILENCE -> CallResponse.Builder()
-                    .setDisallowCall(false)
-                    .setSilenceCall(true)
-                    .build()
+                BlockAction.SILENCE -> {
+                    val builder = CallResponse.Builder().setDisallowCall(false)
+                    // Silence was added in API 29. Below that the closest we can
+                    // honestly do is let it ring, and say so in the log.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        builder.setSilenceCall(true)
+                    } else {
+                        diagnostics.errorStateShown(
+                            errorCode = "silence_unsupported",
+                            screen = "KavachScreeningService",
+                            messageKey = "api_${Build.VERSION.SDK_INT}",
+                        )
+                    }
+                    builder.build()
+                }
 
                 BlockAction.SEND_TO_AI -> {
                     // Only hand the call to the assistant if that module is on.

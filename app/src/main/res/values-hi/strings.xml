@@ -5,12 +5,10 @@
     <string name="tab_dialer">डायलर</string>
     <string name="tab_contacts">संपर्क</string>
     <string name="tab_calls">कॉल</string>
-    <string name="tab_blocklist">ब्लॉक</string>
     <string name="tab_messages">संदेश</string>
     <string name="tab_settings">सेटिंग्स</string>
     <string name="appearance">रूप</string>
     <string name="language">भाषा</string>
-    <string name="language_system">सिस्टम डिफ़ॉल्ट</string>
     <string name="language_note">बदलने पर कवच फिर से शुरू होगा।</string>
     <string name="find_the_caller_s_name">कॉलर का नाम खोजें</string>
     <string name="report_spam">स्पैम रिपोर्ट करें</string>
@@ -57,13 +55,6 @@
     <string name="delete_contact_2">संपर्क हटाएँ</string>
     <string name="dismiss">खारिज करें</string>
     <string name="search_name_company_tag">नाम, कंपनी, टैग खोजें</string>
-    <string name="project_url">प्रोजेक्ट URL</string>
-    <string name="https_xxxxxxxx_supabase_co">https://xxxxxxxx.supabase.co</string>
-    <string name="anon_key">Anon key</string>
-    <string name="clear_key">की हटाएँ</string>
-    <string name="test_connection">कनेक्शन जाँचें</string>
-    <string name="sync_now">अभी सिंक करें</string>
-    <string name="clear_queue">कतार खाली करें</string>
     <string name="copy">कॉपी करें</string>
     <string name="export_as">इस रूप में निर्यात करें…</string>
     <string name="share">साझा करें</string>
@@ -102,10 +93,6 @@
     <string name="suggested_replies_auto_reply">सुझाए गए जवाब और स्वतः जवाब</string>
     <string name="my_number_consent">मेरा नंबर और सहमति</string>
     <string name="how_kavach_identifies_callers">कवच कॉलर को कैसे पहचानता है</string>
-    <string name="server_url">सर्वर URL</string>
-    <string name="https_your_kavach_server">https://your-kavach-server</string>
-    <string name="api_token">API टोकन</string>
-    <string name="save_server_settings">सर्वर सेटिंग्स सहेजें</string>
     <string name="diagnostics_logs">डायग्नोस्टिक्स और लॉग</string>
     <string name="download_install">डाउनलोड और इंस्टॉल करें</string>
     <string name="release_notes">रिलीज़ नोट्स</string>
@@ -129,8 +116,6 @@
     <string name="no_calls_recorded_with_this_contact_yet">इस संपर्क के साथ अभी कोई कॉल दर्ज नहीं है।</string>
     <string name="photo">फ़ोटो</string>
     <string name="diagnostics">डायग्नोस्टिक्स</string>
-    <string name="automatic_upload">स्वतः अपलोड</string>
-    <string name="send_to_the_kavach_server">कवच सर्वर पर भेजें</string>
     <string name="user_code">उपयोगकर्ता कोड</string>
     <string name="save_technical_logs">तकनीकी लॉग सहेजें</string>
     <string name="pick_a_format_only_formats_something_can_actually_op">प्रारूप चुनें। केवल वही प्रारूप दिए जाते हैं जो वाकई खुल सकते हैं।</string>

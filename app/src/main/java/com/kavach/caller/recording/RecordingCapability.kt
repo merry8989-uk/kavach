@@ -107,6 +107,9 @@ class RecordingCapability @Inject constructor(
     }.getOrDefault(false)
 
     private fun hasDialerRole(): Boolean = runCatching {
+        // RoleManager arrived in API 29; before that roles did not exist and the
+        // answer is simply no.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
         val manager = context.getSystemService(RoleManager::class.java) ?: return false
         manager.isRoleHeld(RoleManager.ROLE_DIALER)
     }.getOrDefault(false)

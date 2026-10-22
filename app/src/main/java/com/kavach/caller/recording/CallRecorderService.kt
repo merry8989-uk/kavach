@@ -175,13 +175,19 @@ class CallRecorderService : Service() {
         const val EXTRA_NUMBER = "number"
 
         fun start(context: Context, number: String) {
+            val intent = Intent(context, CallRecorderService::class.java).apply {
+                action = ACTION_START
+                putExtra(EXTRA_NUMBER, number)
+            }
             runCatching {
-                context.startForegroundService(
-                    Intent(context, CallRecorderService::class.java).apply {
-                        action = ACTION_START
-                        putExtra(EXTRA_NUMBER, number)
-                    },
-                )
+                // startForegroundService arrived in API 26. On 24 and 25 the
+                // plain call is the only one that exists, and calling the newer
+                // one is a NoSuchMethodError on those devices.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
             }
         }
 

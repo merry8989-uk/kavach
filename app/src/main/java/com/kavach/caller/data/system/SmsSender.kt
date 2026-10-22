@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.util.holds
 
 /**
  * Sends SMS, and says what happened.
@@ -63,13 +64,18 @@ class SmsSender @Inject constructor(
 
     @Suppress("DEPRECATION")
     private fun resolveManager(subscriptionId: Int?): SmsManager? = runCatching {
-        if (subscriptionId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+        if (subscriptionId != null) {
             return@runCatching SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
         }
         // Default SIM when we were not told which one to use.
-        val subs = context.getSystemService(SubscriptionManager::class.java)
-            ?.activeSubscriptionInfoList
-            ?.firstOrNull()
+        // Enumerating subscriptions is gated on READ_PHONE_STATE.
+        val subs = if (context.holds(android.Manifest.permission.READ_PHONE_STATE)) {
+            context.getSystemService(SubscriptionManager::class.java)
+                ?.activeSubscriptionInfoList
+                ?.firstOrNull()
+        } else {
+            null
+        }
         if (subs != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
             SmsManager.getSmsManagerForSubscriptionId(subs.subscriptionId)
         } else {

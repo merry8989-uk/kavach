@@ -114,6 +114,12 @@
         </intent>
     </queries>
 
+        <!-- Kavach is a phone app, but the telephony permissions imply the hardware
+         is required, which would hide it from tablets and ChromeOS. Declaring it
+         optional is what the Play listing expects. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
     <application
         android:name=".KavachApp"
         android:allowBackup="false"

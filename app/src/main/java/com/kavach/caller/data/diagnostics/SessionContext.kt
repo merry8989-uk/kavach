@@ -3,7 +3,6 @@ package com.kavach.caller.data.diagnostics
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.SystemClock
 import com.kavach.caller.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
@@ -30,11 +29,7 @@ class SessionContext @Inject constructor(
      * Elapsed-realtime at process start, so startup cost can actually be
      * measured instead of guessed.
      */
-    val processStartElapsedMs: Long = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        android.os.Process.getStartElapsedRealtime()
-    } else {
-        SystemClock.elapsedRealtime()
-    }
+    val processStartElapsedMs: Long = android.os.Process.getStartElapsedRealtime()
 
     /** Emitted once, when the first screen appears. */
     @Volatile var appStartReported: Boolean = false

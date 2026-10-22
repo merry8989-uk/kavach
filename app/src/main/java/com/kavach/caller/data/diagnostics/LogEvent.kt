@@ -30,10 +30,14 @@ data class LogEvent(
 
     private companion object {
         // SimpleDateFormat is not thread-safe, so each thread gets its own.
-        val ISO_FORMAT = ThreadLocal.withInitial {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }
+        //
+        // Written as a plain ThreadLocal rather than withInitial, which only
+        // exists from API 26 — and this app runs from API 24.
+        val ISO_FORMAT: ThreadLocal<SimpleDateFormat> = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
         }
     }
 }

@@ -76,6 +76,7 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.util.holds
 
 /** Conventional dialer green — deliberately fixed so it reads as "call" in every theme. */
 private val CallGreen = Color(0xFF8FE39B)
@@ -758,7 +759,11 @@ private fun pasteFromClipboard(context: Context): String {
     return text.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }
 }
 
-private fun voiceMailNumber(context: Context): String? =
-    runCatching {
+private fun voiceMailNumber(context: Context): String? {
+    // Reading the voicemail number is gated on READ_PHONE_STATE, and asking
+    // without it throws rather than returning null.
+    if (!context.holds(android.Manifest.permission.READ_PHONE_STATE)) return null
+    return runCatching {
         context.getSystemService(TelephonyManager::class.java)?.voiceMailNumber
     }.getOrNull()?.takeIf { it.isNotBlank() }
+}

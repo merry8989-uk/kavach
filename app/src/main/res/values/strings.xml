@@ -5,12 +5,10 @@
     <string name="tab_dialer">Dialer</string>
     <string name="tab_contacts">Contacts</string>
     <string name="tab_calls">Calls</string>
-    <string name="tab_blocklist">Block</string>
     <string name="tab_messages">Messages</string>
     <string name="tab_settings">Settings</string>
     <string name="appearance">Appearance</string>
     <string name="language">Language</string>
-    <string name="language_system">System default</string>
     <string name="language_note">Kavach restarts when you change this.</string>
     <string name="find_the_caller_s_name">Find the caller\'s name</string>
     <string name="report_spam">Report spam</string>
@@ -57,13 +55,6 @@
     <string name="delete_contact_2">Delete contact</string>
     <string name="dismiss">Dismiss</string>
     <string name="search_name_company_tag">Search name, company, tag</string>
-    <string name="project_url">Project URL</string>
-    <string name="https_xxxxxxxx_supabase_co">https://xxxxxxxx.supabase.co</string>
-    <string name="anon_key">Anon key</string>
-    <string name="clear_key">Clear key</string>
-    <string name="test_connection">Test connection</string>
-    <string name="sync_now">Sync now</string>
-    <string name="clear_queue">Clear queue</string>
     <string name="copy">Copy</string>
     <string name="export_as">Export as…</string>
     <string name="share">Share</string>
@@ -102,10 +93,6 @@
     <string name="suggested_replies_auto_reply">Suggested replies &amp; auto-reply</string>
     <string name="my_number_consent">My number &amp; consent</string>
     <string name="how_kavach_identifies_callers">How Kavach identifies callers</string>
-    <string name="server_url">Server URL</string>
-    <string name="https_your_kavach_server">https://your-kavach-server</string>
-    <string name="api_token">API token</string>
-    <string name="save_server_settings">Save server settings</string>
     <string name="diagnostics_logs">Diagnostics &amp; logs</string>
     <string name="download_install">Download &amp; install</string>
     <string name="release_notes">Release notes</string>
@@ -129,8 +116,6 @@
     <string name="no_calls_recorded_with_this_contact_yet">No calls recorded with this contact yet.</string>
     <string name="photo">Photo</string>
     <string name="diagnostics">Diagnostics</string>
-    <string name="automatic_upload">Automatic upload</string>
-    <string name="send_to_the_kavach_server">Send to the Kavach server</string>
     <string name="user_code">User code</string>
     <string name="save_technical_logs">Save technical logs</string>
     <string name="pick_a_format_only_formats_something_can_actually_op">Pick a format. Only formats something can actually open are offered.</string>
