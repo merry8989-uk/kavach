@@ -130,6 +130,57 @@ from public.telemetry_events
 group by event_name, level
 order by events desc;
 
+-- A bridge to the diag_events convention some projects already use: one row per
+-- session (counts plus a JSON report) rather than one row per event.
+create or replace view public.kavach_session_summary as
+select
+  session_id,
+  (array_agg(user_code order by received_at desc))[1]       as user_id,
+  (array_agg(platform order by received_at desc))[1]        as platform,
+  (array_agg(app_version order by received_at desc))[1]     as app_version,
+  (array_agg(schema_version order by received_at desc))[1]  as schema_version,
+  (array_agg(release_channel order by received_at desc))[1] as release_channel,
+  count(*)::int                                             as event_count,
+  count(*) filter (where level = 'error')::int              as error_count,
+  count(*) filter (where level = 'warn')::int               as warning_count,
+  (array_agg(nullif(properties ->> 'duration_ms','')::int order by received_at)
+     filter (where event_name = 'time_to_first_value'))[1]  as ttfv_ms,
+  (array_agg(nullif(properties ->> 'percent','')::int order by received_at desc)
+     filter (where event_name = 'scroll_depth'))[1]         as scroll_depth,
+  jsonb_build_object(
+    'user_code',  (array_agg(user_code order by received_at desc))[1],
+    'device',     (array_agg(device_model order by received_at desc))[1],
+    'os',         (array_agg(os order by received_at desc))[1],
+    'started_at', min(received_at),
+    'ended_at',   max(received_at),
+    'events',     jsonb_agg(jsonb_build_object(
+                    'at', event_name, 'level', level,
+                    'route', screen_or_route, 'props', properties
+                  ) order by received_at)
+  )                                                         as report,
+  min(received_at)                                          as created_at
+from public.telemetry_events
+group by session_id
+order by min(received_at) desc;
+
+-- ------------------------------------------------------- view security ----
+--
+-- Postgres views run with the **view owner's** privileges by default, which is
+-- SECURITY DEFINER behaviour. Left alone, that would let the public anon key
+-- read the whole dataset through these views and defeat the insert-only policy
+-- on the table underneath.
+--
+-- This was not theoretical: the Supabase security advisor flagged all six views
+-- as an ERROR, and the anon key could indeed read `kavach_devices` until
+-- security_invoker was switched on. Always run the advisor after DDL.
+
+alter view public.kavach_errors           set (security_invoker = on);
+alter view public.kavach_friction         set (security_invoker = on);
+alter view public.kavach_intent_outcome   set (security_invoker = on);
+alter view public.kavach_devices          set (security_invoker = on);
+alter view public.kavach_event_mix        set (security_invoker = on);
+alter view public.kavach_session_summary  set (security_invoker = on);
+
 -- ------------------------------------------------------------- retention ----
 --
 -- The standard promises error 30 days, warn 14, info 7, debug 1. Supabase gives
@@ -163,8 +214,16 @@ begin
 end;
 $$;
 
+-- Neither function may be called by anyone holding the public key. Without
+-- this, `kavach_purge` was reachable through /rest/v1/rpc/ and a stranger could
+-- have deleted every row. The advisor flagged it; this closes it.
+revoke execute on function public.kavach_purge() from anon, authenticated, public;
+
+-- Pin the search path so the function cannot be redirected to another schema.
+alter function public.kavach_purge() set search_path = '';
+
 -- Schedule it. If pg_cron is not enabled, turn it on under
--- Database → Extensions and re-run just the two lines below.
+-- Database → Extensions and re-run just the three lines below.
 create extension if not exists pg_cron;
 
 select cron.unschedule('kavach-purge')

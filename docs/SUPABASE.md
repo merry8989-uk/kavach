@@ -120,6 +120,30 @@ from `anon` entirely.
 
 ---
 
+## The security advisor found three real holes
+
+The first version of this schema looked right and was not. Running
+`supabase_get_advisors` after the DDL caught all three, and they are now fixed in
+`schema.sql`:
+
+| Finding | What it meant | Fix |
+|---|---|---|
+| `security_definer_view` (ERROR, 6 views) | Postgres views run with the **owner's** privileges by default, so the public anon key could read the whole dataset through `kavach_devices` — defeating the insert-only policy on the table underneath | `alter view … set (security_invoker = on)` on every view |
+| `anon_security_definer_function_executable` | `kavach_purge()` was reachable through `/rest/v1/rpc/`, so anyone with the public key could have **deleted every row** | `revoke execute … from anon, authenticated, public` |
+| `function_search_path_mutable` | The function could be redirected to another schema | `alter function … set search_path = ''` |
+
+The lesson is in the schema file itself: **run the advisor after DDL.** A policy
+that reads correctly is not the same as a policy that holds.
+
+Verified afterwards, live, against the project:
+
+```
+anon INSERT                     allowed
+anon SELECT from the table      denied
+anon SELECT from the views      denied
+anon calling kavach_purge()     denied
+```
+
 ## Honest limits
 
 - **The app is the only thing writing here.** If you also run the Kavach server,
