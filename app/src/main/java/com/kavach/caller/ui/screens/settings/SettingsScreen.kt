@@ -14,6 +14,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.kavach.caller.ui.screens.updates.UpdateSection
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.i18n.LanguageStore
+import com.kavach.caller.i18n.AppLanguage
+import androidx.compose.ui.platform.LocalContext
 
 /** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
 private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
