@@ -59,6 +59,19 @@ brief.
 >
 > **What is pending, and in what order:** [`docs/AUDIT-AND-PLAN.md`](docs/AUDIT-AND-PLAN.md).
 
+## Self-hosting a server
+
+Kavach works with no server at all. A server adds caller lookup and spam
+reputation, and nothing else — diagnostics stay on the device, always.
+
+```bash
+cd backend && ./self-host.sh
+```
+
+One command: generates secrets, writes a mode-600 `.env`, builds the image,
+starts Postgres + Redis + the API, waits until it is healthy, and prints what to
+paste into **Settings → Self-hosted lookup**. Guide: [SELF-HOST.md](SELF-HOST.md).
+
 ## Docs
 
 | Document | Contents |

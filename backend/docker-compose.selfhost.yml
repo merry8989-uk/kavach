@@ -1,0 +1,100 @@
+# Self-hosted Kavach server: Postgres + Redis + the API.
+#
+#   ./self-host.sh          # does everything: secrets, .env, build, start, health
+#
+# This file is for running your **own** Kavach server. It differs from
+# docker-compose.prod.yml in three ways, all of which matter to someone hosting
+# this themselves rather than to a deploy pipeline:
+#
+#   1. **It builds from this directory** instead of pulling a published image, so
+#      it works with no registry account and no internet beyond Docker Hub.
+#   2. **It includes Redis**, so the rate limiter is shared rather than
+#      per-process. With one instance it makes no difference; the moment there
+#      are two, a per-process limiter means the real limit is N times what you
+#      configured.
+#   3. **It is a single file.** Layered compose files are right for a pipeline
+#      and wrong for someone who wants one command.
+#
+# Nothing here has a default password. If .env is missing or incomplete the API
+# container exits rather than starting with something guessable.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?run ./self-host.sh, or set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run ./self-host.sh, or set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?run ./self-host.sh, or set POSTGRES_DB in .env}
+    volumes:
+      - kavach_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published to the host: only the API needs to reach it. Publishing 5432
+    # would put your database on the network for no benefit.
+    expose:
+      - "5432"
+
+  cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    expose:
+      - "6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kavach-server:selfhost
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      API_TOKEN: ${API_TOKEN:?run ./self-host.sh, or set API_TOKEN in .env}
+      PHONE_PEPPER: ${PHONE_PEPPER:?run ./self-host.sh, or set PHONE_PEPPER in .env}
+      JWT_SECRET: ${JWT_SECRET:?run ./self-host.sh, or set JWT_SECRET in .env}
+      # Shared across replicas. Pointed at the cache service above.
+      REDIS_URL: redis://cache:6379/0
+      AUTO_CREATE_TABLES: "false"
+      OTP_DEBUG_RETURN: "false"
+      ALLOW_SHARED_TOKEN: "false"
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      SCORING_RULE_VERSION: ${SCORING_RULE_VERSION:-2026-01}
+      SMS_PROVIDER: ${SMS_PROVIDER:-none}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+      SMS_TEMPLATE_ID: ${SMS_TEMPLATE_ID:-}
+      SMS_ACCOUNT_SID: ${SMS_ACCOUNT_SID:-}
+      SMS_FROM: ${SMS_FROM:-}
+      ASR_PROVIDER_URL: ${ASR_PROVIDER_URL:-}
+      ASR_PROVIDER_KEY: ${ASR_PROVIDER_KEY:-}
+      LLM_PROVIDER_URL: ${LLM_PROVIDER_URL:-}
+      LLM_PROVIDER_KEY: ${LLM_PROVIDER_KEY:-}
+    ports:
+      # Bound to localhost by default. Put a reverse proxy in front of it for
+      # anything reachable from the internet — the API speaks plain HTTP and has
+      # no opinion about TLS.
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+
+volumes:
+  kavach_pgdata:

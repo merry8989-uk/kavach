@@ -51,7 +51,6 @@ class SettingsRepository @Inject constructor(
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val diagnosticsEnabled = booleanPreferencesKey("diagnostics_enabled")
         val backendBaseUrl = stringPreferencesKey("backend_base_url")
-        val backendToken = stringPreferencesKey("backend_token")
         val accountToken = stringPreferencesKey("account_token")
         val accountUserId = stringPreferencesKey("account_user_id")
         val accountDisplayName = stringPreferencesKey("account_display_name")
@@ -103,7 +102,6 @@ class SettingsRepository @Inject constructor(
             onboardingDone = p[Keys.onboardingDone] ?: false,
             diagnosticsEnabled = p[Keys.diagnosticsEnabled] ?: true,
             backendBaseUrl = p[Keys.backendBaseUrl] ?: "",
-            backendToken = p[Keys.backendToken] ?: "",
             accountToken = p[Keys.accountToken] ?: "",
             accountUserId = p[Keys.accountUserId] ?: "",
             accountDisplayName = p[Keys.accountDisplayName] ?: "",
@@ -143,7 +141,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
     suspend fun setDiagnosticsEnabled(value: Boolean) = context.dataStore.edit { it[Keys.diagnosticsEnabled] = value }
     suspend fun setBackendBaseUrl(value: String) = context.dataStore.edit { it[Keys.backendBaseUrl] = value.trim() }
-    suspend fun setBackendToken(value: String) = context.dataStore.edit { it[Keys.backendToken] = value.trim() }
 
     suspend fun setOfflineOnly(value: Boolean) = context.dataStore.edit { it[Keys.offlineOnly] = value }
     suspend fun setSuggestedReplies(json: String) = context.dataStore.edit { it[Keys.suggestedReplies] = json }

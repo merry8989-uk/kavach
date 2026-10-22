@@ -29,20 +29,46 @@ class SecretStore @Inject constructor(
         context.getSharedPreferences("kavach_secrets", Context.MODE_PRIVATE)
     }
 
+    /**
+     * Decrypted values, held for the life of the process.
+     *
+     * Keystore decryption is not free, and [get] is called from the feature
+     * registry on every recomposition. Reading it once and remembering it keeps
+     * a Keystore round trip off the UI thread's critical path.
+     */
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     fun put(name: String, value: String?) {
         if (value.isNullOrBlank()) {
             prefs.edit().remove(name).apply()
+            cache.remove(name)
             return
         }
-        runCatching { prefs.edit().putString(name, encrypt(value)).apply() }
+        runCatching {
+            prefs.edit().putString(name, encrypt(value)).apply()
+            cache[name] = value
+        }
     }
 
     fun get(name: String): String? {
+        cache[name]?.let { return it }
         val stored = prefs.getString(name, null) ?: return null
-        return runCatching { decrypt(stored) }.getOrNull()
+        return runCatching { decrypt(stored) }.getOrNull()?.also { cache[name] = it }
     }
 
+    /** No decryption needed — presence is a plain-preference read. */
     fun has(name: String): Boolean = !prefs.getString(name, null).isNullOrBlank()
+
+    companion object {
+        /**
+         * The bootstrap token for a self-hosted lookup server.
+         *
+         * In the Keystore rather than DataStore: it is a registration key, and a
+         * key in a plain preference is readable by anything that can read app
+         * storage.
+         */
+        const val SERVER_TOKEN = "kavach_server_token"
+    }
 
     // ---------------- crypto ----------------
 

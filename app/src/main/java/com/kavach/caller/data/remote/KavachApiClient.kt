@@ -32,6 +32,7 @@ class KavachApiClient @Inject constructor(
     okHttp: OkHttpClient,
     private val settings: SettingsRepository,
     private val diagnostics: DiagnosticsRepository,
+    private val secrets: com.kavach.caller.data.secure.SecretStore,
 ) {
     private val http: OkHttpClient = okHttp.newBuilder()
         .callTimeout(LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -53,6 +54,50 @@ class KavachApiClient @Inject constructor(
         if (settings.snapshot.offlineOnly) return null
         return settings.snapshot.backendBaseUrl.trim().trimEnd('/').takeIf { it.isNotBlank() }
     }
+
+    /**
+     * Ask the server whether it is there, and say what it answered.
+     *
+     * Checks `/health/ready` rather than `/health`, because the second one only
+     * proves the process is up. A server whose database is unreachable answers
+     * liveness and fails every real request, which is exactly the state a user
+     * would blame the app for.
+     *
+     * Returns a sentence for the user, never a bare boolean — "it did not work"
+     * is not a diagnosable message.
+     */
+    suspend fun testConnection(url: String, token: String): String {
+        val base = url.trim().trimEnd('/')
+        // The rule lives in ServerUrlPolicy so it can be tested; see
+        // ServerUrlPolicyTest for the cases that matter.
+        (ServerUrlPolicy.check(base) as? ServerUrlPolicy.Verdict.Rejected)?.let {
+            return it.reason
+        }
+
+        return runCatching {
+            val request = Request.Builder()
+                .url("$base/health/ready")
+                .get()
+                .header("Authorization", "Bearer $token")
+                .build()
+            http.newCall(request).execute().use { response ->
+                when {
+                    response.isSuccessful ->
+                        "Connected. The server is up and can reach its database."
+                    response.code == 401 || response.code == 403 ->
+                        "The server answered, but refused the token. Check the API token."
+                    response.code == 404 ->
+                        "Something answered at that address, but it is not a Kavach server."
+                    else ->
+                        "The server answered with HTTP ${response.code}."
+                }
+            }
+        }.getOrElse { error ->
+            "Could not reach the server: ${error.javaClass.simpleName}. " +
+                "Check the address, and that the phone is on the same network."
+        }
+    }
+
 
     // ---------------- endpoints ----------------
 
@@ -136,7 +181,7 @@ class KavachApiClient @Inject constructor(
             .url(url)
             .header("Accept", "application/json")
         val bearer = userToken?.takeIf { it.isNotBlank() }
-            ?: settings.snapshot.backendToken.takeIf { it.isNotBlank() }
+            ?: secrets.get(SecretStore.SERVER_TOKEN)?.takeIf { it.isNotBlank() }
         bearer?.let { builder.header("Authorization", "Bearer $it") }
         return builder
     }

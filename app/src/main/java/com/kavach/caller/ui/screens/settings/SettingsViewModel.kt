@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -22,7 +25,54 @@ class SettingsViewModel @Inject constructor(
     /** Exposed so the nav graph can log screen views. */
     val diagnostics: com.kavach.caller.data.diagnostics.DiagnosticsRepository,
     val session: com.kavach.caller.data.diagnostics.SessionContext,
+    private val secrets: com.kavach.caller.data.secure.SecretStore,
+    private val api: com.kavach.caller.data.remote.KavachApiClient,
 ) : ViewModel() {
+
+    // ---------------------------------------------------- self-hosted lookup --
+
+    /**
+     * The result of the last connection test, in the server's own terms.
+     *
+     * Null means "not tested since the last edit" — not "failed". Conflating the
+     * two is how a settings screen ends up showing a red error for a field the
+     * user has not filled in yet.
+     */
+    var serverTestResult by mutableStateOf<String?>(null)
+        private set
+
+    var serverTesting by mutableStateOf(false)
+        private set
+
+    fun setServerUrl(value: String) = viewModelScope.launch { repo.setBackendBaseUrl(value) }
+
+    fun setServerToken(value: String) {
+        // Straight to the Keystore, never to DataStore.
+        secrets.put(com.kavach.caller.data.secure.SecretStore.SERVER_TOKEN, value)
+        serverTestResult = null
+    }
+
+    /** Does a token exist? Used to show "set" without ever reading the value back. */
+    fun hasServerToken(): Boolean =
+        secrets.has(com.kavach.caller.data.secure.SecretStore.SERVER_TOKEN)
+
+    fun clearServerToken() {
+        secrets.put(com.kavach.caller.data.secure.SecretStore.SERVER_TOKEN, null)
+        serverTestResult = null
+    }
+
+    /**
+     * Ask the server whether it is actually there.
+     *
+     * Deliberately a real request to `/health/ready` rather than a URL syntax
+     * check: a well-formed address to a server that is down is the failure this
+     * button exists to catch.
+     */
+    fun testServerConnection(url: String, token: String) = viewModelScope.launch {
+        serverTesting = true
+        serverTestResult = api.testConnection(url, token)
+        serverTesting = false
+    }
 
     /**
      * Start the fallback call monitor. Called once the app is past onboarding,

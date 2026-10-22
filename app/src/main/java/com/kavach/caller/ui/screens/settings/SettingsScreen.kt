@@ -17,6 +17,14 @@ import com.kavach.caller.R
 import com.kavach.caller.i18n.LanguageStore
 import com.kavach.caller.i18n.AppLanguage
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 /** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
 private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
@@ -148,6 +156,84 @@ fun SettingsScreen(
                     modifier = Modifier.padding(end = 8.dp),
                 )
             }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        SectionHeader("Self-hosted lookup")
+        KavachCard {
+            // Said first, because the whole point of this section is narrow and
+            // a user who expected "connect everything to a server" should find
+            // out immediately that this is not that.
+            Text(
+                "Optional. With a server, Kavach can put a name to a number that " +
+                    "is not in your contacts, and show how many people have reported it.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Everything else — screening, blocking, the dialer, contacts, " +
+                    "recording, messages — works without one. Your diagnostics log " +
+                    "is never sent to this or any server.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(12.dp))
+            var url by remember { mutableStateOf(s.backendBaseUrl) }
+            var token by remember { mutableStateOf("") }
+
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it; vm.setServerUrl(it) },
+                label = { Text("Server URL") },
+                placeholder = { Text("https://kavach.example.com") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it; vm.setServerToken(it) },
+                label = { Text("API token") },
+                // Never echoed back: the field starts empty even when a token is
+                // stored, and the card says whether one is set.
+                placeholder = { Text(if (vm.hasServerToken()) "A token is saved" else "Paste the token") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = { vm.testServerConnection(url, token.ifBlank { "" }) },
+                    enabled = !vm.serverTesting && url.isNotBlank(),
+                ) { Text(if (vm.serverTesting) "Testing…" else "Test connection") }
+
+                if (vm.hasServerToken()) {
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = { token = ""; vm.clearServerToken() }) {
+                        Text("Forget token")
+                    }
+                }
+            }
+
+            vm.serverTestResult?.let { result ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    result,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Running your own server takes one command — see SELF-HOST.md in the repository.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Spacer(Modifier.height(16.dp))

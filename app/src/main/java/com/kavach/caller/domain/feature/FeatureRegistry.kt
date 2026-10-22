@@ -13,6 +13,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.data.secure.SecretStore
 
 /**
  * Single source of truth for "can this module run, and is it switched on?".
@@ -24,6 +25,7 @@ import javax.inject.Singleton
 class FeatureRegistry @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
+    private val secrets: SecretStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -125,7 +127,7 @@ class FeatureRegistry @Inject constructor(
 
     private fun degradedReason(id: FeatureId): String? = when (id) {
         FeatureId.REMOTE_LOOKUP ->
-            if (settings.snapshot.backendToken.isBlank()) {
+            if (!secrets.has(SecretStore.SERVER_TOKEN)) {
                 "No API token set — the server will reject lookups."
             } else null
 

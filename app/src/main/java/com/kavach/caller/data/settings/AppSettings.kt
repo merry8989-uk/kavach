@@ -28,7 +28,6 @@ data class AppSettings(
      */
     val backendBaseUrl: String = "",
     /** Bearer token for that server. Stored in DataStore; see SECURITY.md. */
-    val backendToken: String = "",
 
     /**
      * Consent-based account (docs/CALLER-ID-PLAN.md).
