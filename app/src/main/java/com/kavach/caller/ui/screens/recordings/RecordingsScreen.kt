@@ -67,7 +67,7 @@ class RecordingsViewModel @Inject constructor(
         message = null
     }
 
-    fun setMessage(text: String) {
+    fun showMessage(text: String) {
         message = text
     }
 
@@ -294,7 +294,7 @@ fun RecordingsScreen(
                                         scope.launch {
                                             val source = vm.playbackSource(recording)
                                             if (source == null) {
-                                                vm.setMessage(
+                                                vm.showMessage(
                                                     "Could not open this recording — the file is missing.",
                                                 )
                                                 return@launch
@@ -308,7 +308,7 @@ fun RecordingsScreen(
                                                 }
                                                 playingId = recording.id
                                             }.onFailure {
-                                                vm.setMessage("Could not play this recording.")
+                                                vm.showMessage("Could not play this recording.")
                                             }
                                         }
                                     }
