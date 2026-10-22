@@ -95,6 +95,9 @@ class MessagesViewModel @Inject constructor(
     private val _threadClassified = MutableStateFlow<Map<String, SmsClassifier.Result>>(emptyMap())
     val threadClassified: StateFlow<Map<String, SmsClassifier.Result>> = _threadClassified.asStateFlow()
 
+    private val _threads = MutableStateFlow<List<SmsReader.Thread>>(emptyList())
+    val threads: StateFlow<List<SmsReader.Thread>> = _threads.asStateFlow()
+
     /** Threads after the active filter and search query. */
     val visibleThreads: StateFlow<List<SmsReader.Thread>> =
         combine(_threads, _threadClassified, _filter, _query) { threads, classified, filter, query ->
@@ -114,9 +117,6 @@ class MessagesViewModel @Inject constructor(
                 matchesFilter && matchesQuery
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    private val _threads = MutableStateFlow<List<SmsReader.Thread>>(emptyList())
-    val threads: StateFlow<List<SmsReader.Thread>> = _threads.asStateFlow()
 
     private val _open = MutableStateFlow<String?>(null)
     val open: StateFlow<String?> = _open.asStateFlow()
