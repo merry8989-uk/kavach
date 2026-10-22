@@ -44,6 +44,9 @@ class DiagnosticsRepository @Inject constructor(
     private val notionSync: dagger.Lazy<NotionSyncRepository>,
 ) {
     private val lock = Any()
+
+    /** Rolling window of write times, used to decide whether to sample. */
+    private val recentWrites = ArrayDeque<Long>()
     private val directory = File(context.filesDir, DIRECTORY)
     private val file = File(directory, FILE_NAME)
 
@@ -134,14 +137,35 @@ class DiagnosticsRepository @Inject constructor(
     // ---------------- sampling (Part A) ----------------
 
     /**
-     * 100% of warnings and errors, sampled info, debug only in debug builds.
-     * A crash you never recorded is the one you cannot fix.
+     * Keep 100% of warnings and errors, and sample info **only when the app is
+     * actually chatty**.
+     *
+     * A real export exposed why this matters: a fixed 1-in-4 rate was throwing
+     * away three quarters of every session's `screen_view` events, which are the
+     * backbone of understanding what a user did. Ten sessions produced sixteen
+     * screen views, and four sessions had none at all — the log looked sparse
+     * because it was, not because the app was quiet.
+     *
+     * Kavach emits roughly six events per session. At that volume sampling is
+     * pure loss. So the rate is now measured: below [CHATTY_EVENTS_PER_MINUTE]
+     * everything is kept, and above it info events are sampled. Errors are never
+     * sampled, at any volume.
      */
-    private fun shouldSample(eventName: String, level: LogLevel): Boolean = when (level) {
-        LogLevel.ERROR, LogLevel.WARN -> true
-        LogLevel.INFO -> (System.nanoTime() % INFO_SAMPLE_RATE) == 0L ||
-            eventName in ALWAYS_KEEP
-        LogLevel.DEBUG -> BuildConfig.DEBUG
+    private fun shouldSample(eventName: String, level: LogLevel): Boolean {
+        if (level == LogLevel.ERROR || level == LogLevel.WARN) return true
+        if (level == LogLevel.DEBUG) return BuildConfig.DEBUG
+        if (eventName in ALWAYS_KEEP) return true
+
+        val now = System.currentTimeMillis()
+        val ratePerMinute = synchronized(recentWrites) {
+            recentWrites.addLast(now)
+            while (recentWrites.isNotEmpty() && now - recentWrites.first() > SamplingPolicy.RATE_WINDOW_MS) {
+                recentWrites.removeFirst()
+            }
+            SamplingPolicy.ratePerMinute(recentWrites.size)
+        }
+
+        return SamplingPolicy.keep(ratePerMinute = ratePerMinute, sampleTick = System.nanoTime())
     }
 
     // ---------------- retention (Part F) ----------------
@@ -269,6 +293,29 @@ class DiagnosticsRepository @Inject constructor(
     }
 
     /**
+     * Time from process start to the user's first real action, once per session.
+     *
+     * This used to be emitted only by the permissions screen, so a real export
+     * had it in two sessions out of ten — the eight where onboarding was not
+     * shown reported nothing. The standard defines it as
+     * "session_start → first meaningful action", which is a property of the
+     * session, not of one screen.
+     */
+    suspend fun firstValueIfNeeded(firstAction: String) {
+        if (session.firstValueReported) return
+        session.firstValueReported = true
+        emit(
+            "time_to_first_value",
+            properties = mapOf(
+                "duration_ms" to (
+                    SystemClock.elapsedRealtime() - session.processStartElapsedMs
+                    ).toString(),
+                "first_action" to firstAction,
+            ),
+        )
+    }
+
+    /**
      * Emit `feature_toggle` **only when a module's state actually changed**.
      *
      * A real export had 9 of 14 rows as feature toggles, repeated identically on
@@ -280,6 +327,26 @@ class DiagnosticsRepository @Inject constructor(
      */
     suspend fun featureSnapshot(current: Map<String, String>) = withContext(Dispatchers.IO) {
         val previous = readFeatureSnapshot()
+
+        // First run: there is no baseline, so every feature would look "changed"
+        // and one real session produced twelve identical-looking rows. The
+        // starting configuration is context, not a change, so it is recorded
+        // once as a snapshot instead.
+        if (previous.isEmpty()) {
+            writeFeatureSnapshot(current)
+            val enabled = current.values.count { it.startsWith("true") }
+            val disabled = current.filterValues { it.startsWith("false") }.keys
+            emit(
+                "feature_snapshot",
+                properties = buildMap {
+                    put("total", current.size.toString())
+                    put("enabled_count", enabled.toString())
+                    put("disabled", disabled.joinToString(",").ifEmpty { "none" })
+                },
+            )
+            return@withContext
+        }
+
         current.forEach { (feature, state) ->
             if (previous[feature] == state) return@forEach
             val parts = state.split('|', limit = 2)
@@ -292,13 +359,13 @@ class DiagnosticsRepository @Inject constructor(
                 ),
             )
         }
-        runCatching {
-            directory.mkdirs()
-            featureStateFile.writeText(
-                current.entries.joinToString("\n") { "${it.key}=${it.value}" },
-            )
-        }
+        writeFeatureSnapshot(current)
     }
+
+    private fun writeFeatureSnapshot(current: Map<String, String>) = runCatching {
+        directory.mkdirs()
+        featureStateFile.writeText(current.entries.joinToString("\n") { "${it.key}=${it.value}" })
+    }.let { }
 
     private fun readFeatureSnapshot(): Map<String, String> = runCatching {
         if (!featureStateFile.exists()) return@runCatching emptyMap()
@@ -683,7 +750,7 @@ class DiagnosticsRepository @Inject constructor(
         private const val MAX_EXPORT_ENTRIES = 5_000
         private const val DAY_MS = 24L * 60L * 60L * 1000L
         private const val MAX_RETENTION_DAYS = 30L
-        private const val INFO_SAMPLE_RATE = 4L
+
         private const val RAGE_WINDOW_MS = 2_000L
 
         /** Events worth every occurrence, however noisy they look. */
@@ -697,7 +764,8 @@ class DiagnosticsRepository @Inject constructor(
         private val ALWAYS_KEEP = setOf(
             "session_start", "access_fix_result", "access_fix_requested",
             "permission_state_resolved", "error_state_shown", "crash",
-            "feature_toggle", "performance_marker",
+            "feature_toggle", "feature_snapshot", "performance_marker",
+            "screen_view", "time_to_first_value", "session_start",
         )
 
         /** Kept for call sites that only need a masked number. */

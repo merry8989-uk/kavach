@@ -152,8 +152,10 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
             previous = previousScreen,
             durationMs = if (previousScreen != null) now - shownAt else null,
         )
-        // The first screen is when startup is genuinely finished.
+        // The first screen is when startup is genuinely finished, and it is also
+        // the user's first meaningful action of the session.
         settingsVm.diagnostics.appStartIfFirstScreen()
+        settingsVm.diagnostics.firstValueIfNeeded(firstAction = "opened_$label")
         settingsVm.session.currentScreen = label
         previousScreen = label
         shownAt = now

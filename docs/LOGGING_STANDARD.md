@@ -137,6 +137,22 @@ The `crash` gap was the most serious: the event was declared from the beginning
 and nothing ever called it, so a crash produced no row at all — which reads as
 "the user closed the app".
 
+## What the second real export taught us
+
+A raw `kavach.log` (64 events, ten sessions, TECNO LH8n) exposed five more
+problems. All are fixed.
+
+| What the log showed | Why it mattered | Fix |
+|---|---|---|
+| `device_model` was `TECNO` — the model was **gone** | The de-duplication that fixed "TECNO TECNO LH8n" had over-corrected | Keep the model whole when it already carries the maker; regression test added |
+| Only **16 `screen_view` across 10 sessions**, and four sessions had none | A fixed 1-in-4 sample was discarding three quarters of the one event that shows what a user did | Sampling is now **volume-aware**: everything is kept below 120 events/min |
+| **12 `feature_toggle` rows** on a first run | A first run has no baseline, so every feature looked "changed" | A first run writes the baseline and emits one `feature_snapshot` |
+| `screen_or_route` was `unknown` on **79%** of rows | Technically honest, completely useless | Launch-phase events say `app_start` |
+| `time_to_first_value` in only **2 of 10 sessions** | It was emitted by the permissions screen, so sessions that skipped onboarding reported nothing | It is a property of the session and is emitted by the nav graph |
+
+The sampling one was the most damaging, because it made the log look *quiet*
+when it was being *censored*.
+
 ## Many installs
 
 Direct-to-Notion only works for the handful of users willing to create a Notion

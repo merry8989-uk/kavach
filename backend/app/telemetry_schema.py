@@ -43,6 +43,7 @@ CATALOGUE: dict[str, tuple[set[str], set[str], dict[str, set[str]]]] = {
     "error_state_shown": ({"error_code", "screen"}, {"message_key"}, {}),
     "performance_marker": ({"flow", "duration_ms"}, {"frame_drops"}, {}),
     "feature_toggle": ({"feature", "enabled"}, {"status"}, {}),
+    "feature_snapshot": ({"total", "enabled_count"}, {"disabled"}, {}),
     "call_screened": ({"action", "outcome"}, {"has_rule", "number_type"}, {"outcome": OUTCOMES}),
     "call_state": ({"direction", "phase"}, {"has_sim", "has_name"}, {}),
     "sms_sent": ({"outcome"}, {"parts", "error_code"}, {"outcome": OUTCOMES}),

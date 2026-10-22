@@ -65,20 +65,16 @@ class PermissionsViewModel @Inject constructor(
     private val pending = mutableMapOf<String, Pending>()
     private val attemptCounts = mutableMapOf<String, Int>()
 
-    /** First meaningful action after launch — the `time_to_first_value` signal. */
-    private var firstValueSent = false
-
+    /**
+     * Note the screen was shown.
+     *
+     * `time_to_first_value` used to be emitted from here, which meant a real
+     * export only had it in the sessions where onboarding appeared. It is now a
+     * property of the session and is emitted by the nav graph.
+     */
     fun onScreenShown() {
         viewModelScope.launch {
             diagnostics.screenView(name = "PermissionsScreen", previous = null)
-            val snapshot = session.startedAtMs
-            if (!firstValueSent) {
-                firstValueSent = true
-                diagnostics.timeToFirstValue(
-                    durationMs = System.currentTimeMillis() - snapshot,
-                    firstAction = "permission_setup_shown",
-                )
-            }
         }
     }
 

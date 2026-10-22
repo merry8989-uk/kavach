@@ -39,11 +39,14 @@ class SessionContext @Inject constructor(
     /** Emitted once, when the first screen appears. */
     @Volatile var appStartReported: Boolean = false
 
+    /** Emitted once, when the first screen of the session appears. */
+    @Volatile var firstValueReported: Boolean = false
+
     /**
      * Which screen the user is on. Kept here so every event carries it without
      * each call site having to know.
      */
-    @Volatile var currentScreen: String = "unknown"
+    @Volatile var currentScreen: String = SCREEN_AT_STARTUP
 
     val appVersion: String = runCatching {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -64,15 +67,7 @@ class SessionContext @Inject constructor(
      * ("TECNO" + "TECNO LH8n"), which produced "TECNO TECNO LH8n" in a real
      * export. The prefix is dropped when it repeats.
      */
-    val deviceModel: String = buildString {
-        val maker = Build.MANUFACTURER.trim()
-        val model = Build.MODEL.trim()
-        append(maker)
-        if (model.isNotEmpty() && !model.lowercase().startsWith(maker.lowercase())) {
-            append(' ')
-            append(model)
-        }
-    }.trim().ifBlank { "unknown device" }
+    val deviceModel: String = deviceLabel(Build.MANUFACTURER, Build.MODEL)
 
     val releaseChannel: String =
         if (BuildConfig.DEBUG) "debug" else "production"
@@ -117,6 +112,38 @@ class SessionContext @Inject constructor(
 
     fun hasPermission(permission: String): Boolean =
         context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+    companion object {
+        /**
+         * What `screen_or_route` says before any screen has appeared.
+         *
+         * It used to say "unknown", which a real export showed on 79% of rows —
+         * technically honest and completely useless. These events belong to the
+         * startup phase, so they say so.
+         */
+        const val SCREEN_AT_STARTUP = "app_start"
+
+        /**
+         * A readable device class from the two fields Android gives us.
+         *
+         * Both failure modes have been seen in real exports: naive concatenation
+         * produced "TECNO TECNO LH8n", and the first attempt at de-duplicating it
+         * dropped the model and reported only "TECNO". This is a pure function so
+         * neither can come back unnoticed.
+         */
+        fun deviceLabel(manufacturer: String?, model: String?): String {
+            val maker = manufacturer?.trim().orEmpty()
+            val name = model?.trim().orEmpty()
+            val label = when {
+                name.isEmpty() -> maker
+                maker.isEmpty() -> name
+                // The model already carries the maker; use it whole.
+                name.lowercase().startsWith(maker.lowercase()) -> name
+                else -> "$maker $name"
+            }
+            return label.trim().ifBlank { "unknown device" }
+        }
+    }
 
     private fun generateUserCode(): String {
         // Unambiguous alphabet: no O/0, no I/1, so a code can be read off a

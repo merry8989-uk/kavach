@@ -155,6 +155,14 @@ object EventSchema {
             optional = setOf("status"),
         ),
         EventSpec(
+            // One row per session at most, instead of one row per feature on a
+            // first run — which a real export showed as twelve near-identical
+            // lines crowding out everything else.
+            name = "feature_snapshot",
+            required = setOf("total", "enabled_count"),
+            optional = setOf("disabled"),
+        ),
+        EventSpec(
             name = "call_screened",
             required = setOf("action", "outcome"),
             optional = setOf("has_rule", "number_type"),
