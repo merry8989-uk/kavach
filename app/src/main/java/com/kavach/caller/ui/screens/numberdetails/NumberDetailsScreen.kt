@@ -62,6 +62,7 @@ class NumberDetailsViewModel @Inject constructor(
     private val contacts: ContactRepository,
     private val callLog: CallLogRepository,
     private val api: com.kavach.caller.data.remote.KavachApiClient,
+    private val searchHistory: com.kavach.caller.data.repo.SearchHistoryRepository,
 ) : ViewModel() {
 
     private val _identity = MutableStateFlow<CallerIdentity?>(null)
@@ -105,9 +106,19 @@ class NumberDetailsViewModel @Inject constructor(
 
     fun load(number: String) = viewModelScope.launch {
         _loading.value = true
-        _identity.value = identifyCaller(number)
+        val identity = identifyCaller(number)
+        _identity.value = identity
         _contact.value = contacts.findByNumber(number)
         _recent.value = callLog.recentWith(number)
+
+        // Recorded here rather than at the search box, because this is the point
+        // at which the user actually looked the number up — a typed query that
+        // was abandoned is not a lookup.
+        searchHistory.record(
+            number = number,
+            name = identity?.name,
+            spamScore = identity?.spamScore ?: 0,
+        )
         _loading.value = false
     }
 }

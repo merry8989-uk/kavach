@@ -77,6 +77,28 @@ fun DataPolicyScreen(onBack: () -> Unit) {
                 Never("Sell data or share it with advertisers.")
             }
 
+            SectionHeader("What stays on this phone")
+            KavachCard {
+                // Stated plainly, because a lookup history is more revealing than
+                // it first appears: it is a record of who someone was curious
+                // about. The user should know it exists before they find it.
+                Text(
+                    "Kavach keeps a short list of the numbers you have looked up, " +
+                        "so you can get back to one without retyping it. It is capped " +
+                        "at 50 entries, it never leaves the device, and it holds only " +
+                        "the number, the name you were shown and the time — never why " +
+                        "you looked.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "You can remove any entry from Home, or clear the whole list.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             SectionHeader("Your control")
             KavachCard {
                 Right("See", "your profile and the full history of what you agreed to.")

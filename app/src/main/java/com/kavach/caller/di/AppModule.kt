@@ -19,6 +19,7 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.kavach.caller.data.local.dao.SearchHistoryDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -62,6 +63,31 @@ object AppModule {
         }
     }
 
+    /**
+     * Adds the search history table (F3).
+     *
+     * Written as a real migration rather than relying on the destructive
+     * fallback, because that fallback would drop contacts, the call log, the
+     * blocklist and every recording row on upgrade. A user who has used Kavach
+     * since v0.10.0 has data worth keeping, and "the schema moved" is not a
+     * reason to delete it.
+     */
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS search_history (" +
+                    "number TEXT NOT NULL PRIMARY KEY, " +
+                    "name TEXT, " +
+                    "spamScore INTEGER NOT NULL DEFAULT 0, " +
+                    "lookedUpAt INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_search_history_lookedUpAt " +
+                    "ON search_history (lookedUpAt)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -78,7 +104,7 @@ object AppModule {
         )
         return Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             // Last-resort safety net only; the real path is the migration above.
             // Swap in SQLCipher for encrypted-at-rest storage.
             // Safety net only. Real migrations exist; this exists so a schema
@@ -93,6 +119,7 @@ object AppModule {
     @Provides fun provideRecordingDao(db: KavachDatabase): RecordingDao = db.recordingDao()
     @Provides fun provideTranscriptDao(db: KavachDatabase): TranscriptDao = db.transcriptDao()
     @Provides fun provideSpeedDialDao(db: KavachDatabase): SpeedDialDao = db.speedDialDao()
+    @Provides fun provideSearchHistoryDao(db: KavachDatabase): SearchHistoryDao = db.searchHistoryDao()
 
     @Provides
     @Singleton

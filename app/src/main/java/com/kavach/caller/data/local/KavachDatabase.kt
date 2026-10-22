@@ -15,6 +15,8 @@ import com.kavach.caller.data.local.entity.ContactEntity
 import com.kavach.caller.data.local.entity.RecordingEntity
 import com.kavach.caller.data.local.entity.SpeedDialEntity
 import com.kavach.caller.data.local.entity.TranscriptEntity
+import com.kavach.caller.data.local.entity.SearchHistoryEntity
+import com.kavach.caller.data.local.dao.SearchHistoryDao
 
 @Database(
     entities = [
@@ -24,12 +26,14 @@ import com.kavach.caller.data.local.entity.TranscriptEntity
         RecordingEntity::class,
         TranscriptEntity::class,
         SpeedDialEntity::class,
+        SearchHistoryEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class KavachDatabase : RoomDatabase() {
+    abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun contactDao(): ContactDao
     abstract fun blockRuleDao(): BlockRuleDao
     abstract fun callLogDao(): CallLogDao

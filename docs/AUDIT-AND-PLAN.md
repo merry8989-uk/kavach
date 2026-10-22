@@ -165,8 +165,12 @@ is visible.
 
 Real features, none of them urgent, all of them asked for.
 
-**B1 · Search history** — the spec lists it in Phase 7. There is no record of what
-someone searched for. *Small.*
+**B1 · Search history** — *done in v0.37.0.* Numbers looked up are kept, capped at
+50, shown on Home, removable one at a time or in full, and disclosed on the data
+policy screen — a lookup history is a record of who someone was curious about, and
+there is no acceptable version of it without a way to erase it. Added with a real
+Room migration, because the destructive fallback would have dropped contacts, the
+call log and every recording row on upgrade.
 
 **B2 · Instrumentation and UI tests** — see D2; listed here because the spec asks
 for them by name.
@@ -180,11 +184,21 @@ become true. *Medium.*
 explainable, which is right, but there is no pattern analysis across numbers.
 *Medium, and only worth doing with real data.*
 
-**B5 · Missed-call prioritisation and business categorisation** — Phase 10. Neither
-exists. *Small each.*
+**B5 · Missed-call prioritisation** — *done in v0.37.0.* A missed-call list sorted
+by time makes the user do the ranking themselves. A saved contact who called three
+times now outranks a single unknown call, a number reported by many people is
+**excluded rather than ranked low** (putting it at the bottom invites calling it
+back), and every row shows *why* it ranked where it did. Pure Kotlin, 10 tests.
 
-**B6 · Motion and reduced-animation settings** — Phase 14 asks for them; there are
-none. Accessibility, and cheap. *Small.*
+**Business categorisation** — still open. *Small.*
+
+**B6 · Motion and reduced-animation settings** — *done in v0.37.0.* This turned out
+to be two jobs, not one: the app had **no animations at all**, so a reduced-motion
+setting would have controlled nothing — a fake setting. So real motion was added
+first (screen transitions), and then the setting that governs it. The default is
+**follow the system**, which means Android's own accessibility setting decides, and
+the people who use it are not being fussy: reduced motion is what makes a phone
+usable with a vestibular disorder.
 
 **B7 · Accuracy measurement for the scorer** — Phase 10 asks for precision, recall
 and false-positive rates "where appropriate". There is a `false_positive_rate`

@@ -33,8 +33,18 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
+    private companion object {
+        /**
+         * Kept here rather than imported from ui/theme, because the data layer
+         * must not depend on the UI. The two lists are checked against each other
+         * by a test so they cannot drift.
+         */
+        val MOTION_MODES = setOf("system", "full", "reduced")
+    }
+
     private object Keys {
         val themePack = stringPreferencesKey("theme_pack")
+        val motionMode = stringPreferencesKey("motion_mode")
         val announcerMode = stringPreferencesKey("announcer_mode")
         val announceSpamVerdict = booleanPreferencesKey("announce_spam_verdict")
         val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
@@ -86,6 +96,7 @@ class SettingsRepository @Inject constructor(
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
             themePack = p[Keys.themePack] ?: "AURORA",
+            motionMode = p[Keys.motionMode] ?: "system",
             announcerMode = p[Keys.announcerMode] ?: "KNOWN_ONLY",
             announceSpamVerdict = p[Keys.announceSpamVerdict] ?: true,
             cloudAiEnabled = p[Keys.cloudAiEnabled] ?: false,
@@ -121,6 +132,11 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
+
+    /** "system" | "full" | "reduced". Unknown values fall back to "system". */
+    suspend fun setMotionMode(value: String) = context.dataStore.edit {
+        it[Keys.motionMode] = value.takeIf { v -> v in MOTION_MODES } ?: "system"
+    }
     suspend fun setAnnouncerMode(value: String) = context.dataStore.edit { it[Keys.announcerMode] = value }
     suspend fun setAnnounceSpamVerdict(value: Boolean) = context.dataStore.edit { it[Keys.announceSpamVerdict] = value }
     suspend fun setCloudAiEnabled(value: Boolean) = context.dataStore.edit { it[Keys.cloudAiEnabled] = value }

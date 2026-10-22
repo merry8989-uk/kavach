@@ -48,6 +48,14 @@ import com.kavach.caller.ui.screens.settings.RepliesScreen
 import com.kavach.caller.ui.screens.dialer.DialerScreen
 import com.kavach.caller.ui.screens.features.FeaturesScreen
 import com.kavach.caller.ui.screens.home.HomeScreen
+import com.kavach.caller.ui.theme.MotionMode
+import com.kavach.caller.ui.theme.resolve
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalContext
 import com.kavach.caller.ui.screens.messages.MessagesScreen
 import com.kavach.caller.ui.screens.numberdetails.NumberDetailsScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
@@ -154,6 +162,15 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
         }
     }
 
+    // Motion is resolved once, here, and provided to the tree. The default is
+    // "system", which means Android's own animator-duration-scale decides — so a
+    // user who turned animations off in Accessibility gets none, without having
+    // to find this setting.
+    val context = LocalContext.current
+    val motionEnabled = remember(appSettings.motionMode) {
+        MotionMode.from(appSettings.motionMode).resolve(context)
+    }
+
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
@@ -228,6 +245,30 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 navController = nav,
                 startDestination = "home",
                 modifier = Modifier.weight(1f),
+                // A short fade with a small horizontal slide: enough to make the
+                // direction of travel legible, not enough to be a performance.
+                // Both collapse to none when motion is off, which is the whole
+                // point of having the setting.
+                enterTransition = {
+                    if (!motionEnabled) {
+                        EnterTransition.None
+                    } else {
+                        fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 12 }
+                    }
+                },
+                exitTransition = {
+                    if (!motionEnabled) EnterTransition.None else fadeOut(tween(140))
+                },
+                popEnterTransition = {
+                    if (!motionEnabled) {
+                        EnterTransition.None
+                    } else {
+                        fadeIn(tween(180)) + slideInHorizontally(tween(180)) { -it / 12 }
+                    }
+                },
+                popExitTransition = {
+                    if (!motionEnabled) EnterTransition.None else fadeOut(tween(140))
+                },
             ) {
                 composable("home") {
                     HomeScreen(

@@ -6,6 +6,14 @@ package com.kavach.caller.data.settings
  */
 data class AppSettings(
     val themePack: String = "AURORA",
+    /**
+     * How much motion to use: "system", "full" or "reduced".
+     *
+     * "system" is the default and it means *follow Android's own setting*. If the
+     * user has turned animations off in Accessibility — which is what people with
+     * vestibular disorders do — Kavach does not animate, without being told twice.
+     */
+    val motionMode: String = "system",
     val announcerMode: String = "KNOWN_ONLY",
     val announceSpamVerdict: Boolean = true,
     val cloudAiEnabled: Boolean = false,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
@@ -29,6 +30,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
@@ -50,6 +53,8 @@ class HomeViewModel @Inject constructor(
     private val features: FeatureRegistry,
     private val callLog: com.kavach.caller.data.repo.CallLogRepository,
     private val blocks: com.kavach.caller.data.repo.BlockRepository,
+    private val searchHistory: com.kavach.caller.data.repo.SearchHistoryRepository,
+    private val contacts: com.kavach.caller.data.repo.ContactRepository,
 ) : ViewModel() {
 
     /** Today's activity, read from the call log. */
@@ -68,6 +73,22 @@ class HomeViewModel @Inject constructor(
     private val _ruleCount = MutableStateFlow(0)
     val ruleCount: StateFlow<Int> = _ruleCount.asStateFlow()
 
+    /** Recent lookups, most recent first. */
+    val recentLookups: StateFlow<List<com.kavach.caller.data.local.entity.SearchHistoryEntity>> =
+        searchHistory.observeRecent(6)
+            .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Missed calls worth returning, ranked. Empty when nothing qualifies. */
+    private val _worthReturning = MutableStateFlow<List<com.kavach.caller.domain.MissedCallPriority.Ranked>>(
+        emptyList(),
+    )
+    val worthReturning: StateFlow<List<com.kavach.caller.domain.MissedCallPriority.Ranked>> =
+        _worthReturning.asStateFlow()
+
+    fun forgetLookup(number: String) = viewModelScope.launch { searchHistory.remove(number) }
+
+    fun clearLookups() = viewModelScope.launch { searchHistory.clear() }
+
     init {
         refresh()
         viewModelScope.launch {
@@ -76,6 +97,44 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             blocks.observeAll().collect { rules -> _ruleCount.value = rules.count { it.enabled } }
         }
+        // The ranking needs both halves — what was missed, and who is saved — so
+        // it is recomputed whenever either changes rather than cached per source.
+        viewModelScope.launch {
+            combine(
+                callLog.observeAll(),
+                contacts.observeAll(),
+            ) { entries, saved -> entries to saved }
+                .collect { (entries, saved) ->
+                    _worthReturning.value = rankMissed(entries, saved)
+                }
+        }
+    }
+
+    private fun rankMissed(
+        entries: List<com.kavach.caller.data.local.entity.CallLogEntity>,
+        saved: List<com.kavach.caller.data.local.entity.ContactEntity>,
+    ): List<com.kavach.caller.domain.MissedCallPriority.Ranked> {
+        val savedNumbers = saved
+            .flatMap { it.numbers }
+            .map { com.kavach.caller.util.PhoneUtils.normalize(it.number) }
+            .toSet()
+
+        val missed = entries
+            // CallLog.Calls.MISSED_TYPE is 3; the entity stores the raw provider type.
+            .filter { it.type == 3 }
+            // Only the last week — a call from a month ago is history, not a
+            // thing to act on.
+            .filter { it.timestamp >= System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000 }
+            .map {
+                com.kavach.caller.domain.MissedCallPriority.MissedCall(
+                    number = com.kavach.caller.util.PhoneUtils.normalize(it.number),
+                    name = it.name,
+                    timestamp = it.timestamp,
+                    spamScore = it.spamScore,
+                )
+            }
+
+        return com.kavach.caller.domain.MissedCallPriority.rank(missed, savedNumbers).take(3)
     }
 
     fun refresh() {
@@ -133,6 +192,8 @@ fun HomeScreen(
     val states by vm.states.collectAsState()
     val today by vm.today.collectAsState()
     val rules by vm.ruleCount.collectAsState()
+    val lookups by vm.recentLookups.collectAsState()
+    val returning by vm.worthReturning.collectAsState()
 
     var query by remember { mutableStateOf("") }
     val attention = remember(states) { vm.needsAttention() }
@@ -262,6 +323,43 @@ fun HomeScreen(
             }
         }
 
+        // ------------------------------------------------- missed, ranked
+        if (returning.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(6.dp))
+                SectionHeader("Worth returning")
+                KavachCard {
+                    returning.forEachIndexed { index, call ->
+                        if (index > 0) Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    call.name ?: call.number,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                if (call.name != null) {
+                                    Text(
+                                        call.number,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = muted,
+                                    )
+                                }
+                                // The reason is shown, not hidden. A ranking the
+                                // user cannot inspect is one they cannot correct.
+                                Text(
+                                    reasonText(call),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = muted,
+                                )
+                            }
+                            TextButton(onClick = { onOpenNumber(call.number) }) { Text("Open") }
+                        }
+                    }
+                }
+            }
+        }
+
         // ------------------------------------------------------------ search
         item {
             Spacer(Modifier.height(6.dp))
@@ -280,6 +378,47 @@ fun HomeScreen(
                 enabled = query.count { it.isDigit() } >= 3,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Open details") }
+
+            // Recent lookups. A history of who someone was curious about is more
+            // revealing than it first appears, so it is removable one entry at a
+            // time and clearable in full — a search history with no way to erase
+            // it is not acceptable.
+            if (lookups.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Recent lookups",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = muted,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { vm.clearLookups() }) { Text("Clear all") }
+                }
+                lookups.forEach { entry ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                entry.name ?: entry.number,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (entry.name != null) {
+                                Text(
+                                    entry.number,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = muted,
+                                )
+                            }
+                        }
+                        IconButton(onClick = { vm.forgetLookup(entry.number) }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Forget this lookup")
+                        }
+                    }
+                }
+            }
         }
 
         // --------------------------------------------------------- shortcuts
@@ -305,6 +444,18 @@ fun HomeScreen(
 
         item { Spacer(Modifier.height(32.dp)) }
     }
+}
+
+/** The ranking's reasoning, in words. Never a bare score. */
+private fun reasonText(call: com.kavach.caller.domain.MissedCallPriority.Ranked): String = when (call.reason) {
+    com.kavach.caller.domain.MissedCallPriority.Reason.CONTACT_REPEATED ->
+        "In your contacts · missed ${call.missedCount} times"
+    com.kavach.caller.domain.MissedCallPriority.Reason.CONTACT ->
+        "In your contacts"
+    com.kavach.caller.domain.MissedCallPriority.Reason.REPEATED ->
+        "Not in your contacts · missed ${call.missedCount} times"
+    com.kavach.caller.domain.MissedCallPriority.Reason.UNKNOWN ->
+        "Not in your contacts"
 }
 
 @Composable

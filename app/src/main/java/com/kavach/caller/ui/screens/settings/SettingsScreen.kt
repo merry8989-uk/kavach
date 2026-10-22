@@ -20,6 +20,13 @@ import androidx.compose.ui.platform.LocalContext
 
 /** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
 private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
+
+/** Must match [com.kavach.caller.ui.theme.MotionMode] and the data layer's list. */
+private val motionModes = listOf(
+    "system" to "Follow system",
+    "full" to "Full motion",
+    "reduced" to "Reduced motion",
+)
 private val announcerModes = listOf("ALWAYS", "KNOWN_ONLY", "UNKNOWN_ONLY", "HEADSET_ONLY", "OFF")
 
 @Composable
@@ -114,6 +121,34 @@ fun SettingsScreen(
         )
         Spacer(Modifier.height(8.dp))
         LanguagePicker()
+
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "Motion",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(Modifier.height(4.dp))
+        // "System" is the default and it is the honest one: Android already has
+        // this setting, in Accessibility, and the people who use it are not being
+        // fussy — reduced motion is what makes a phone usable with a vestibular
+        // disorder. Kavach follows it unless told otherwise.
+        Text(
+            "Kavach follows Android's animation setting. Choose here to override it for this app.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
+            motionModes.forEach { (value, label) ->
+                FilterChip(
+                    selected = s.motionMode == value,
+                    onClick = { vm.setMotionMode(value) },
+                    label = { Text(label) },
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
+        }
 
         Spacer(Modifier.height(16.dp))
         SectionHeader("Updates")

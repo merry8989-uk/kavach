@@ -50,14 +50,14 @@ Status vocabulary: **NOT_STARTED · IN_PROGRESS · IMPLEMENTED · VERIFIED · BL
 | 4 | Live screening and caller UI | IMPLEMENTED — 2.5 s deadline, fails open |
 | 5 | Spam detection and blocker | IN_PROGRESS — no appeal flow |
 | 6 | Dialer, contacts, call history | IMPLEMENTED |
-| 7 | Reverse search and business directory | IN_PROGRESS — no search history; moderation is write-only |
+| 7 | Reverse search and business directory | IN_PROGRESS — moderation and search history done; no business-claim flow |
 | 8 | SMS spam protection | IMPLEMENTED |
 | 9 | Recording and call notes | IMPLEMENTED — encrypted at rest, quota, consent gate |
-| 10 | Advanced AI | IN_PROGRESS — transcription real; pattern detection and accuracy measurement not started |
+| 10 | Advanced AI | IN_PROGRESS — transcription and missed-call priority real; pattern detection and accuracy measurement not started |
 | 11 | Premium and subscriptions | **EXCLUDED** — the product is free by instruction |
 | 12 | Feature control centre | IMPLEMENTED |
 | 13 | Security, privacy, backend | IN_PROGRESS — no dependency vulnerability scan |
-| 14 | UI quality and personalisation | IN_PROGRESS — no motion setting |
+| 14 | UI quality and personalisation | IMPLEMENTED — motion setting, following the system by default |
 | 15 | Testing and device validation | IN_PROGRESS — see section 3 |
 | 16 | Release and delivery | IMPLEMENTED |
 

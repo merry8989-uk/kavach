@@ -46,6 +46,8 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun setThemePack(value: String) = viewModelScope.launch { repo.setThemePack(value) }
+
+    fun setMotionMode(value: String) = viewModelScope.launch { repo.setMotionMode(value) }
     fun setAnnouncerMode(value: String) = viewModelScope.launch { repo.setAnnouncerMode(value) }
     fun setAnnounceSpamVerdict(value: Boolean) = viewModelScope.launch { repo.setAnnounceSpamVerdict(value) }
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }
