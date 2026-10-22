@@ -1,6 +1,7 @@
 package com.kavach.caller.data.remote
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 /**
  * Wire models for the Kavach backend. Field names mirror
