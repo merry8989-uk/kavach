@@ -136,6 +136,40 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Warnings",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        SwitchRow("Warn about suspicious links", s.smsWarnOnLinks) { vm.setSmsWarnOnLinks(it) }
+        Text(
+            "Flags shortened links, look-alike domains and unencrypted sign-in pages.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        SwitchRow("Warn about suspected scams", s.smsWarnOnSpam) { vm.setSmsWarnOnSpam(it) }
+        Text(
+            "Flags prize, KYC-blocking and work-from-home messages.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        SwitchRow("One-time password banner", s.smsShowOtpBanner) { vm.setSmsShowOtpBanner(it) }
+        Text(
+            "Offers to copy the code without ever displaying it.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "These control Kavach's own warnings. Changing the system notification for a " +
+                "message needs the default SMS role, which Kavach does not ask for.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         Spacer(Modifier.height(16.dp))
         SectionHeader("Your identity")
         OutlinedButton(onClick = onOpenAccount, modifier = Modifier.fillMaxWidth()) {

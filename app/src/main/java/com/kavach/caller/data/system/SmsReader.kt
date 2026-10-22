@@ -31,6 +31,39 @@ class SmsReader @Inject constructor(
         val messageCount: Int,
     )
 
+    /**
+     * Is [address] one of the user's contacts?
+     *
+     * Used to stop Kavach calling a friend's message spam on wording alone.
+     * Returns false when the contacts permission is missing, which biases the
+     * classifier towards caution rather than towards flagging.
+     */
+    fun isKnownContact(address: String?): Boolean {
+        val target = address?.trim().orEmpty()
+        if (target.isEmpty()) return false
+        val digits = target.filter { it.isDigit() }.takeLast(10)
+        if (digits.isEmpty()) return false
+
+        return runCatching {
+            context.contentResolver.query(
+                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                val idx = cursor.getColumnIndexOrThrow(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER,
+                )
+                while (cursor.moveToNext()) {
+                    val number = cursor.getString(idx)?.filter { it.isDigit() }?.takeLast(10)
+                    if (number == digits) return@use true
+                }
+                false
+            } ?: false
+        }.getOrDefault(false)
+    }
+
     fun readRecent(limit: Int = 500): List<Sms> {
         val out = mutableListOf<Sms>()
         val projection = arrayOf(

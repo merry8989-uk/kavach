@@ -51,6 +51,9 @@ class SettingsRepository @Inject constructor(
         val suggestedReplies = stringPreferencesKey("suggested_replies")
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
         val autoReplyText = stringPreferencesKey("auto_reply_text")
+        val smsWarnOnLinks = booleanPreferencesKey("sms_warn_on_links")
+        val smsWarnOnSpam = booleanPreferencesKey("sms_warn_on_spam")
+        val smsShowOtpBanner = booleanPreferencesKey("sms_show_otp_banner")
         val recordingConsentGiven = booleanPreferencesKey("recording_consent_given")
         val recordingConsentAt = longPreferencesKey("recording_consent_at")
         val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
@@ -105,6 +108,9 @@ class SettingsRepository @Inject constructor(
             suggestedReplies = p[Keys.suggestedReplies] ?: "",
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
             autoReplyText = p[Keys.autoReplyText] ?: "I'll get back to you soon.",
+            smsWarnOnLinks = p[Keys.smsWarnOnLinks] ?: true,
+            smsWarnOnSpam = p[Keys.smsWarnOnSpam] ?: true,
+            smsShowOtpBanner = p[Keys.smsShowOtpBanner] ?: true,
             recordingConsentGiven = p[Keys.recordingConsentGiven] ?: false,
             recordingConsentAt = p[Keys.recordingConsentAt] ?: 0L,
             hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
@@ -143,7 +149,11 @@ class SettingsRepository @Inject constructor(
         prefs[Keys.hiddenSmsIds] = (prefs[Keys.hiddenSmsIds] ?: emptySet()) + ids
     }
     suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
+    suspend fun setHiddenSmsIds(ids: Set<String>) = context.dataStore.edit { it[Keys.hiddenSmsIds] = ids }
     suspend fun setTelemetryUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.telemetryUploadEnabled] = value }
+    suspend fun setSmsWarnOnLinks(value: Boolean) = context.dataStore.edit { it[Keys.smsWarnOnLinks] = value }
+    suspend fun setSmsWarnOnSpam(value: Boolean) = context.dataStore.edit { it[Keys.smsWarnOnSpam] = value }
+    suspend fun setSmsShowOtpBanner(value: Boolean) = context.dataStore.edit { it[Keys.smsShowOtpBanner] = value }
     suspend fun setRecordingConsent(given: Boolean) = context.dataStore.edit {
         it[Keys.recordingConsentGiven] = given
         it[Keys.recordingConsentAt] = if (given) System.currentTimeMillis() else 0L

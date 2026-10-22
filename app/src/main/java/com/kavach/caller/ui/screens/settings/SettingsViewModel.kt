@@ -53,6 +53,9 @@ class SettingsViewModel @Inject constructor(
     fun setDiagnosticsEnabled(value: Boolean) = viewModelScope.launch { repo.setDiagnosticsEnabled(value) }
     fun setOfflineOnly(value: Boolean) = viewModelScope.launch { repo.setOfflineOnly(value) }
     fun setDataSaver(value: Boolean) = viewModelScope.launch { repo.setDataSaver(value) }
+    fun setSmsWarnOnLinks(value: Boolean) = viewModelScope.launch { repo.setSmsWarnOnLinks(value) }
+    fun setSmsWarnOnSpam(value: Boolean) = viewModelScope.launch { repo.setSmsWarnOnSpam(value) }
+    fun setSmsShowOtpBanner(value: Boolean) = viewModelScope.launch { repo.setSmsShowOtpBanner(value) }
     fun setBackendBaseUrl(value: String) = viewModelScope.launch { repo.setBackendBaseUrl(value) }
     fun setBackendToken(value: String) = viewModelScope.launch { repo.setBackendToken(value) }
 }

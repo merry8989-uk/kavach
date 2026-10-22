@@ -170,3 +170,24 @@ and stores it in `telemetry_events`, and `POST /v1/admin/notion/push` drains the
 table into the operator's Notion database. Both sides keep the same rules: off
 by default, queued locally first, invalid events counted and skipped rather than
 blocking the batch.
+
+## SMS classification (Phase 8)
+
+`SenderId`, `LinkInspector` and `SmsClassifier` are pure Kotlin — no Android, no
+IO, no clock — so every rule is testable. That matters because a wrong "spam"
+verdict on a real bank message is the failure this feature must not have.
+
+What is deliberately **not** claimed:
+
+- **TRAI category flags are not decoded.** The letter that would carry that
+  meaning is not consistent across operators, and guessing it would label real
+  bank messages as spam. Category comes from content, where the evidence is.
+- **Brands are only named from a fixed list of real headers.** An unrecognised
+  header is reported without a brand, because inventing one would tell someone a
+  scam is their bank.
+- **Nothing is auto-blocked from a link alone.** Findings are reasons; the user
+  decides.
+- **The message body never reaches the log.** Only the category does, and the
+  OTP code is kept separate from the reasons specifically so the UI can offer to
+  copy it without ever rendering it — and so it cannot leak into a preview or a
+  log line.

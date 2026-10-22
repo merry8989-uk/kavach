@@ -47,6 +47,17 @@ data class AppSettings(
     val autoReplyEnabled: Boolean = false,
     val autoReplyText: String = "I'll get back to you soon.",
     /**
+     * SMS warning controls (spec Phase 8: "SMS notification controls").
+     *
+     * These gate the in-app warnings, which Kavach fully controls. Changing the
+     * *system* notification for a message requires being the default SMS app,
+     * which Kavach does not claim to be.
+     */
+    val smsWarnOnLinks: Boolean = true,
+    val smsWarnOnSpam: Boolean = true,
+    val smsShowOtpBanner: Boolean = true,
+
+    /**
      * Explicit consent before the first recording (spec Phase 9: never record
      * silently). Until this is true, Kavach refuses to start a recording and
      * says why instead.
