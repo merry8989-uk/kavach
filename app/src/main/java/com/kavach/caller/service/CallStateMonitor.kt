@@ -179,7 +179,8 @@ class CallStateMonitor @Inject constructor(
 
     private fun simLabelFor(accountId: String?): String? {
         if (accountId.isNullOrBlank()) return null
-        if (!context.holds(Manifest.permission.READ_PHONE_STATE)) return null
+        if (!(androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED)) return null
         val telecom = context.getSystemService(TelecomManager::class.java) ?: return null
         return runCatching {
             telecom.callCapablePhoneAccounts

@@ -762,7 +762,8 @@ private fun pasteFromClipboard(context: Context): String {
 private fun voiceMailNumber(context: Context): String? {
     // Reading the voicemail number is gated on READ_PHONE_STATE, and asking
     // without it throws rather than returning null.
-    if (!context.holds(android.Manifest.permission.READ_PHONE_STATE)) return null
+    if (!(androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_PHONE_STATE) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED)) return null
     return runCatching {
         context.getSystemService(TelephonyManager::class.java)?.voiceMailNumber
     }.getOrNull()?.takeIf { it.isNotBlank() }

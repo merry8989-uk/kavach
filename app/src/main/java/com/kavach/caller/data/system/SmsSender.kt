@@ -69,7 +69,8 @@ class SmsSender @Inject constructor(
         }
         // Default SIM when we were not told which one to use.
         // Enumerating subscriptions is gated on READ_PHONE_STATE.
-        val subs = if (context.holds(android.Manifest.permission.READ_PHONE_STATE)) {
+        val subs = if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_PHONE_STATE) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED) {
             context.getSystemService(SubscriptionManager::class.java)
                 ?.activeSubscriptionInfoList
                 ?.firstOrNull()

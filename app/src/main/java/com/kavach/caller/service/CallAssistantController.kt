@@ -32,7 +32,8 @@ class CallAssistantController @Inject constructor(
         if (KavachInCallService.answerCurrent()) {
             true
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            context.holds(Manifest.permission.ANSWER_PHONE_CALLS)
+            androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ANSWER_PHONE_CALLS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
             context.getSystemService(TelecomManager::class.java)?.acceptRingingCall()
             true
@@ -48,7 +49,8 @@ class CallAssistantController @Inject constructor(
         if (KavachInCallService.hangupCurrent()) {
             true
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-            context.holds(Manifest.permission.ANSWER_PHONE_CALLS)
+            androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ANSWER_PHONE_CALLS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
             context.getSystemService(TelecomManager::class.java)?.endCall()
             true
