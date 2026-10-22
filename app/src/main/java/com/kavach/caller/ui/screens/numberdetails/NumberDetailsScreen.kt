@@ -45,6 +45,9 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
  * Everything known about one number, in one place (F9.13).
@@ -58,6 +61,7 @@ class NumberDetailsViewModel @Inject constructor(
     private val identifyCaller: IdentifyCallerUseCase,
     private val contacts: ContactRepository,
     private val callLog: CallLogRepository,
+    private val api: com.kavach.caller.data.remote.KavachApiClient,
 ) : ViewModel() {
 
     private val _identity = MutableStateFlow<CallerIdentity?>(null)
@@ -70,6 +74,33 @@ class NumberDetailsViewModel @Inject constructor(
     val recent: StateFlow<List<CallLogEntity>> = _recent.asStateFlow()
 
     private val _loading = MutableStateFlow(true)
+
+    var appealing by mutableStateOf(false)
+        private set
+
+    /** What the server said, in its own words — never a guessed success. */
+    var appealMessage by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Tell the server a number has been labelled wrongly.
+     *
+     * With no backend configured this cannot be filed, and the message says so
+     * rather than pretending. A silent no-op would leave someone believing they
+     * had appealed.
+     */
+    fun appeal(number: String) = viewModelScope.launch {
+        appealing = true
+        appealMessage = null
+        val response = runCatching { api.submitAppeal(number) }.getOrNull()
+        appealMessage = when {
+            response == null ->
+                "Could not file the appeal — no server is configured, or it could not be reached."
+            response.accepted -> response.detail
+            else -> "The server did not accept the appeal."
+        }
+        appealing = false
+    }
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
     fun load(number: String) = viewModelScope.launch {
@@ -235,6 +266,21 @@ fun NumberDetailsScreen(
                 )
                 InfoRow(label = "Spam reports", value = "${identity?.reports ?: 0}")
                 InfoRow(label = "Risk score", value = "${identity?.spamScore ?: 0} / 100")
+
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = { vm.appeal(primary) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !vm.appealing,
+                ) { Text("This is not spam") }
+                vm.appealMessage?.let { message ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             // ---- history with this number ----

@@ -134,3 +134,45 @@ Deletes the account and all server-side personal data. (Client-side not built.)
 | `ai/CloudAiClient.kt` | §1–§3 (wired, fails soft) |
 | (future) `data/remote/CallerLookupDataSource.kt` | §4 lookup |
 | (future) `data/remote/ReportDataSource.kt` | §4 reports |
+
+
+## Appeals and moderation
+
+Added at v0.33.0. Before this, `moderation_queue` had a writer and no reader:
+numbers were flagged for burst reporting and for crossing a threshold, and every
+flag went into a table nobody opened.
+
+### `POST /v1/appeals`
+
+App token. Files an appeal against a number being labelled as spam.
+
+```json
+{ "number": "+919876543210", "statement": "This is my own number." }
+```
+
+`statement` is optional — requiring one would stop the person most affected (whose
+own number is marked as spam) from filing at all.
+
+A second pending appeal from the same install about the same number **updates the
+statement rather than filing a duplicate**, so one source cannot bury the queue.
+
+The response is honest about what happens next:
+
+> "Appeal recorded. Nothing changes immediately — a person reviews it, and an
+> approved appeal clears the number's score."
+
+### `GET /v1/admin/moderation`
+
+Service token — **not** the app token, which is what every copy of the APK can
+obtain. Returns pending items **oldest first**, because a wrong label left standing
+for a week is worse than one left for an hour. The number is shown as a short
+digest, since the raw value is not stored.
+
+### `POST /v1/admin/moderation/{id}`
+
+Service token. `{"decision": "approved" | "rejected", "note": "..."}`
+
+**Approving clears the number's score and counts**, and closes the other pending
+flags on the same number. That is the part that makes this a workflow: without it
+the queue would record that a mistake was acknowledged and leave the mistake in
+place. Deciding an already-decided item is a `409`.

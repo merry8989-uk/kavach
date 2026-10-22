@@ -110,29 +110,32 @@ is visible.
 
 ---
 
-**A3 · The moderation queue is write-only**
+**A3 · The moderation queue is write-only** — *fixed in v0.33.0*
 
 - **Evidence:** `services/spam.py:182` writes `_flag_for_moderation(...)`; no router
   and no screen reads the table.
 - **Why it matters:** flagged numbers accumulate and nobody ever looks. Burst
   reporting — the abuse signal the phase asks for — is detected and then thrown
   away. This is a feature that reports success and does nothing.
-- **Work:** `GET /v1/admin/moderation` behind the service token, plus a decision
-  endpoint. An admin UI is optional; a working endpoint is not.
-- **Effort:** small. **Blocks:** A4.
+- **Fixed.** `GET /v1/admin/moderation` (service token) returns pending items
+  **oldest first**, and `POST /v1/admin/moderation/{id}` decides one. The queue is
+  now indexed on `(status, created_at)`, which is the order it is read in.
 
 ---
 
-**A4 · False-positive appeals are a column, not a flow**
+**A4 · False-positive appeals are a column, not a flow** — *fixed in v0.33.0*
 
 - **Evidence:** `scoring.py:26` takes a `false_positive_rate`; `models.py:245` has
   `user_appeal` in a comment. There is no way for a user to say "this is not spam".
 - **Why it matters:** the spec asks for it in Phase 5, and the review asked for it
   in item 7. A number wrongly labelled spam is a real harm, and right now the only
   remedy is to block it locally, which does not correct the shared record.
-- **Work:** `POST /v1/appeals`, feeding the moderation queue from A3, plus a
-  button on the number details screen.
-- **Effort:** small-medium. **Blocked by:** A3.
+- **Fixed.** `POST /v1/appeals` (app token) plus a **"This is not spam"** button
+  next to the risk score it disputes.
+
+  The part worth keeping is the **effect**: approving an appeal zeroes the
+  number's score and counts, so the next lookup returns a *different answer*
+  rather than a different status. A decision with no effect is a comment.
 
 ---
 
@@ -208,9 +211,17 @@ database that production would use.
 
 ### D. Hardening — making the machine trustworthy
 
-**D1 · No dependency vulnerability scanning.** The spec asks for it in Phases 13
-and 15. `pip-audit` for the backend and a Gradle dependency check are both cheap
-to add to CI. *Small.*
+**D1 · No dependency vulnerability scanning.** — *backend done in v0.33.0* The spec asks for it in Phases 13
+and 15. **Backend: done.** `pip-audit -r requirements.txt` is now a **gate** in Backend
+CI, not a report — a dependency with a published CVE stops the build. Verified
+locally: clean.
+
+**Android: still open, deliberately.** osv-scanner needs a Gradle **lockfile**,
+and this project has none. Adding `dependencyLocking` is a build change with real
+maintenance cost — the lockfile must be regenerated on every dependency bump, and
+a stale one breaks the build. Rather than add a check that cannot be verified from
+here, the gap is left stated: the app's dependency coverage is Android lint's
+`Obsolete Gradle Dependency` advisories, which report *age*, not vulnerabilities.
 
 **D2 · No instrumentation or UI tests.** Deliberately not written, because CI has
 no emulator — tests that never run are worse than no tests, since they look like

@@ -202,3 +202,52 @@ class AppRegisterResponse(BaseModel):
     token: str
     install_id: str
     expires_in: int | None = None
+
+
+# ---------------------------------------------------------------------------
+# Appeals and moderation (app/routers/appeals.py).
+# ---------------------------------------------------------------------------
+
+
+class AppealRequest(BaseModel):
+    """A user saying a number has been labelled wrongly.
+
+    Deliberately short. The number is what the appeal is about; the statement is
+    optional because requiring one would stop the people most affected — someone
+    whose own number is marked as spam — from filing at all.
+    """
+
+    number: str = Field(min_length=4, max_length=24)
+    statement: str | None = Field(default=None, max_length=1000)
+
+
+class AppealResponse(BaseModel):
+    accepted: bool
+    appeal_id: int | None = None
+    # Honest about what happens next: nothing is corrected instantly.
+    detail: str
+
+
+class ModerationItemView(BaseModel):
+    id: int
+    number: str | None = None
+    reason: str
+    detail: str | None = None
+    age_seconds: int
+    created_at: int
+
+
+class ModerationQueueResponse(BaseModel):
+    items: list[ModerationItemView]
+    pending_total: int
+
+
+class ModerationDecisionBody(BaseModel):
+    decision: str = Field(description="approved or rejected")
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ModerationDecisionResponse(BaseModel):
+    id: int
+    status: str
+    detail: str

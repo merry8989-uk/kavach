@@ -234,7 +234,15 @@ class ConsentEvent(Base):
 
 
 class ModerationItem(Base):
-    """Something a human should look at before it is published."""
+    """Something a human should look at before it is published.
+
+    Until v0.33.0 this table was **write-only**: `services/spam.py` flagged
+    numbers, and nothing anywhere read them. Burst reporting — the abuse signal
+    the spec asks for — was detected and then discarded, and a user had no way to
+    say a number had been labelled wrongly.
+
+    It now has a reader (`routers/appeals.py`) and a decision that has an effect.
+    """
 
     __tablename__ = "moderation_queue"
 
@@ -247,6 +255,19 @@ class ModerationItem(Base):
     # pending | approved | rejected
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[int] = mapped_column(BigInteger, default=0)
+
+    # What the person actually said. Free text, and the only place a user's own
+    # words are kept — so it is the only place that needs care on deletion.
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Who raised it, hashed. Used to stop one source filing the same appeal
+    # repeatedly, and to let an erasure request find its own rows. Never a raw
+    # identity.
+    appellant_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
+    resolved_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Kept so a decision can be explained later rather than being a bare status.
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class TelemetryEvent(Base):

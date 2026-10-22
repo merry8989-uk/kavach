@@ -29,6 +29,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # Known-vulnerability scan against the pinned requirements. This is the
+      # check the spec asks for in Phases 13 and 15, and it is a gate rather than
+      # a report: a dependency with a published CVE should stop the build, not
+      # appear in a log nobody reads.
+      - name: Audit dependencies for known vulnerabilities
+        run: |
+          pip install --quiet pip-audit
+          pip-audit -r requirements.txt --no-deps --disable-pip
+
       - name: Run tests
         run: pytest -q
 

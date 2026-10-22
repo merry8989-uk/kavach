@@ -135,3 +135,24 @@ data class ContributeDto(
     val name: String,
     val evidence: String? = null,
 )
+
+
+/**
+ * An appeal against a number being labelled as spam.
+ *
+ * The statement is optional on purpose: someone whose own number has been marked
+ * as spam is the person most affected and least likely to want to write an essay
+ * to get it fixed.
+ */
+@Serializable
+data class AppealRequestDto(
+    val number: String,
+    val statement: String? = null,
+)
+
+@Serializable
+data class AppealResponseDto(
+    val accepted: Boolean = false,
+    @SerialName("appeal_id") val appealId: Int? = null,
+    val detail: String = "",
+)

@@ -92,6 +92,23 @@ class KavachApiClient @Inject constructor(
         )
     }
 
+    /**
+     * Tell the server a number has been labelled wrongly.
+     *
+     * Nothing changes immediately — a person reviews it, and an approved appeal
+     * clears the number's score. The response says so in as many words rather
+     * than implying an instant fix.
+     */
+    suspend fun submitAppeal(number: String, statement: String? = null): AppealResponseDto? {
+        val url = baseUrl() ?: return null
+        return post(
+            "$url/v1/appeals",
+            AppealRequestDto(number = number, statement = statement),
+            AppealRequestDto.serializer(),
+            AppealResponseDto.serializer(),
+        )
+    }
+
     suspend fun suggestName(number: String, name: String, evidence: String? = null): CorrectionResponseDto? {
         val url = baseUrl() ?: return null
         return post(
