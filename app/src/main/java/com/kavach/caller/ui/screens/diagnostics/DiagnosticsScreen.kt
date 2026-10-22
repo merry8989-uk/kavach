@@ -30,6 +30,7 @@ import com.kavach.caller.data.diagnostics.EventSchema
 import com.kavach.caller.data.diagnostics.ExportFormat
 import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogLevel
+import com.kavach.caller.data.secure.SecretStore
 import com.kavach.caller.data.telemetry.SupabaseUploader
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
