@@ -1,209 +1,98 @@
 # Kavach — Implementation Status
 
-**As of release v0.7.0.**
+**As of release v0.30.0.**
 
-Status: **NOT_STARTED · IN_PROGRESS · IMPLEMENTED · VERIFIED · BLOCKED**
+Status vocabulary: **NOT_STARTED · IN_PROGRESS · IMPLEMENTED · VERIFIED · BLOCKED · EXCLUDED**
 
 > ### Read this first
-> **No app feature is VERIFIED.** The Android app has never been run on a device or
-> emulator — the build environment contains no Android SDK and no device. Everything
-> marked IMPLEMENTED compiles and passes CI, which is *not* the same as working.
+> **No app feature is VERIFIED.**
 >
-> **The backend IS verified.** Its 40 tests were executed locally and in CI, and the
-> Alembic migration was round-tripped (`upgrade → downgrade → upgrade`).
+> The Android app has never been run on a device or emulator. Everything marked
+> IMPLEMENTED compiles, passes 136 unit tests, passes Android lint with zero
+> errors, and ships as a signed APK — which is *not* the same as working.
+>
+> The spec is explicit: *"Do not mark a feature VERIFIED based solely on
+> compilation."*
+>
+> What changed at v0.30.0 is that this is no longer a blanket caveat. There is
+> now a **self-test** in the app that checks what it can on the device, and a
+> **15-item manual checklist** in `docs/DEVICE-VALIDATION.md` for what only a
+> person can settle. The unverified list is finite and written down.
+>
+> **The backend IS verified**, to the extent that 125 tests against SQLite and a
+> migration round trip can verify it. It has never run against PostgreSQL in
+> production, and it is not deployed.
+
+---
 
 ## 1. Counts
 
-| Status | Features |
+| | Count |
 |---|---|
-| IMPLEMENTED | 42 |
-| IN_PROGRESS | 16 |
-| NOT_STARTED | 26 |
-| BLOCKED (client not wired to backend) | 4 |
-| VERIFIED (app, on-device) | **0** |
-| VERIFIED (backend) | **all 40 tests** |
+| Screens | 23 |
+| Services | 13 |
+| Backend routers | 10 |
+| App unit tests | 136 |
+| Backend tests | 125 |
+| Documents | 19 |
+| Releases shipped | v0.10.0 → v0.30.0 |
+| **VERIFIED (app, on-device)** | **0** |
+| VERIFIED (backend, CI) | 125 tests |
 
-## 2. Reconstruction pass (v0.7.0)
+## 2. Phase status
 
-This release restructured the project to conform to the master specification.
+| Phase | Subject | State |
+|---|---|---|
+| 0 | Repo audit and product plan | IMPLEMENTED — all eight documents present |
+| 1 | Application foundation | IN_PROGRESS — no home dashboard |
+| 2 | Permissions and Android integration | **IN_PROGRESS — violates the spec's contextual rule** |
+| 3 | Caller identification engine | IMPLEMENTED |
+| 4 | Live screening and caller UI | IMPLEMENTED — 2.5 s deadline, fails open |
+| 5 | Spam detection and blocker | IN_PROGRESS — no appeal flow |
+| 6 | Dialer, contacts, call history | IMPLEMENTED |
+| 7 | Reverse search and business directory | IN_PROGRESS — no search history; moderation is write-only |
+| 8 | SMS spam protection | IMPLEMENTED |
+| 9 | Recording and call notes | IMPLEMENTED — encrypted at rest, quota, consent gate |
+| 10 | Advanced AI | IN_PROGRESS — transcription real; pattern detection and accuracy measurement not started |
+| 11 | Premium and subscriptions | **EXCLUDED** — the product is free by instruction |
+| 12 | Feature control centre | IMPLEMENTED |
+| 13 | Security, privacy, backend | IN_PROGRESS — no dependency vulnerability scan |
+| 14 | UI quality and personalisation | IN_PROGRESS — no motion setting |
+| 15 | Testing and device validation | IN_PROGRESS — see section 3 |
+| 16 | Release and delivery | IMPLEMENTED |
 
-**Backend — built from nothing (`backend/`)**
-- FastAPI + SQLAlchemy 2.0 + PostgreSQL (SQLite for dev/tests) + Alembic.
-- Implements `docs/API_CONTRACT.md`: lookup, reputation, business search, reports,
-  identity corrections, privacy/deletion, and the three AI endpoints.
-- **40 tests, all passing**, covering normalisation, scoring (caps, verified-business
-  cap, false-positive discount, bounds), lookup (explicit no-result, source-trust
-  ordering, auth), report deduplication, correction moderation, pagination,
-  account deletion, and the AI endpoints' honest `503`.
-- Alembic migration verified with a full round trip; 6 tables, 9 indexes.
-- Dockerfile + docker-compose (Postgres + Redis + API), `.env.example`, own CI job.
+## 3. What is not verified, precisely
 
-**App — Clean Architecture and the missing spec dependencies**
-- New `domain/` layer: `model/CallerIdentity` (moved out of `ai/`) and five use cases
-  (`DecideCallAction`, `IdentifyCaller`, `SaveContact`, `SyncContacts`,
-  `CheckForUpdates`). Cross-source logic now lives in use cases: the screening
-  service, `ContactsViewModel` and `UpdateViewModel` call them instead of touching
-  repositories directly.
-- `SaveContactUseCase` adds real validation (name-or-number required, minimum
-  subscriber length) that is unit-tested and cannot be bypassed by the UI.
-- **WorkManager is now used**: `CallLogSyncWorker` (every 6 h, network-constrained)
-  and `CacheCleanupWorker` (daily 30-day retention), scheduled from `KavachApp`.
-  Dependencies come from a Hilt entry point, so WorkManager keeps its default
-  initialiser.
-- **Coil** added and used for real device contact photos, with a monogram fallback.
-- **MockK + kotlinx-coroutines-test** added; use-case tests written.
+Nineteen features cannot be settled without a device. They are listed with exact
+steps in `docs/DEVICE-VALIDATION.md`; the app's self-test lists the same set under
+"Needs a device".
 
-## 2b. Phase 6 completed (v0.10.0)
+Incoming-call screen · blocking actually blocks · silence actually silences ·
+announcement audible · recording captures and plays back · recording encrypted on
+disk · dialer usable as the default dialer · SMS sending · OTP detection on a real
+message · phishing warning on a real message · Arattai and Hyped opening ·
+Hindi across every screen · update check · diagnostics export · emailing the log.
 
-Dialer / contacts / call history are no longer partial:
+## 4. Known limitations, stated plainly
 
-- **Favourites** — star toggle in the editor and on the detail screen, a favourites
-  strip on the dialer, a Favourites section and filter chip in Contacts.
-- **Speed dial** — slots 2-9 in a new `speed_dial` table; long-press a keypad digit to
-  call the assigned number, or pick a contact to assign one. Slot 1 stays voicemail.
-- **Missed-call reminders** — an enriched notification with the caller's name and a
-  one-tap call-back action, toggleable in Settings.
-- **Per-contact ringtone** — chosen via the system ringtone picker and written to the
-  device contact (`CUSTOM_RINGTONE`).
-- **Call history** — grouped into Today / Yesterday / dated sections, with filters,
-  direction icons, duration and pagination ("Load more").
-- **Contact detail screen** — full profile, quick actions (call/message), numbers,
-  work, notes, ringtone, and the recent interaction timeline.
+- **Two-way call recording is not possible** for an ordinary Android app, and the
+  app says so rather than implying otherwise. It records the microphone.
+- **The backend is not deployed.** Nothing the app does depends on it now that
+  diagnostics are local.
+- **Truecaller's public search has no shareable URL** — verified — so the lookup
+  action opens the site and copies the number, with a note.
+- **SMS delete only works as the default SMS app.**
+- **Video calling is unimplemented** and says so.
+- **Arattai and Hyped have no documented deep link carrying a phone number.**
+- **Hindi has not been read by a native reviewer.**
 
-Schema: DB v4 (adds `contacts_enriched.ringtoneUri` and the `speed_dial` table) with a
-v3->v4 migration.
+## 5. Where the detail is
 
-## 2c. Phase 12 completed (v0.11.0) — feature registry (F16)
-
-- `domain/feature/` adds `FeatureId` (10 modules with category, default state, essential
-  flag, required permissions, required Android role, dependencies), `FeatureState` /
-  `FeatureStatus` (ENABLED / DISABLED / UNAVAILABLE / DEGRADED) and `FeatureRegistry`
-  (capability checks, enable-blocking reasons, persisted overrides).
-- Overrides persist in DataStore as `FEATURE_NAME=true` entries, so the registry stays
-  forward-compatible as features are added.
-- A **Features screen** shows each module's live status and the exact reason it cannot run.
-- Background components consult the registry, so a disabled module genuinely stops working
-  (screening short-circuits, recording is not started, the sync worker is cancelled).
-- The four previously scattered toggles were folded into the registry.
-- **SMS role bug fixed** — the onboarding no longer offers `ROLE_SMS`, which Android could
-  never grant because Kavach declares no SMS intent filters.
-
-Remaining F16 items: a global battery-saver mode, data-saver mode, an offline-only lookup
-switch and cache-size controls. These are settings, not blockers.
-
-## 2d. Backend wiring (v0.13.0)
-
-The client is now wired to the API contract:
-
-- `data/remote/KavachApiClient` — lookup, reputation, business search, report, correction.
-- `data/remote/CallerLookupDataSource` — 10-minute cache, bounded to 200 entries.
-- `IdentifyCallerUseCase` — contacts -> server -> heuristics; never invents a name.
-- `FeatureId.REMOTE_LOOKUP` — reports **Unavailable** ("No Kavach server is configured")
-  until a server URL is set, so nothing fails silently.
-- Server URL and token live in Settings; **no hosted backend is shipped**.
-
-Still open: the backend is not deployed anywhere, so none of this has been exercised
-against a live server. The client compiles and is unit-tested; end-to-end remains unverified.
-
-## 2e. Consent-based database (v0.14.0)
-
-Built to `docs/CALLER-ID-PLAN.md`, which is now bundled in the app.
-
-| Layer | Tables | Endpoints |
-|-------|--------|-----------|
-| Crowd-sourced names | `numbers`, `name_entries` | `POST /v1/me/contributions` |
-| Consent-based profile | `users`, `profiles`, `consent_events` | `/v1/auth/otp/*`, `GET|PUT|DELETE /v1/me`, `GET /v1/me/consent` |
-| Spam flagging | `spam_reports`, `spam_scores`, `moderation_queue` | `POST /v1/me/reports`, `GET /v1/numbers/{n}/reports` |
-
-- Numbers are stored only as `HMAC_SHA256(pepper, e164)`; a test asserts no raw
-  number appears in the consent tables.
-- `services.names.best_publishable_name` is the single gate: only `self_declared`
-  and `business` names are ever returned.
-- Auth is OTP -> HS256 JWT, implemented without extra dependencies (`jwtutil.py`).
-- Alembic `0002_consent_layer` adds all eight tables; the upgrade/downgrade
-  round trip is verified.
-- 21 new backend tests (61 total).
-
-**Not done:** no SMS gateway, so OTPs are not delivered (dev echo only); the
-backend is not deployed, so none of it has run end to end.
-
-## 3. What exists and compiles (app)
-
-**Foundation** — single-activity Compose, Material 3, 5 tabs + stacked routes, Hilt DI,
-Room v2 (5 tables, migration 1→2), DataStore settings, 5 theme packs, CI + signed
-auto-release.
-
-**Protection** — `KavachScreeningService` (Block/Silence/Send-to-AI/Allow),
-`RuleMatcher` (8 rule types, unit-tested), `KavachInCallService`, `Announcer` (5 modes).
-
-**Communication** — dialer (keypad, T9, dual-SIM, caller-ID preview), contacts
-(read/sync/add/edit/delete with device write-back), call log (idempotent mirror,
-filters), SMS threads + send, recordings playback.
-
-**Intelligence** — `PhoneUtils` normalisation, local-first lookup, `SpamScorer`
-(heuristics, unit-tested), `OnDeviceScreener` (**keyword rules, not a model**).
-
-**Assistant** — `CallAssistantService` (answer → consent → greeting → capture →
-transcribe → brief), `AssistantOrchestrator`, `CallBriefNotifier`.
-
-**Platform** — first-run guided setup (permissions + dialer/caller-ID roles),
-in-app update checker, WorkManager jobs.
-
-## 4. What is partial, and exactly how
-
-| Area | Reality |
+| Question | Document |
 |---|---|
-| Recording | Capture works via fallback sources; **two-way audio unverified**. No encryption, quota, consent beep or region gating. |
-| AI | Orchestration is real; the **backend now exists but the client is not wired to it**, so cloud paths still return placeholders. Dialogue policy and auto-SMS not built. |
-| Caller ID | Local + heuristic only. The backend can serve remote lookups; the client does not call it yet, and there is no data in the database. |
-| Blocking | Rule engine + screening work; SMS blocking, schedules, post-call prompt not built. |
-| Contacts | CRUD + photos work; import/export and a full detail screen not built. |
-| Settings | Real and persisted, but **no central feature registry (F16)** — modules cannot be independently disabled and there is no per-feature capability reporting. |
-| Themes | 5 packs work; motion, reduced-animation and Hindi localisation not built. |
-| Premium | **None, by design.** Kavach is free: no subscriptions, no paywall, no entitlements. |
-
-## 5. Blocked (client not wired to the backend)
-
-| Feature | Blocked on |
-|---|---|
-| Remote caller lookup (F9.3) | Client integration with the backend |
-| Crowdsourced tags (F9.4) | Same, plus data |
-| Business directory (F9.6) | Same |
-| Spam reputation from server (F9.5 remote half) | Same |
-
-The **server side of all four now exists and is tested**; only the Android client's
-`data/remote/` layer is missing.
-
-## 6. Honest claims audit
-
-| Claim | Verdict |
-|---|---|
-| "Assistant that takes the call first" | Accurate for the plumbing; transcription needs the backend wired up. Stated in the README. |
-| `OnDeviceScreener` described as AI | **It is keyword rules.** Labelled as such in code, README and here. |
-| "Call recording" | Stated with its Android 10+ restriction and per-device caveat. |
-| Backend "works" | Backed by 40 executed tests and a verified migration. |
-| Anything device-verified | **Nothing.** Stated at the top of this document. |
-
-## 7. Environment limitations
-
-1. No Android SDK/Gradle in the working sandbox → app builds run only in GitHub Actions.
-2. No emulator or device → no instrumentation, no Compose UI tests, no call testing.
-3. No hosting → the backend cannot be deployed or end-to-end tested from the app.
-4. OEM-specific behaviour (MIUI, One UI) cannot be exercised.
-
-## 8. Next phase
-
-Per the spec's workflow, the next incomplete phase is **Phase 12 — the central feature
-registry (F16)**: stable feature IDs, required permission/role, runtime
-capability check, failure reason, and independent enable/disable per module. It needs
-no backend and unblocks the spec's rule that every setting must control real behaviour.
-
-Ordered plan after that:
-1. ~~F16 feature registry~~ — **done in v0.11.0**.
-2. **Wire the Android client to the backend** — a `data/remote/` layer + `CallerLookupDataSource`, closing the four BLOCKED items.
-3. **Security hardening** — SQLCipher + EncryptedFile (highest-risk gap).
-4. ~~Phase 4 caller UI + Phase 6 remainder~~ — **done** (v0.9.0 / v0.10.0).
-5. **Phase 9** — recording capability assessment in the UI, encryption, quota, consent.
-6. ~~Phase 11 — billing~~ — **cancelled**: Kavach is free.
-7. **Testing** — Room migration tests, Compose UI smoke tests, lint in CI.
-8. **Device verification** — run `TEST_PLAN.md` on real hardware; promote to VERIFIED.
+| What is pending, and in what order? | `docs/AUDIT-AND-PLAN.md` |
+| How do I check it on a device? | `docs/DEVICE-VALIDATION.md` |
+| How is logging meant to work? | `docs/LOGGING_STANDARD.md` |
+| How does authentication work? | `docs/APP-AUTH.md` |
+| How do I deploy the server? | `docs/SERVER_DEPLOY.md` |
+| What is the API? | `docs/API_CONTRACT.md` |

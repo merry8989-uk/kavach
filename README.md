@@ -50,9 +50,14 @@ brief.
 | **Caller lookup** | Send a number to WhatsApp, WhatsApp Business, Telegram, Arattai, Hyped, mail, Google, or Caller Name (truecallers.in) |
 | **Diagnostics** | Opt-in local technical log with masked numbers, readable and shareable from Settings |
 
-> **Verification status: nothing here is device-verified.** The project compiles and
-> passes CI, but it has never been run on a phone or emulator. See
-> [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+> **Verification status: nothing here is device-verified.** The project compiles,
+> passes 136 unit tests, passes Android lint with zero errors, and ships signed —
+> but it has never been run on a phone or emulator, and the spec is explicit that
+> compilation is not verification. The app now carries a **self-test** that checks
+> what it can on the device, and the remaining list is 15 checks in
+> [`docs/DEVICE-VALIDATION.md`](docs/DEVICE-VALIDATION.md).
+>
+> **What is pending, and in what order:** [`docs/AUDIT-AND-PLAN.md`](docs/AUDIT-AND-PLAN.md).
 
 ## Docs
 
