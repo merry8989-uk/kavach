@@ -129,7 +129,10 @@ fun SelfTestScreen(
     }
 }
 
-@Composable
+/**
+ * Not @Composable: this is a LazyListScope builder. The composables live inside
+ * the `item { }` and `items { }` lambdas, which are composable contexts.
+ */
 private fun androidx.compose.foundation.lazy.LazyListScope.section(
     title: String,
     checks: List<SelfTest.Check>,
