@@ -16,6 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
+    private val registration: com.kavach.caller.data.remote.AppRegistration,
     private val callStateMonitor: CallStateMonitor,
     /** Exposed so the nav graph can gate work on the feature registry (F16). */
     val features: FeatureRegistry,
@@ -53,6 +54,28 @@ class SettingsViewModel @Inject constructor(
     fun setDiagnosticsEnabled(value: Boolean) = viewModelScope.launch { repo.setDiagnosticsEnabled(value) }
     fun setOfflineOnly(value: Boolean) = viewModelScope.launch { repo.setOfflineOnly(value) }
     fun setDataSaver(value: Boolean) = viewModelScope.launch { repo.setDataSaver(value) }
+    /**
+     * Whether this install has its own token yet.
+     *
+     * Read synchronously from the secret store: it is one preference lookup, and
+     * a status line that arrives a frame late is worse than one that is simply
+     * correct.
+     */
+    val installRegistered: Boolean get() = registration.isRegistered()
+
+    fun registerInstall() = viewModelScope.launch {
+        registration.forget()
+        registration.ensureRegistered()
+        installMessage = if (registration.isRegistered()) {
+            "Registered. This install now has its own token."
+        } else {
+            "Could not register. Check the server URL and the shared token."
+        }
+    }
+
+    var installMessage by androidx.compose.runtime.mutableStateOf<String?>(null)
+        private set
+
     fun setSmsWarnOnLinks(value: Boolean) = viewModelScope.launch { repo.setSmsWarnOnLinks(value) }
     fun setSmsWarnOnSpam(value: Boolean) = viewModelScope.launch { repo.setSmsWarnOnSpam(value) }
     fun setSmsShowOtpBanner(value: Boolean) = viewModelScope.launch { repo.setSmsShowOtpBanner(value) }

@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import AuditLog, ConsentRecord, Correction, Report
+from ..models import AuditLog, ConsentRecord, Correction, Report, User
 from ..schemas import DeletionResponse, PrivacyResponse
-from ..security import actor_hash, require_token
+from ..security import require_app_token, require_user
 
 router = APIRouter(tags=["account"])
 
@@ -20,7 +20,7 @@ DATA_FLOWS = [
 
 
 @router.get("/v1/account/privacy", response_model=PrivacyResponse)
-def privacy(_token: str = Depends(require_token)) -> PrivacyResponse:
+def privacy(_install: str = Depends(require_app_token)) -> PrivacyResponse:
     return PrivacyResponse(
         dataFlows=DATA_FLOWS,
         retention="Reports are retained for 24 months, then aggregated and anonymised.",
@@ -32,14 +32,29 @@ def privacy(_token: str = Depends(require_token)) -> PrivacyResponse:
 @router.delete("/v1/account", response_model=DeletionResponse)
 def delete_account(
     db: Session = Depends(get_db),
-    token: str = Depends(require_token),
+    user: User = Depends(require_user),
 ) -> DeletionResponse:
-    """Delete everything attributable to the caller.
+    """Delete everything attributable to the signed-in user.
 
-    Numbers other users reported are not deleted (they are not this actor's
-    data), but this actor's reports, corrections and consent records are.
+    Scoped to the **user**, not to the app. Before this, the endpoint used the
+    shared service token as the actor — and because that token was identical on
+    every device, `actor_hash(token)` was one value for everybody. A single
+    user's deletion request therefore deleted **every app user's reports at
+    once**. That is the kind of bug that is invisible until someone checks, and
+    it is why the app token and the user token are now separate things.
+
+    What is removed: the profile, the published name, consent records, the user's
+    own corrections, and reports attributed to the user's own identity.
+
+    What is not: reports attributed to an *install* rather than an account. Those
+    are deliberately anonymous — tying one back to a person at deletion time
+    would create exactly the linkage the design avoids, and the user never had a
+    way to see them as theirs.
     """
-    actor = actor_hash(token)
+    # Scoped to the signed-in user, not to the app. The whole point of separating
+    # the two tokens is that the app token proves *what* is calling and the user
+    # token proves *who*.
+    actor = user.phone_hash
 
     # Order matters, and it used to be wrong. The corrections lookup was a
     # subquery over the reporter's own reports — but the reports were deleted on

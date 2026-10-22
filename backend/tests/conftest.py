@@ -5,6 +5,8 @@ request sessions and the seeding session use separate connections.
 """
 import os
 
+os.environ.setdefault("ALLOW_SHARED_TOKEN", "true")
+
 # Must be set before the app package is imported.
 os.environ["AUTO_CREATE_TABLES"] = "false"
 os.environ["API_TOKEN"] = "test-token"

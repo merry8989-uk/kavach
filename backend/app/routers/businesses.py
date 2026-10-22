@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import Business
 from ..schemas import BusinessResult, BusinessSearchResponse
-from ..security import rate_limit, require_token
+from ..security import rate_limit, require_app_token
 
 router = APIRouter(tags=["businesses"])
 
@@ -17,7 +17,7 @@ def search(
     page: int = Query(default=1, ge=1),
     pageSize: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
 ) -> BusinessSearchResponse:
     query = db.query(Business).filter(Business.name.ilike(f"%{q}%"))

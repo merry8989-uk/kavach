@@ -8,7 +8,7 @@ from ..models import NumberIdentity
 from ..normalizer import is_valid_e164, to_e164
 from ..scoring import ReputationInput, compute_reputation, detect_patterns
 from ..schemas import LookupResponse, ReputationResponse
-from ..security import rate_limit, require_token
+from ..security import rate_limit, require_app_token
 from ..services.identity import freshness, resolve
 
 router = APIRouter(tags=["caller-id"])
@@ -18,7 +18,7 @@ router = APIRouter(tags=["caller-id"])
 def lookup(
     number: str = Query(..., min_length=3, max_length=24),
     db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
     settings: Settings = Depends(get_settings),
 ) -> LookupResponse:
@@ -69,7 +69,7 @@ def lookup(
 def reputation(
     number: str = Query(..., min_length=3, max_length=24),
     db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
     settings: Settings = Depends(get_settings),
 ) -> ReputationResponse:

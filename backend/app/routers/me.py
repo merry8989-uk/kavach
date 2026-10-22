@@ -25,7 +25,7 @@ from ..schemas import (
     ReportRequest,
     ReportResponse,
 )
-from ..security import rate_limit, require_token, require_user
+from ..security import rate_limit, require_app_token, require_user
 from ..services import consent, names, spam
 
 router = APIRouter(tags=["me"])
@@ -164,7 +164,7 @@ def contribute_name(
 def number_reports(
     number: str,
     db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
 ) -> NumberReportsResponse:
     """Aggregate report counts for a number. Never reveals who reported."""

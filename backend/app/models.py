@@ -282,3 +282,31 @@ class TelemetryEvent(Base):
 
     pushed_to_notion: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     notion_error: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class AppInstall(Base):
+    """One registered install of the app.
+
+    The app used to ship a single shared bearer token for every device. An APK is
+    trivially decompilable, so that token was effectively public: anyone holding
+    it had the whole API, and revoking it meant breaking every user at once.
+
+    Now the shared token is only a **bootstrap**: it can do exactly one thing,
+    register an install, and it is rate-limited while doing it. Everything else
+    needs the token issued here, which belongs to one install and can be revoked
+    on its own.
+    """
+
+    __tablename__ = "app_installs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    install_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    # Only the hash is stored, so a database leak does not hand out working tokens.
+    token_hash: Mapped[str] = mapped_column(String(64), index=True)
+    platform: Mapped[str] = mapped_column(String(16), default="android")
+    app_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[int] = mapped_column(BigInteger)
+    last_seen_at: Mapped[int] = mapped_column(BigInteger)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Hashed, never raw — enough to spot one source minting installs in bulk.
+    registration_ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)

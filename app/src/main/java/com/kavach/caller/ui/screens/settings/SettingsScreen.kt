@@ -220,6 +220,40 @@ fun SettingsScreen(
             },
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.save_server_settings)) }
+
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (vm.installRegistered) {
+                        "This install is registered"
+                    } else {
+                        "This install is not registered yet"
+                    },
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    if (vm.installRegistered) {
+                        "It has its own token, so it can be cut off on the server without " +
+                            "affecting anyone else."
+                    } else {
+                        "Save a server URL and the shared token above; Kavach exchanges it for " +
+                            "a token belonging to this install only."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(onClick = { vm.registerInstall() }) { Text("Register") }
+        }
+        vm.installMessage?.let { msg ->
+            Text(
+                msg,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         Text(
             "Kavach ships no hosted backend. Point it at your own deployment " +
                 "(see backend/ in the repository) to turn on online caller lookup and reporting. " +

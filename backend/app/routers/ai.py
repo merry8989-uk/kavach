@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..config import Settings, get_settings
-from ..security import rate_limit, require_token
+from ..security import rate_limit, require_app_token
 
 router = APIRouter(tags=["ai"])
 
@@ -76,7 +76,7 @@ async def _post(url: str, key: str | None, payload: dict) -> dict:
 @router.post("/v1/transcribe", response_model=TranscribeResponse)
 async def transcribe(
     payload: TranscribeRequest,
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
     settings: Settings = Depends(get_settings),
 ) -> TranscribeResponse:
@@ -95,7 +95,7 @@ async def transcribe(
 @router.post("/v1/summarise", response_model=CallBrief)
 async def summarise(
     payload: SummariseRequest,
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
     settings: Settings = Depends(get_settings),
 ) -> CallBrief:
@@ -111,7 +111,7 @@ async def summarise(
 @router.post("/v1/dialogue", response_model=DialogueResponse)
 async def dialogue(
     payload: DialogueRequest,
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
     settings: Settings = Depends(get_settings),
 ) -> DialogueResponse:

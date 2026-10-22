@@ -176,3 +176,29 @@ class TelemetryAck(BaseModel):
     # turning the response into a log dump.
     reasons: list[str] = []
 
+
+
+# ---------------------------------------------------------------------------
+# Per-install app registration (app/routers/app_auth.py).
+# ---------------------------------------------------------------------------
+
+
+class AppRegisterBody(BaseModel):
+    """What an install tells the server about itself.
+
+    `install_id` is generated on the device and stays there. It is not a device
+    identifier — it is a random value the app makes once, so the server can tell
+    two installs apart without knowing anything about the phone.
+    """
+
+    install_id: str = Field(min_length=8, max_length=64)
+    platform: str = Field(default="android", max_length=16)
+    app_version: str | None = Field(default=None, max_length=32)
+
+
+class AppRegisterResponse(BaseModel):
+    """The install's own token. Shown once, then only its hash is kept."""
+
+    token: str
+    install_id: str
+    expires_in: int | None = None

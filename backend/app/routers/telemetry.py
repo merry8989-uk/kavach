@@ -17,7 +17,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..models import TelemetryEvent
 from ..schemas import TelemetryAck, TelemetryBatch
-from ..security import rate_limit, require_token
+from ..security import rate_limit, require_app_token
 
 router = APIRouter(tags=["telemetry"])
 
@@ -28,7 +28,7 @@ MAX_REASONS = 5
 def ingest(
     payload: TelemetryBatch,
     db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
 ) -> TelemetryAck:
     accepted = 0
@@ -82,7 +82,7 @@ def ingest(
 def purge(
     keep_days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
+    _token: str = Depends(require_app_token),
 ) -> dict:
     """Enforce the retention policy on stored telemetry."""
     cutoff = int(time.time()) - keep_days * 24 * 60 * 60

@@ -95,8 +95,7 @@ class TelemetryUploader @Inject constructor(
                 .url("$base/v1/telemetry/events")
                 .header("Content-Type", "application/json")
                 .apply {
-                    settings.snapshot.backendToken
-                        .takeIf { it.isNotBlank() }
+                    registration.token()
                         ?.let { header("Authorization", "Bearer $it") }
                 }
                 .post(payload.toString().toRequestBody(JSON_MEDIA))

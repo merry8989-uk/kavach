@@ -9,7 +9,7 @@ from ..models import AuditLog, Correction, NumberIdentity, Report
 from ..normalizer import is_valid_e164, to_e164
 from ..schemas import CorrectionRequest, CorrectionResponse, ReportRequest, ReportResponse
 from ..scoring import ReputationInput, compute_reputation, detect_patterns
-from ..security import actor_hash, rate_limit, require_token
+from ..security import actor_hash, rate_limit, require_app_token
 from ..services.identity import resolve
 
 router = APIRouter(tags=["reports"])
@@ -23,7 +23,7 @@ DEDUPE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
 def create_report(
     payload: ReportRequest,
     db: Session = Depends(get_db),
-    token: str = Depends(require_token),
+    token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
 ) -> ReportResponse:
     e164 = to_e164(payload.number)
@@ -93,7 +93,7 @@ def create_report(
 def create_correction(
     payload: CorrectionRequest,
     db: Session = Depends(get_db),
-    token: str = Depends(require_token),
+    token: str = Depends(require_app_token),
     _rl: None = Depends(rate_limit),
 ) -> CorrectionResponse:
     e164 = to_e164(payload.number)

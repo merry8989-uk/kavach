@@ -31,6 +31,7 @@ import javax.inject.Singleton
 class KavachApiClient @Inject constructor(
     okHttp: OkHttpClient,
     private val settings: SettingsRepository,
+    private val registration: AppRegistration,
     private val diagnostics: DiagnosticsRepository,
 ) {
     private val http: OkHttpClient = okHttp.newBuilder()
@@ -105,15 +106,23 @@ class KavachApiClient @Inject constructor(
     // ---------------- plumbing ----------------
 
     /**
-     * Two kinds of auth: the shared service token for lookup/report endpoints,
-     * and a per-user JWT for anything acting on the user's own record.
+     * Two kinds of auth, and they mean different things:
+     *
+     *  - **this install's own token** for lookup, reports and telemetry. It
+     *    proves *what* is calling, and the server can revoke one install without
+     *    touching anybody else.
+     *  - **a per-user JWT** for anything acting on the user's own record —
+     *    profile, consent, deletion. It proves *who*.
+     *
+     * The shared bootstrap token is only used before registration has happened,
+     * because registering is the one thing it is for.
      */
     private fun newRequest(url: String, userToken: String? = null): Request.Builder {
         val builder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
         val bearer = userToken?.takeIf { it.isNotBlank() }
-            ?: settings.snapshot.backendToken.takeIf { it.isNotBlank() }
+            ?: registration.token()
         bearer?.let { builder.header("Authorization", "Bearer $it") }
         return builder
     }

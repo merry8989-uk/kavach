@@ -20,6 +20,7 @@ def _settings(**overrides) -> Settings:
         otp_debug_return=False,
         # Production cannot deliver an OTP without a gateway, so a complete
         # configuration now includes one.
+        allow_shared_token=False,
         sms_provider="msg91",
         sms_api_key="k",
         sms_sender_id="KAVACH",
@@ -51,6 +52,7 @@ def test_development_environment_is_recognised():
         ({"database_url": "sqlite:///./kavach.db"}, "SQLite"),
         ({"otp_debug_return": True}, "OTP_DEBUG_RETURN"),
         ({"sms_provider": "none"}, "SMS provider"),
+        ({"allow_shared_token": True}, "ALLOW_SHARED_TOKEN"),
     ],
 )
 def test_each_unsafe_value_is_caught(overrides, expected):

@@ -10,7 +10,11 @@ import time
 
 from fastapi import Depends, Header, HTTPException
 
+from sqlalchemy.orm import Session
+
 from .config import Settings, get_settings
+from .db import get_db
+from .models import AppInstall
 
 def reset_rate_limiter() -> None:
     """Test helper. Clears whichever limiter is live."""
@@ -31,12 +35,59 @@ def require_token(
     authorization: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
 ) -> str:
+    """Deprecated: the shared token, accepted anywhere.
+
+    Kept only for the development escape hatch. `require_app_token` is what
+    endpoints should use, because it identifies *which* install is calling.
+    """
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="missing bearer token")
     token = authorization.split(" ", 1)[1].strip()
     if not secrets.compare_digest(token, settings.api_token):
         raise HTTPException(status_code=403, detail="invalid token")
     return token
+
+
+def require_app_token(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> str:
+    """Identify the calling install, or refuse.
+
+    Accepts a **per-install** token (the normal case) and, only when
+    `ALLOW_SHARED_TOKEN` is on, the shared bootstrap token as well. That flag
+    exists so the pre-registration client contract keeps working in development;
+    the production guard refuses to start with it enabled.
+
+    Returns the install id, so an endpoint can tell callers apart and a single
+    install can be cut off without touching anyone else.
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    install = (
+        db.query(AppInstall)
+        .filter(AppInstall.token_hash == digest)
+        .filter(AppInstall.revoked.is_(False))
+        .one_or_none()
+    )
+    if install is not None:
+        install.last_seen_at = int(time.time())
+        db.flush()
+        return install.install_id
+
+    # Not a known install. The shared token is only honoured when explicitly
+    # allowed, and never in production.
+    if settings.allow_shared_token and secrets.compare_digest(token, settings.api_token):
+        return "shared"
+
+    raise HTTPException(
+        status_code=403,
+        detail="unknown install token; register at /v1/app/register",
+    )
 
 
 def rate_limit(

@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # Bearer token for the API. MUST be overridden in production.
     api_token: str = "dev-token"
 
+    # Development escape hatch: accept the shared token on every endpoint, which
+    # is what the pre-registration contract did. Never on in production — the
+    # production guard refuses it.
+    allow_shared_token: bool = False
+
     # Requests per minute per token for rate-limited endpoints.
     rate_limit_per_minute: int = 60
 
@@ -66,6 +71,11 @@ class Settings(BaseSettings):
     sms_from: str = ""
 
     @property
+    def bootstrap_token(self) -> str:
+        """The shared token, used only to register an install."""
+        return self.api_token
+
+    @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in {"production", "prod"}
 
@@ -99,6 +109,12 @@ class Settings(BaseSettings):
 
         if self.otp_debug_return:
             problems.append("OTP_DEBUG_RETURN must be false in production — it hands out login codes")
+
+        if self.allow_shared_token:
+            problems.append(
+                "ALLOW_SHARED_TOKEN must be false in production — the shared token is in the "
+                "APK, so accepting it everywhere makes it public",
+            )
 
         # Without a gateway, nobody can sign in. Better to refuse at boot than to
         # serve a login endpoint that always returns a code nobody receives.
