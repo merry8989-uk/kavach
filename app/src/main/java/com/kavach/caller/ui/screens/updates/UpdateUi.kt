@@ -3,6 +3,7 @@ package com.kavach.caller.ui.screens.updates
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -12,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kavach.caller.BuildConfig
+import com.kavach.caller.R
 
 /** The "check for updates" control, embedded in Settings. */
 @Composable
@@ -32,12 +34,12 @@ fun UpdateSection(vm: UpdateViewModel = hiltViewModel()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text("Checking for updates…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.checking_for_updates), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
             is UpdateViewModel.State.UpToDate -> {
-                Text("You're on the latest version.", color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.you_re_on_the_latest_version), color = MaterialTheme.colorScheme.primary)
             }
 
             is UpdateViewModel.State.Available -> {
@@ -60,11 +62,11 @@ fun UpdateSection(vm: UpdateViewModel = hiltViewModel()) {
                         Spacer(Modifier.height(12.dp))
                         Row {
                             Button(onClick = { vm.downloadAndInstall(context, s.info) }) {
-                                Text("Download & install")
+                                Text(stringResource(R.string.download_install))
                             }
                             Spacer(Modifier.width(8.dp))
                             TextButton(onClick = { vm.openReleasePage(context, s.info) }) {
-                                Text("Release notes")
+                                Text(stringResource(R.string.release_notes))
                             }
                         }
                     }
@@ -93,7 +95,7 @@ fun UpdateSection(vm: UpdateViewModel = hiltViewModel()) {
             enabled = state !is UpdateViewModel.State.Checking,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Check for updates")
+            Text(stringResource(R.string.check_for_updates))
         }
     }
 }
@@ -112,7 +114,7 @@ fun UpdateBanner(version: String, onOpen: () -> Unit) {
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            TextButton(onClick = onOpen) { Text("Update") }
+            TextButton(onClick = onOpen) { Text(stringResource(R.string.update)) }
         }
     }
 }

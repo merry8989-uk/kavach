@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class FeaturesViewModel @Inject constructor(
@@ -99,8 +101,7 @@ fun FeaturesScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                "Features",
+            Text(stringResource(R.string.features),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -117,7 +118,7 @@ fun FeaturesScreen(
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                TextButton(onClick = { vm.dismissMessage() }) { Text("OK") }
+                TextButton(onClick = { vm.dismissMessage() }) { Text(stringResource(R.string.ok)) }
             }
         }
 

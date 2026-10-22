@@ -43,6 +43,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class CallLogViewModel @Inject constructor(
@@ -104,13 +106,12 @@ fun CallLogScreen(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "Call history",
+            Text(stringResource(R.string.call_history),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.weight(1f),
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            TextButton(onClick = onOpenAssistant) { Text("AI briefs") }
+            TextButton(onClick = onOpenAssistant) { Text(stringResource(R.string.ai_briefs)) }
         }
 
         Row(
@@ -152,7 +153,7 @@ fun CallLogScreen(
                 if (filtered.size < matching.size) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                            OutlinedButton(onClick = { vm.showMore() }) { Text("Load more") }
+                            OutlinedButton(onClick = { vm.showMore() }) { Text(stringResource(R.string.load_more)) }
                         }
                     }
                 }
@@ -221,7 +222,7 @@ private fun CallRow(
             }
         }
         if (entry.spamScore >= 50) {
-            Badge(containerColor = MaterialTheme.colorScheme.error) { Text("Spam") }
+            Badge(containerColor = MaterialTheme.colorScheme.error) { Text(stringResource(R.string.spam)) }
             Spacer(Modifier.width(6.dp))
         }
         if (entry.aiAnswered) {
@@ -229,8 +230,7 @@ private fun CallRow(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
             ) {
-                Text(
-                    "AI",
+                Text(stringResource(R.string.ai),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,

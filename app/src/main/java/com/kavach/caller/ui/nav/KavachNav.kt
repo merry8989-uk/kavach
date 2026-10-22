@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -52,21 +53,26 @@ import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
 import com.kavach.caller.ui.screens.onboarding.hasCorePermissions
 import com.kavach.caller.ui.screens.recordings.RecordingsScreen
 import com.kavach.caller.ui.screens.settings.SettingsScreen
+import com.kavach.caller.R
 import com.kavach.caller.ui.screens.settings.SettingsViewModel
 import com.kavach.caller.ui.screens.updates.UpdateBanner
 import com.kavach.caller.ui.screens.updates.UpdateViewModel
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(
+    val route: String,
+    @androidx.annotation.StringRes val label: Int,
+    val icon: ImageVector,
+)
 
 // Material 3 recommends at most five bottom destinations, so Blocklist, the AI
 // briefs inbox and Recordings are reachable from within Settings and Calls
 // instead of being tabs themselves.
 private val tabs = listOf(
-    Tab("dialer", "Dialer", Icons.Filled.Dialpad),
-    Tab("contacts", "Contacts", Icons.Filled.People),
-    Tab("calls", "Calls", Icons.Filled.Call),
-    Tab("messages", "Messages", Icons.Filled.Sms),
-    Tab("settings", "Settings", Icons.Filled.Settings),
+    Tab("dialer", R.string.tab_dialer, Icons.Filled.Dialpad),
+    Tab("contacts", R.string.tab_contacts, Icons.Filled.People),
+    Tab("calls", R.string.tab_calls, Icons.Filled.Call),
+    Tab("messages", R.string.tab_messages, Icons.Filled.Sms),
+    Tab("settings", R.string.tab_settings, Icons.Filled.Settings),
 )
 
 /**
@@ -185,8 +191,10 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                                 }
                             }
                         },
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        icon = {
+                            Icon(tab.icon, contentDescription = stringResource(tab.label))
+                        },
+                        label = { Text(stringResource(tab.label)) },
                     )
                 }
             }

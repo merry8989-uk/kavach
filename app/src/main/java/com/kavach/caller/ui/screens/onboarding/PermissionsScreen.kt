@@ -38,6 +38,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 /**
  * Tracks permission and role "fix" attempts so the log can tell intent from
@@ -435,8 +437,7 @@ fun PermissionsScreen(
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
     ) {
-        Text(
-            "Set up Kavach",
+        Text(stringResource(R.string.set_up_kavach),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -523,7 +524,7 @@ fun PermissionsScreen(
 
         Spacer(Modifier.height(20.dp))
         TextButton(onClick = { openAppSettings() }, modifier = Modifier.fillMaxWidth()) {
-            Text("Open app settings")
+            Text(stringResource(R.string.open_app_settings))
         }
         OutlinedButton(
             onClick = {
@@ -532,7 +533,7 @@ fun PermissionsScreen(
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Skip for now")
+            Text(stringResource(R.string.skip_for_now))
         }
         Spacer(Modifier.height(24.dp))
     }

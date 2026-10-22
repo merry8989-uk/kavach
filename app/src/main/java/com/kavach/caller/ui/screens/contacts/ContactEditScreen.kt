@@ -37,6 +37,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 /**
  * Create / edit a contact (F2.6). Handles multiple numbers, company, job title,
@@ -159,7 +161,7 @@ fun ContactEditScreen(
                 onToggle = { draft = draft.copy(isFavourite = !draft.isFavourite) },
             )
             TextButton(onClick = { if (canSave) onSave(draft) }, enabled = canSave) {
-                Text("Save")
+                Text(stringResource(R.string.save))
             }
         }
 
@@ -178,14 +180,13 @@ fun ContactEditScreen(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        "Photo",
+                    Text(stringResource(R.string.photo),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { takePhoto() }) { Text("Camera") }
+                        OutlinedButton(onClick = { takePhoto() }) { Text(stringResource(R.string.camera)) }
                         OutlinedButton(
                             onClick = {
                                 galleryLauncher.launch(
@@ -194,17 +195,17 @@ fun ContactEditScreen(
                                     ),
                                 )
                             },
-                        ) { Text("Gallery") }
+                        ) { Text(stringResource(R.string.gallery)) }
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showPhotoUrl = true }) { Text("From URL") }
+                        OutlinedButton(onClick = { showPhotoUrl = true }) { Text(stringResource(R.string.from_url)) }
                         if (draft.photoUri != null) {
                             TextButton(onClick = {
                                 val old = draft.photoUri
                                 draft = draft.copy(photoUri = null)
                                 scope.launch { photoVm.store.delete(old) }
-                            }) { Text("Remove") }
+                            }) { Text(stringResource(R.string.remove)) }
                         }
                     }
                 }
@@ -222,7 +223,7 @@ fun ContactEditScreen(
             OutlinedTextField(
                 value = draft.name,
                 onValueChange = { draft = draft.copy(name = it) },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.name)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -240,7 +241,7 @@ fun ContactEditScreen(
                                 },
                             )
                         },
-                        label = { Text("Label") },
+                        label = { Text(stringResource(R.string.label)) },
                         modifier = Modifier.width(112.dp),
                         singleLine = true,
                     )
@@ -254,7 +255,7 @@ fun ContactEditScreen(
                                 },
                             )
                         },
-                        label = { Text("Number") },
+                        label = { Text(stringResource(R.string.number)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
@@ -279,7 +280,7 @@ fun ContactEditScreen(
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
-                Text("Add another number")
+                Text(stringResource(R.string.add_another_number))
             }
 
             Spacer(Modifier.height(16.dp))
@@ -287,7 +288,7 @@ fun ContactEditScreen(
             OutlinedTextField(
                 value = draft.company,
                 onValueChange = { draft = draft.copy(company = it) },
-                label = { Text("Company") },
+                label = { Text(stringResource(R.string.company)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -295,7 +296,7 @@ fun ContactEditScreen(
             OutlinedTextField(
                 value = draft.jobTitle,
                 onValueChange = { draft = draft.copy(jobTitle = it) },
-                label = { Text("Job title") },
+                label = { Text(stringResource(R.string.job_title)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -305,7 +306,7 @@ fun ContactEditScreen(
             OutlinedTextField(
                 value = draft.notes,
                 onValueChange = { draft = draft.copy(notes = it) },
-                label = { Text("Notes") },
+                label = { Text(stringResource(R.string.notes)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
             )
@@ -316,7 +317,7 @@ fun ContactEditScreen(
                 OutlinedTextField(
                     value = tagInput,
                     onValueChange = { tagInput = it },
-                    label = { Text("Add a tag") },
+                    label = { Text(stringResource(R.string.add_a_tag)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
@@ -329,7 +330,7 @@ fun ContactEditScreen(
                         }
                         tagInput = ""
                     },
-                ) { Text("Add") }
+                ) { Text(stringResource(R.string.add)) }
             }
             if (draft.tags.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
@@ -360,10 +361,10 @@ fun ContactEditScreen(
                     modifier = Modifier.weight(1f),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                TextButton(onClick = { pickRingtone() }) { Text("Choose") }
+                TextButton(onClick = { pickRingtone() }) { Text(stringResource(R.string.choose)) }
                 if (!draft.ringtoneUri.isNullOrBlank()) {
                     TextButton(onClick = { draft = draft.copy(ringtoneUri = null) }) {
-                        Text("Clear")
+                        Text(stringResource(R.string.clear))
                     }
                 }
             }
@@ -376,7 +377,7 @@ fun ContactEditScreen(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
-                ) { Text("Delete contact") }
+                ) { Text(stringResource(R.string.delete_contact_2)) }
             }
 
             Spacer(Modifier.height(32.dp))
@@ -386,7 +387,7 @@ fun ContactEditScreen(
     if (confirmDelete && initial != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete contact?") },
+            title = { Text(stringResource(R.string.delete_contact)) },
             text = {
                 Text(
                     "This removes ${initial.displayName} from Kavach and, if it came from your " +
@@ -399,10 +400,10 @@ fun ContactEditScreen(
                         confirmDelete = false
                         onDelete(initial)
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }

@@ -74,6 +74,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 /** Conventional dialer green — deliberately fixed so it reads as "call" in every theme. */
 private val CallGreen = Color(0xFF8FE39B)
@@ -297,8 +299,7 @@ fun DialerScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Text(
-                                "Tap for full details",
+                            Text(stringResource(R.string.tap_for_full_details),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -323,8 +324,7 @@ fun DialerScreen(
 
                 if (results.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Matches",
+                    Text(stringResource(R.string.matches),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -412,30 +412,30 @@ fun DialerScreen(
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
-                            text = { Text("Paste") },
+                            text = { Text(stringResource(R.string.paste)) },
                             onClick = {
                                 menuOpen = false
                                 input += pasteFromClipboard(context)
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Copy number") },
+                            text = { Text(stringResource(R.string.copy_number)) },
                             onClick = {
                                 menuOpen = false
                                 copyToClipboard(context, input)
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Add 2-sec pause") },
+                            text = { Text(stringResource(R.string.add_2_sec_pause)) },
                             onClick = { menuOpen = false; input += "," },
                         )
                         DropdownMenuItem(
-                            text = { Text("Add wait") },
+                            text = { Text(stringResource(R.string.add_wait)) },
                             onClick = { menuOpen = false; input += ";" },
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
-                            text = { Text("Find caller's name") },
+                            text = { Text(stringResource(R.string.find_caller_s_name)) },
                             enabled = input.isNotBlank(),
                             onClick = {
                                 menuOpen = false
@@ -539,7 +539,7 @@ fun DialerScreen(
                 ) {
                     Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Call", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.call), fontWeight = FontWeight.SemiBold)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -549,10 +549,10 @@ fun DialerScreen(
     if (showAddPicker) {
         AlertDialog(
             onDismissRequest = { showAddPicker = false },
-            title = { Text("Add to a contact") },
+            title = { Text(stringResource(R.string.add_to_a_contact)) },
             text = {
                 if (contacts.isEmpty()) {
-                    Text("You have no contacts yet. Create one first.")
+                    Text(stringResource(R.string.you_have_no_contacts_yet_create_one_first))
                 } else {
                     LazyColumn(Modifier.heightIn(max = 320.dp)) {
                         items(contacts, key = { it.id }) { c ->
@@ -573,7 +573,7 @@ fun DialerScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAddPicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showAddPicker = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -581,10 +581,10 @@ fun DialerScreen(
     assignSlot?.let { slot ->
         AlertDialog(
             onDismissRequest = { assignSlot = null },
-            title = { Text("Speed dial $slot") },
+            title = { Text(stringResource(R.string.speed_dial_slot, slot)) },
             text = {
                 if (contacts.isEmpty()) {
-                    Text("You have no contacts to assign yet.")
+                    Text(stringResource(R.string.you_have_no_contacts_to_assign_yet))
                 } else {
                     LazyColumn(Modifier.heightIn(max = 320.dp)) {
                         items(contacts, key = { it.id }) { c ->
@@ -604,7 +604,7 @@ fun DialerScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { assignSlot = null }) { Text("Cancel") }
+                TextButton(onClick = { assignSlot = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -616,7 +616,7 @@ fun DialerScreen(
     if (showVideoInfo) {
         AlertDialog(
             onDismissRequest = { showVideoInfo = false },
-            title = { Text("Video calling") },
+            title = { Text(stringResource(R.string.video_calling)) },
             text = {
                 Text(
                     "Two-way video calls need Kavach to hold the default-dialer role and the " +
@@ -625,7 +625,7 @@ fun DialerScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showVideoInfo = false }) { Text("OK") }
+                TextButton(onClick = { showVideoInfo = false }) { Text(stringResource(R.string.ok)) }
             },
         )
     }

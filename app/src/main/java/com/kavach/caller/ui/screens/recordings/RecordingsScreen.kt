@@ -37,6 +37,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class RecordingsViewModel @Inject constructor(
@@ -143,8 +145,7 @@ fun RecordingsScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                "Recordings",
+            Text(stringResource(R.string.recordings),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -157,7 +158,7 @@ fun RecordingsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(text, modifier = Modifier.weight(1f),
                                 color = MaterialTheme.colorScheme.onSurface)
-                            TextButton(onClick = { vm.dismissMessage() }) { Text("OK") }
+                            TextButton(onClick = { vm.dismissMessage() }) { Text(stringResource(R.string.ok)) }
                         }
                     }
                 }
@@ -218,8 +219,7 @@ fun RecordingsScreen(
                     )
                     if (vm.report.capture == RecordingCapability.Capture.MICROPHONE) {
                         Spacer(Modifier.height(10.dp))
-                        Text(
-                            "If recording is not enough, you can:",
+                        Text(stringResource(R.string.if_recording_is_not_enough_you_can),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -258,7 +258,7 @@ fun RecordingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { vm.trimNow() }) { Text("Free up space now") }
+                    OutlinedButton(onClick = { vm.trimNow() }) { Text(stringResource(R.string.free_up_space_now)) }
                 }
             }
 

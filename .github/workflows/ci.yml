@@ -24,6 +24,47 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      # A translation that drifts from the default silently shows English in the
+      # middle of a Hindi screen. This fails the build instead.
+      - name: Check translation key parity
+        run: |
+          python3 - <<'PYEOF'
+          import re, sys, pathlib
+
+          base = pathlib.Path("app/src/main/res")
+          default = base / "values/strings.xml"
+
+          def keys(path):
+              return set(re.findall(r'<string name="(\w+)"', path.read_text()))
+
+          if not default.exists():
+              sys.exit("values/strings.xml is missing")
+
+          expected = keys(default)
+          failed = False
+
+          for folder in sorted(base.glob("values-*")):
+              path = folder / "strings.xml"
+              if not path.exists():
+                  print(f"FAIL {folder.name}: no strings.xml")
+                  failed = True
+                  continue
+              found = keys(path)
+              missing = expected - found
+              extra = found - expected
+              if missing:
+                  print(f"FAIL {folder.name}: missing {len(missing)} key(s): {sorted(missing)[:5]}")
+                  failed = True
+              if extra:
+                  print(f"FAIL {folder.name}: {len(extra)} key(s) not in the default: {sorted(extra)[:5]}")
+                  failed = True
+              if not missing and not extra:
+                  print(f"OK   {folder.name}: {len(found)} keys match the default")
+
+          print(f"{len(expected)} keys in the default language")
+          sys.exit(1 if failed else 0)
+          PYEOF
+
       - name: Run unit tests
         run: gradle :app:testDebugUnitTest --no-daemon
 

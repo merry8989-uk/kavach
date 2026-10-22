@@ -63,6 +63,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -392,8 +394,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
     val current = open
     if (current == null) {
         Column(Modifier.fillMaxSize()) {
-            Text(
-                "Messages",
+            Text(stringResource(R.string.messages),
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.onBackground,
@@ -424,7 +425,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
                         value = query,
                         onValueChange = { vm.setQuery(it) },
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                        placeholder = { Text("Search senders and messages") },
+                        placeholder = { Text(stringResource(R.string.search_senders_and_messages)) },
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                         trailingIcon = {
@@ -503,8 +504,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     if (result?.hasLinkRisk == true) {
-                                        Text(
-                                            "Contains a suspicious link",
+                                        Text(stringResource(R.string.contains_a_suspicious_link),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.error,
                                         )
@@ -555,8 +555,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
             }
 
             if (!vm.canSend) {
-                Text(
-                    "Sending is off — SMS permission is not granted.",
+                Text(stringResource(R.string.sending_is_off_sms_permission_is_not_granted),
                     modifier = Modifier.padding(horizontal = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
@@ -618,7 +617,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
                     value = draft,
                     onValueChange = { draft = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Message") },
+                    placeholder = { Text(stringResource(R.string.message)) },
                 )
                 IconButton(onClick = { vm.send(context, current, draft); draft = "" }) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
@@ -631,7 +630,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
     actionTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { actionTarget = null },
-            title = { Text("Message") },
+            title = { Text(stringResource(R.string.message)) },
             text = {
                 Column {
                     Text(
@@ -660,7 +659,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { actionTarget = null }) { Text("Close") }
+                TextButton(onClick = { actionTarget = null }) { Text(stringResource(R.string.close)) }
             },
         )
     }
@@ -668,7 +667,7 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
     confirmThreadDelete?.let { address ->
         AlertDialog(
             onDismissRequest = { confirmThreadDelete = null },
-            title = { Text("Delete this thread?") },
+            title = { Text(stringResource(R.string.delete_this_thread)) },
             text = {
                 Text(
                     "Android only lets the default messaging app delete messages from the " +
@@ -678,11 +677,11 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
             },
             confirmButton = {
                 TextButton(onClick = { confirmThreadDelete = null; vm.deleteThread(context, address) }) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmThreadDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { confirmThreadDelete = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -732,20 +731,19 @@ private fun MessageNotice(
 
             if (result.category == SmsClassifier.Category.OTP && result.otpCode != null) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "The code is hidden here on purpose, so it cannot be read off the screen.",
+                Text(stringResource(R.string.the_code_is_hidden_here_on_purpose_so_it_cannot_be_r),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(6.dp))
-                Button(onClick = { onCopyOtp(result.otpCode) }) { Text("Copy code") }
+                Button(onClick = { onCopyOtp(result.otpCode) }) { Text(stringResource(R.string.copy_code)) }
             }
 
             if (isBad) {
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onReport) { Text("Report and block") }
-                    OutlinedButton(onClick = onBlock) { Text("Block sender") }
+                    Button(onClick = onReport) { Text(stringResource(R.string.report_and_block)) }
+                    OutlinedButton(onClick = onBlock) { Text(stringResource(R.string.block_sender)) }
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -814,7 +812,7 @@ private fun StatusBanner(text: String, onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
         }
     }
 }

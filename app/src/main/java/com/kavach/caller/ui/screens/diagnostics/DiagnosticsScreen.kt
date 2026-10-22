@@ -49,6 +49,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class DiagnosticsViewModel @Inject constructor(
@@ -234,8 +236,7 @@ fun DiagnosticsScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                "Diagnostics",
+            Text(stringResource(R.string.diagnostics),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -264,8 +265,8 @@ fun DiagnosticsScreen(
                         OutlinedTextField(
                             value = urlDraft,
                             onValueChange = { urlDraft = it },
-                            label = { Text("Project URL") },
-                            placeholder = { Text("https://xxxxxxxx.supabase.co") },
+                            label = { Text(stringResource(R.string.project_url)) },
+                            placeholder = { Text(stringResource(R.string.https_xxxxxxxx_supabase_co)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                         )
@@ -273,7 +274,7 @@ fun DiagnosticsScreen(
                         OutlinedTextField(
                             value = keyDraft,
                             onValueChange = { keyDraft = it },
-                            label = { Text("Anon key") },
+                            label = { Text(stringResource(R.string.anon_key)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                         )
@@ -287,16 +288,16 @@ fun DiagnosticsScreen(
                                     keyDraft = ""
                                 },
                                 enabled = urlDraft.isNotBlank() && keyDraft.isNotBlank(),
-                            ) { Text("Save") }
+                            ) { Text(stringResource(R.string.save)) }
                             if (supabase?.hasKey == true) {
-                                TextButton(onClick = { vm.setSupabaseKey("") }) { Text("Clear key") }
+                                TextButton(onClick = { vm.setSupabaseKey("") }) { Text(stringResource(R.string.clear_key)) }
                             }
                         }
 
                         Spacer(Modifier.height(10.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Automatic upload", color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.automatic_upload), color = MaterialTheme.colorScheme.onSurface)
                                 Text(
                                     if (supabase?.hasKey == true) {
                                         "Queued: ${supabase.pending}  ·  Sent: ${supabase.sent}"
@@ -327,11 +328,11 @@ fun DiagnosticsScreen(
                             Button(
                                 onClick = { vm.testSupabase() },
                                 enabled = supabase?.hasKey == true,
-                            ) { Text("Test connection") }
+                            ) { Text(stringResource(R.string.test_connection)) }
                             OutlinedButton(
                                 onClick = { vm.syncNow() },
                                 enabled = supabase?.enabled == true,
-                            ) { Text("Sync now") }
+                            ) { Text(stringResource(R.string.sync_now)) }
                         }
 
                         Spacer(Modifier.height(10.dp))
@@ -362,8 +363,7 @@ fun DiagnosticsScreen(
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(
-                                    "Send to the Kavach server",
+                                Text(stringResource(R.string.send_to_the_kavach_server),
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
@@ -388,11 +388,11 @@ fun DiagnosticsScreen(
                             OutlinedButton(
                                 onClick = { vm.syncNow() },
                                 enabled = serverOn || vm.appSettings.collectAsState().value.supabaseUploadEnabled,
-                            ) { Text("Sync now") }
+                            ) { Text(stringResource(R.string.sync_now)) }
                             OutlinedButton(
                                 onClick = { vm.clearUploadQueue() },
                                 enabled = (vm.supabase.collectAsState().value?.pending ?: 0) > 0,
-                            ) { Text("Clear queue") }
+                            ) { Text(stringResource(R.string.clear_queue)) }
                         }
 
                         vm.syncMessage?.let { msg ->
@@ -404,7 +404,7 @@ fun DiagnosticsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
-                                TextButton(onClick = { vm.dismissSyncMessage() }) { Text("OK") }
+                                TextButton(onClick = { vm.dismissSyncMessage() }) { Text(stringResource(R.string.ok)) }
                             }
                         }
 
@@ -423,8 +423,7 @@ fun DiagnosticsScreen(
                     KavachCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(
-                                    "User code",
+                                Text(stringResource(R.string.user_code),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -443,7 +442,7 @@ fun DiagnosticsScreen(
                                 )
                             }
                             TextButton(onClick = { copyUserCode(context, vm.userCode) }) {
-                                Text("Copy")
+                                Text(stringResource(R.string.copy))
                             }
                         }
                     }
@@ -460,8 +459,7 @@ fun DiagnosticsScreen(
                             )
                             Spacer(Modifier.width(14.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(
-                                    "Save technical logs",
+                                Text(stringResource(R.string.save_technical_logs),
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
@@ -517,7 +515,7 @@ fun DiagnosticsScreen(
                             onClick = { showFormats = true },
                             enabled = entries.isNotEmpty(),
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Export as…") }
+                        ) { Text(stringResource(R.string.export_as)) }
 
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -525,16 +523,16 @@ fun DiagnosticsScreen(
                                 onClick = { vm.logFile()?.let { shareLog(context, it) } },
                                 enabled = vm.logFile() != null,
                                 modifier = Modifier.weight(1f),
-                            ) { Text("Share") }
+                            ) { Text(stringResource(R.string.share)) }
                             OutlinedButton(
                                 onClick = { vm.clear() },
                                 enabled = entries.isNotEmpty(),
                                 modifier = Modifier.weight(1f),
-                            ) { Text("Clear") }
+                            ) { Text(stringResource(R.string.clear)) }
                             OutlinedButton(
                                 onClick = { vm.refresh() },
                                 modifier = Modifier.weight(1f),
-                            ) { Text("Refresh") }
+                            ) { Text(stringResource(R.string.refresh)) }
                         }
 
                         exportMessage?.let { text ->
@@ -653,11 +651,10 @@ private fun ExportFormatDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Export as") },
+        title = { Text(stringResource(R.string.export_as_2)) },
         text = {
             Column {
-                Text(
-                    "Pick a format. Only formats something can actually open are offered.",
+                Text(stringResource(R.string.pick_a_format_only_formats_something_can_actually_op),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -681,7 +678,7 @@ private fun ExportFormatDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

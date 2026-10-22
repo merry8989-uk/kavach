@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class BlocklistViewModel @Inject constructor(
@@ -64,8 +66,7 @@ fun BlocklistScreen(
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-                Text(
-                    "Blocking rules",
+                Text(stringResource(R.string.blocking_rules),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
@@ -126,17 +127,17 @@ private fun AddRuleDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New blocking rule") },
+        title = { Text(stringResource(R.string.new_blocking_rule)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = pattern,
                     onValueChange = { pattern = it },
-                    label = { Text("Pattern (number / prefix / range / country)") },
+                    label = { Text(stringResource(R.string.pattern_number_prefix_range_country)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("Match type", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.match_type), style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
                     RuleType.entries.forEach { t ->
                         FilterChip(selected = type == t, onClick = { type = t },
@@ -144,7 +145,7 @@ private fun AddRuleDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Action", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.action), style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.horizontalScroll(rememberScrollState())) {
                     BlockAction.entries.forEach { a ->
                         FilterChip(selected = action == a, onClick = { action = a },
@@ -156,8 +157,8 @@ private fun AddRuleDialog(
         confirmButton = {
             TextButton(
                 onClick = { if (pattern.isNotBlank()) onAdd(pattern, type, action) },
-            ) { Text("Add") }
+            ) { Text(stringResource(R.string.add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

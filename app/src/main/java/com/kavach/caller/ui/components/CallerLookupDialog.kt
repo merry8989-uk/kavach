@@ -31,6 +31,8 @@ import com.kavach.caller.util.PhoneUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 /** Spam flagging and name suggestions, from the lookup sheet. */
 @HiltViewModel
@@ -73,7 +75,7 @@ fun CallerLookupDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Find the caller's name") },
+        title = { Text(stringResource(R.string.find_the_caller_s_name)) },
         text = {
             Column {
                 Text(
@@ -82,8 +84,7 @@ fun CallerLookupDialog(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    "Opens the number somewhere it might be identified. Kavach can't guarantee a name.",
+                Text(stringResource(R.string.opens_the_number_somewhere_it_might_be_identified_ka),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -136,8 +137,7 @@ fun CallerLookupDialog(
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Help others",
+                    Text(stringResource(R.string.help_others),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -152,17 +152,17 @@ fun CallerLookupDialog(
                         OutlinedButton(
                             onClick = { contribute.report(number, "fraud") { message = it } },
                             modifier = Modifier.weight(1f),
-                        ) { Text("Report spam") }
+                        ) { Text(stringResource(R.string.report_spam)) }
                         OutlinedButton(
                             onClick = { suggestFor = number },
                             modifier = Modifier.weight(1f),
-                        ) { Text("Suggest name") }
+                        ) { Text(stringResource(R.string.suggest_name)) }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         },
     )
 
@@ -170,7 +170,7 @@ fun CallerLookupDialog(
         var name by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { suggestFor = null },
-            title = { Text("Suggest a name") },
+            title = { Text(stringResource(R.string.suggest_a_name)) },
             text = {
                 Column {
                     Text(
@@ -183,7 +183,7 @@ fun CallerLookupDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Suggested name") },
+                        label = { Text(stringResource(R.string.suggested_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -199,10 +199,10 @@ fun CallerLookupDialog(
                         }
                     },
                     enabled = name.isNotBlank(),
-                ) { Text("Send") }
+                ) { Text(stringResource(R.string.send)) }
             },
             dismissButton = {
-                TextButton(onClick = { suggestFor = null }) { Text("Cancel") }
+                TextButton(onClick = { suggestFor = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }

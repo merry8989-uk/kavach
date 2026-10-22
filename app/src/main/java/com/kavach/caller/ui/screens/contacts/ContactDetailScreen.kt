@@ -50,6 +50,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class ContactDetailViewModel @Inject constructor(
@@ -185,8 +187,7 @@ fun ContactDetailScreen(
                     )
                 }
                 if (contact.numbers.isEmpty()) {
-                    Text(
-                        "No numbers saved",
+                    Text(stringResource(R.string.no_numbers_saved),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -227,8 +228,7 @@ fun ContactDetailScreen(
             SectionHeader("Recent activity")
             KavachCard {
                 if (recent.isEmpty()) {
-                    Text(
-                        "No calls recorded with this contact yet.",
+                    Text(stringResource(R.string.no_calls_recorded_with_this_contact_yet),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
@@ -252,7 +252,7 @@ fun ContactDetailScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete contact?") },
+            title = { Text(stringResource(R.string.delete_contact)) },
             text = {
                 Text(
                     "This removes ${contact.displayName} from Kavach and, if it came from your " +
@@ -261,11 +261,11 @@ fun ContactDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; onDelete(contact) }) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }

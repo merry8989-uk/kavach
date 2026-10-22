@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
@@ -166,14 +168,14 @@ fun ContactsScreen(vm: ContactsViewModel = hiltViewModel()) {
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(onClick = { vm.dismissError() }) { Text("Dismiss") }
+                    TextButton(onClick = { vm.dismissError() }) { Text(stringResource(R.string.dismiss)) }
                 }
             }
 
             OutlinedTextField(
                 value = vm.query,
                 onValueChange = { vm.query = it },
-                label = { Text("Search name, company, tag") },
+                label = { Text(stringResource(R.string.search_name_company_tag)) },
                 leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 singleLine = true,
@@ -188,12 +190,12 @@ fun ContactsScreen(vm: ContactsViewModel = hiltViewModel()) {
                     FilterChip(
                         selected = !vm.favouritesOnly,
                         onClick = { vm.favouritesOnly = false },
-                        label = { Text("All ${all.size}") },
+                        label = { Text(stringResource(R.string.contacts_filter_all, all.size)) },
                     )
                     FilterChip(
                         selected = vm.favouritesOnly,
                         onClick = { vm.favouritesOnly = true },
-                        label = { Text("Favourites ${favourites.size}") },
+                        label = { Text(stringResource(R.string.contacts_filter_favourites, favourites.size)) },
                         leadingIcon = {
                             Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(16.dp))
                         },

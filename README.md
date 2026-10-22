@@ -295,6 +295,19 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
+### Added in 0.27.0 — Hindi
+
+The interface ships in English and Hindi. Every user-facing string in the Compose
+UI now comes from `values/strings.xml`, with `values-hi/strings.xml` alongside it,
+and a picker under Settings → Appearance that applies immediately.
+
+The language is stored in a plain preference rather than DataStore, because it has
+to be readable in `attachBaseContext` before anything asynchronous can be
+awaited — a `runBlocking` DataStore read there is a deadlock waiting to happen.
+
+CI now fails if a translation drifts from the default, because a missing key shows
+English in the middle of a Hindi screen rather than an obvious error.
+
 ### Added in 0.26.0 — backend reliability fixes from the audit
 
 Four P0 items confirmed against the code and fixed: **OTP delivery now actually

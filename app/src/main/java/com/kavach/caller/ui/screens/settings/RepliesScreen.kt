@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class RepliesViewModel @Inject constructor(
@@ -104,8 +106,7 @@ fun RepliesScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                "Replies",
+            Text(stringResource(R.string.replies),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -122,7 +123,7 @@ fun RepliesScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text, modifier = Modifier.weight(1f),
                             color = MaterialTheme.colorScheme.onSurface)
-                        TextButton(onClick = { vm.dismiss() }) { Text("OK") }
+                        TextButton(onClick = { vm.dismiss() }) { Text(stringResource(R.string.ok)) }
                     }
                 }
             }
@@ -169,7 +170,7 @@ fun RepliesScreen(
                 OutlinedTextField(
                     value = newReply,
                     onValueChange = { newReply = it },
-                    label = { Text("Add a reply") },
+                    label = { Text(stringResource(R.string.add_a_reply)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -182,12 +183,12 @@ fun RepliesScreen(
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("Add")
+                        Text(stringResource(R.string.add))
                     }
                     OutlinedButton(
                         onClick = { vm.restoreDefaults() },
                         modifier = Modifier.weight(1f),
-                    ) { Text("Reset") }
+                    ) { Text(stringResource(R.string.reset)) }
                 }
             }
 
@@ -195,7 +196,7 @@ fun RepliesScreen(
             KavachCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Reply automatically", color = MaterialTheme.colorScheme.onSurface)
+                        Text(stringResource(R.string.reply_automatically), color = MaterialTheme.colorScheme.onSurface)
                         Text(
                             "Sends the message below to anyone who texts you. Off by default — " +
                                 "it sends without asking.",
@@ -213,7 +214,7 @@ fun RepliesScreen(
                 OutlinedTextField(
                     value = autoReplyDraft,
                     onValueChange = { autoReplyDraft = it },
-                    label = { Text("Auto-reply message") },
+                    label = { Text(stringResource(R.string.auto_reply_message)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -221,7 +222,7 @@ fun RepliesScreen(
                     onClick = { vm.setAutoReplyText(autoReplyDraft) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = autoReplyDraft.isNotBlank(),
-                ) { Text("Save auto-reply") }
+                ) { Text(stringResource(R.string.save_auto_reply)) }
 
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -235,8 +236,7 @@ fun RepliesScreen(
 
                 if (suggested.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
-                    Text(
-                        "Tap to use a suggestion:",
+                    Text(stringResource(R.string.tap_to_use_a_suggestion),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

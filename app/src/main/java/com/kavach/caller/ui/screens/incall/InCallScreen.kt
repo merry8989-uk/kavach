@@ -36,6 +36,8 @@ import com.kavach.caller.domain.model.CallPhase
 import com.kavach.caller.domain.model.CallSession
 import com.kavach.caller.util.PhoneUtils
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 private val AnswerGreen = Color(0xFF8FE39B)
 private val AnswerGreenContent = Color(0xFF0B2B12)
@@ -87,8 +89,7 @@ fun InCallScreen(
 
     if (session == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                "No active call",
+            Text(stringResource(R.string.no_active_call),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -267,7 +268,7 @@ fun InCallScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Record call") },
+                                text = { Text(stringResource(R.string.record_call)) },
                                 leadingIcon = {
                                     Icon(Icons.Filled.FiberManualRecord, contentDescription = null)
                                 },
@@ -277,7 +278,7 @@ fun InCallScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Bluetooth") },
+                                text = { Text(stringResource(R.string.bluetooth)) },
                                 leadingIcon = { Icon(Icons.Filled.Bluetooth, contentDescription = null) },
                                 enabled = connected,
                                 onClick = {
@@ -427,6 +428,6 @@ private fun DtmfPad(
             }
             Spacer(Modifier.height(10.dp))
         }
-        TextButton(onClick = onHide) { Text("Hide keypad") }
+        TextButton(onClick = onHide) { Text(stringResource(R.string.hide_keypad)) }
     }
 }

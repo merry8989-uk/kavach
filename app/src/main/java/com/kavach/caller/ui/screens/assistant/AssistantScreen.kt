@@ -25,6 +25,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
+import com.kavach.caller.R
+import androidx.compose.ui.res.stringResource
 
 @HiltViewModel
 class AssistantViewModel @Inject constructor(
@@ -49,11 +51,10 @@ fun AssistantScreen(
             }
         }
         Column(Modifier.padding(16.dp)) {
-            Text("AI call briefs", style = MaterialTheme.typography.headlineMedium,
+            Text(stringResource(R.string.ai_call_briefs), style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground)
             Spacer(Modifier.height(4.dp))
-            Text(
-                "Calls Kavach answered for you — transcript, intent, sentiment and risk.",
+            Text(stringResource(R.string.calls_kavach_answered_for_you_transcript_intent_sent),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -82,7 +83,7 @@ private fun BriefCard(t: TranscriptEntity) {
             Row {
                 Text(PhoneUtils.pretty(t.number), fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                Badge(containerColor = riskColor(t.risk)) { Text("Risk ${t.risk}") }
+                Badge(containerColor = riskColor(t.risk)) { Text(stringResource(R.string.risk_label, t.risk)) }
             }
             Spacer(Modifier.height(8.dp))
             Row {

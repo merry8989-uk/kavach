@@ -43,6 +43,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 /**
  * Everything known about one number, in one place (F9.13).
@@ -106,8 +108,7 @@ fun NumberDetailsScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                "Number details",
+            Text(stringResource(R.string.number_details),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -203,13 +204,12 @@ fun NumberDetailsScreen(
                     OutlinedButton(
                         onClick = { onOpenContact(c) },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Open full contact") }
+                    ) { Text(stringResource(R.string.open_full_contact)) }
                 }
             } else {
                 SectionHeader("Contact")
                 KavachCard {
-                    Text(
-                        "Not in your contacts.",
+                    Text(stringResource(R.string.not_in_your_contacts),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(10.dp))
@@ -219,7 +219,7 @@ fun NumberDetailsScreen(
                     ) {
                         Icon(Icons.Filled.Contacts, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Add to contacts")
+                        Text(stringResource(R.string.add_to_contacts))
                     }
                 }
             }
@@ -241,10 +241,9 @@ fun NumberDetailsScreen(
             SectionHeader("Recent with this number")
             KavachCard {
                 if (loading) {
-                    Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else if (recent.isEmpty()) {
-                    Text(
-                        "No calls recorded yet. History imports from your device call log.",
+                    Text(stringResource(R.string.no_calls_recorded_yet_history_imports_from_your_devi),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {

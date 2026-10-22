@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kavach.caller.ui.components.KavachCard
 import com.kavach.caller.ui.components.SectionHeader
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 /**
  * How Kavach identifies callers, and the promises behind it.
@@ -93,8 +95,7 @@ fun DataPolicyScreen(onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "0–39 clean · 40–69 likely spam · 70–100 spam",
+                Text(stringResource(R.string.n0_39_clean_40_69_likely_spam_70_100_spam),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,

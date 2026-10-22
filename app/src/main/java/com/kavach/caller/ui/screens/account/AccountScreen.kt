@@ -30,6 +30,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import com.kavach.caller.R
 
 @HiltViewModel
 class AccountViewModel @Inject constructor(
@@ -154,8 +156,7 @@ fun AccountScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                "My number",
+            Text(stringResource(R.string.my_number),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -187,7 +188,7 @@ fun AccountScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text, modifier = Modifier.weight(1f),
                             color = MaterialTheme.colorScheme.onSurface)
-                        TextButton(onClick = { vm.dismissMessage() }) { Text("OK") }
+                        TextButton(onClick = { vm.dismissMessage() }) { Text(stringResource(R.string.ok)) }
                     }
                 }
             }
@@ -206,8 +207,8 @@ fun AccountScreen(
                     OutlinedTextField(
                         value = vm.phone,
                         onValueChange = { vm.phone = it },
-                        label = { Text("Phone number") },
-                        placeholder = { Text("+91 98765 43210") },
+                        label = { Text(stringResource(R.string.phone_number)) },
+                        placeholder = { Text(stringResource(R.string.n91_98765_43210)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -216,14 +217,14 @@ fun AccountScreen(
                         onClick = { vm.sendCode() },
                         enabled = !vm.busy && vm.phone.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Send code") }
+                    ) { Text(stringResource(R.string.send_code)) }
 
                     if (vm.challenge != null) {
                         Spacer(Modifier.height(16.dp))
                         OutlinedTextField(
                             value = vm.otp,
                             onValueChange = { vm.otp = it },
-                            label = { Text("Enter the code") },
+                            label = { Text(stringResource(R.string.enter_the_code)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -232,7 +233,7 @@ fun AccountScreen(
                             onClick = { vm.verify() },
                             enabled = !vm.busy && vm.otp.isNotBlank(),
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Verify") }
+                        ) { Text(stringResource(R.string.verify)) }
                     }
                 }
             } else {
@@ -247,10 +248,9 @@ fun AccountScreen(
                         )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Number verified", fontWeight = FontWeight.SemiBold,
+                            Text(stringResource(R.string.number_verified), fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface)
-                            Text(
-                                "Kavach cannot show your number here — the server keeps only a hash.",
+                            Text(stringResource(R.string.kavach_cannot_show_your_number_here_the_server_keeps),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -261,8 +261,8 @@ fun AccountScreen(
                     OutlinedTextField(
                         value = vm.name,
                         onValueChange = { vm.name = it },
-                        label = { Text("Display name") },
-                        placeholder = { Text("How people should see you") },
+                        label = { Text(stringResource(R.string.display_name)) },
+                        placeholder = { Text(stringResource(R.string.how_people_should_see_you)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -270,7 +270,7 @@ fun AccountScreen(
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Publish my name", color = MaterialTheme.colorScheme.onSurface)
+                            Text(stringResource(R.string.publish_my_name), color = MaterialTheme.colorScheme.onSurface)
                             Text(
                                 "People who call you will see this name. Off by default, and you " +
                                     "can withdraw it at any time.",
@@ -289,7 +289,7 @@ fun AccountScreen(
                         onClick = { vm.saveProfile() },
                         enabled = !vm.busy,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Save") }
+                    ) { Text(stringResource(R.string.save)) }
 
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -304,7 +304,7 @@ fun AccountScreen(
                 SectionHeader("Your consent history")
                 KavachCard {
                     if (vm.history.isEmpty()) {
-                        Text("No decisions recorded yet.",
+                        Text(stringResource(R.string.no_decisions_recorded_yet),
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         vm.history.forEach { event ->
@@ -331,7 +331,7 @@ fun AccountScreen(
                     OutlinedButton(
                         onClick = { vm.signOut() },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Sign out") }
+                    ) { Text(stringResource(R.string.sign_out)) }
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { confirmDelete = true },
@@ -339,7 +339,7 @@ fun AccountScreen(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error,
                         ),
-                    ) { Text("Delete my account") }
+                    ) { Text(stringResource(R.string.delete_my_account)) }
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "Deleting withdraws your name immediately, removes your profile, and keeps " +
@@ -357,7 +357,7 @@ fun AccountScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete your account?") },
+            title = { Text(stringResource(R.string.delete_your_account)) },
             text = {
                 Text(
                     "Your name will stop being shown to anyone who calls you, and your profile " +
@@ -366,11 +366,11 @@ fun AccountScreen(
             },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; vm.deleteAccount() }) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
