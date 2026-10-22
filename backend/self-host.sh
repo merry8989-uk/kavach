@@ -2,6 +2,11 @@
 #
 # Run your own Kavach server, in one command.
 #
+# If your checkout lost the executable bit (some archive tools drop it, and the
+# GitHub contents API always writes 644), either:
+#   chmod +x self-host.sh
+# or just run it as:  bash self-host.sh
+#
 #   ./self-host.sh              # set up and start
 #   ./self-host.sh status       # what is running, and is it healthy
 #   ./self-host.sh token        # print the token to paste into the app
