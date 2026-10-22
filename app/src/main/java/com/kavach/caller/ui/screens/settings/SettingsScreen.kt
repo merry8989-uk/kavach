@@ -28,6 +28,7 @@ fun SettingsScreen(
     onOpenRecordings: () -> Unit = {},
     onOpenFeatures: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
+    onOpenSelfTest: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
     onOpenReplies: () -> Unit = {},
     onOpenPolicy: () -> Unit = {},
@@ -193,12 +194,23 @@ fun SettingsScreen(
         )
 
         Spacer(Modifier.height(16.dp))
-        Spacer(Modifier.height(16.dp))
         SectionHeader("Troubleshooting")
         OutlinedButton(onClick = onOpenDiagnostics, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.diagnostics_logs))
         }
         Text(stringResource(R.string.local_technical_log_you_can_share_to_help_fix_a_prob),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onOpenSelfTest, modifier = Modifier.fillMaxWidth()) {
+            Text("Self-test this device")
+        }
+        Text(
+            "Checks what actually works here — permissions, roles, storage, encryption and " +
+                "the classification rules — and lists separately what only a real call or " +
+                "message can prove.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

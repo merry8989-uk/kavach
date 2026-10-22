@@ -34,5 +34,19 @@ jobs:
       - name: Run unit tests
         run: gradle :app:testDebugUnitTest --no-daemon
 
+      # Android lint. Not a formality: it is what catches a missing permission in
+      # the manifest, an unused one, and a targetSdk API misuse — the class of
+      # thing that compiles cleanly and fails on a device.
+      - name: Android lint
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
       - name: Assemble debug
         run: gradle :app:assembleDebug --no-daemon

@@ -52,6 +52,7 @@ import com.kavach.caller.ui.screens.numberdetails.NumberDetailsScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
 import com.kavach.caller.ui.screens.onboarding.hasCorePermissions
 import com.kavach.caller.ui.screens.recordings.RecordingsScreen
+import com.kavach.caller.ui.screens.selftest.SelfTestScreen
 import com.kavach.caller.ui.screens.settings.SettingsScreen
 import com.kavach.caller.R
 import com.kavach.caller.ui.screens.settings.SettingsViewModel
@@ -234,6 +235,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenRecordings = { nav.navigate("recordings") },
                         onOpenFeatures = { nav.navigate("features") },
                         onOpenDiagnostics = { nav.navigate("diagnostics") },
+                        onOpenSelfTest = { nav.navigate("selftest") },
                         onOpenAccount = { nav.navigate("account") },
                         onOpenReplies = { nav.navigate("replies") },
                         onOpenPolicy = { nav.navigate("policy") },
@@ -244,6 +246,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 composable("recordings") { RecordingsScreen(onBack = { nav.popBackStack() }) }
                 composable("features") { FeaturesScreen(onBack = { nav.popBackStack() }) }
                 composable("diagnostics") { DiagnosticsScreen(onBack = { nav.popBackStack() }) }
+                composable("selftest") { SelfTestScreen(onBack = { nav.popBackStack() }) }
                 composable("account") { AccountScreen(onBack = { nav.popBackStack() }) }
                 composable("replies") { RepliesScreen(onBack = { nav.popBackStack() }) }
                 composable(
