@@ -37,6 +37,7 @@ class TelemetryUploader @Inject constructor(
     private val settings: SettingsRepository,
     private val queue: UploadQueue,
     private val session: SessionContext,
+    private val registration: com.kavach.caller.data.remote.AppRegistration,
 ) {
     private val http: OkHttpClient = OkHttpClient.Builder()
         .callTimeout(20, TimeUnit.SECONDS)

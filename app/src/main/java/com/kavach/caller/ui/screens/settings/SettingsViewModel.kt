@@ -1,5 +1,8 @@
 package com.kavach.caller.ui.screens.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.caller.data.settings.AppSettings
@@ -73,7 +76,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    var installMessage by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var installMessage by mutableStateOf<String?>(null)
         private set
 
     fun setSmsWarnOnLinks(value: Boolean) = viewModelScope.launch { repo.setSmsWarnOnLinks(value) }
