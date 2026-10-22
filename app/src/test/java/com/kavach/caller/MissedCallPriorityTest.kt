@@ -49,6 +49,24 @@ class MissedCallPriorityTest {
     }
 
     @Test
+    fun `volume can never lift a stranger past a saved contact`() {
+        // The first version sorted on score alone: a stranger calling 20 times
+        // reached 60 while a saved contact sat at 55, so the stranger won. Tiers
+        // now decide the order and the score only breaks ties inside a tier.
+        val ranked = MissedCallPriority.rank(
+            missed = listOf(
+                call("+919876500015", 1_000),
+                *((0 until 50).map { call("+919876500016", 2_000L + it) }.toTypedArray()),
+            ),
+            savedNumbers = setOf("+919876500015"),
+        )
+
+        assertEquals("+919876500015", ranked.first().number)
+        assertEquals(Reason.CONTACT, ranked.first().reason)
+        assertEquals(Reason.REPEATED, ranked[1].reason)
+    }
+
+    @Test
     fun `a number reported by many people is excluded, not ranked low`() {
         // Putting it at the bottom of a list invites calling it back.
         val ranked = MissedCallPriority.rank(

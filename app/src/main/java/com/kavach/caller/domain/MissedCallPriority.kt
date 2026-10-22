@@ -92,13 +92,38 @@ object MissedCallPriority {
                 score = scoreOf(reason, count, spam),
             )
         }.sortedWith(
-            // Highest score first; ties broken by the most recent call, because
-            // between two equally important calls the newer one is the one still
-            // worth acting on.
-            compareByDescending<Ranked> { it.score }.thenByDescending { it.lastMissedAt },
+            // **The tier decides the order; the score only breaks ties inside a
+            // tier.** This is the correction a failing test forced.
+            //
+            // The first version sorted on score alone, and a stranger who called
+            // twenty times reached 60 while a saved contact who called once sat at
+            // 55 — so a nuisance caller outranked someone the user actually knows.
+            // Volume was silently buying its way past a stronger signal.
+            //
+            // Tiers make the promise explicit: a saved contact outranks a stranger,
+            // full stop, and the score decides which saved contact comes first.
+            compareByDescending<Ranked> { tierOf(it.reason) }
+                .thenByDescending { it.score }
+                // Between two equally ranked calls, the newer one is the one still
+                // worth acting on.
+                .thenByDescending { it.lastMissedAt },
         )
     }
 
+    /**
+     * How strongly the *reason* alone ranks a call.
+     *
+     * Higher is more worth returning. Deliberately coarse: the four values exist
+     * to impose an order that volume cannot override.
+     */
+    private fun tierOf(reason: Reason): Int = when (reason) {
+        Reason.CONTACT_REPEATED -> 3
+        Reason.CONTACT -> 2
+        Reason.REPEATED -> 1
+        Reason.UNKNOWN -> 0
+    }
+
+    /** A within-tier signal only. It can never lift a call past its tier. */
     private fun scoreOf(reason: Reason, count: Int, spamScore: Int): Int {
         val base = when (reason) {
             Reason.CONTACT_REPEATED -> 80
