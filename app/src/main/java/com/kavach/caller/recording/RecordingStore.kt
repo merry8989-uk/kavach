@@ -142,7 +142,21 @@ class RecordingStore @Inject constructor(
             return@withContext source
         }
         val temp = File(playbackDir, "${source.nameWithoutExtension}.m4a")
-        if (crypto.decryptToTemp(source, temp)) temp else null
+        if (crypto.decryptToTemp(source, temp)) {
+            temp
+        } else {
+            // GCM authenticates the whole file, so a failure here means it was
+            // modified or truncated — the exact thing the encryption exists to
+            // catch. Recorded as a security event rather than a playback error,
+            // and null returned so the caller refuses to play garbage.
+            diagnostics.securityEvent(
+                kind = "tampered_file",
+                outcome = "blocked",
+                detail = "recording failed its integrity check",
+                source = "RecordingStore",
+            )
+            null
+        }
     }
 
     /** Remove a decrypted copy from the cache as soon as playback ends. */

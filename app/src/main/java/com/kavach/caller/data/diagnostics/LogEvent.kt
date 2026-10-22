@@ -5,7 +5,14 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-enum class LogLevel { DEBUG, INFO, WARN, ERROR }
+/**
+ * Six levels, matching the taxonomy.
+ *
+ * `TRACE` is step-by-step detail that only makes sense when something is wrong,
+ * and `FATAL` is a failure that ends the process. Their absence is why a crash
+ * and a caught exception looked the same in the log.
+ */
+enum class LogLevel { TRACE, DEBUG, INFO, WARN, ERROR, FATAL }
 
 /**
  * One structured log event.
@@ -22,6 +29,15 @@ data class LogEvent(
     val sessionId: String,
     val screenOrRoute: String,
     val attemptId: String? = null,
+    /**
+     * One id per user action, shared by everything that action causes.
+     *
+     * Without it, "the lookup failed" and "the screen that asked for it" are two
+     * unrelated rows, and the only way to join them is by timestamp — which is a
+     * guess. With it, one request can be followed across the app and, when a
+     * server is configured, across the network too.
+     */
+    val requestId: String? = null,
     val userId: String? = null,
     val properties: Map<String, String> = emptyMap(),
 ) {
@@ -56,6 +72,11 @@ data class EnvelopeFields(
     val releaseChannel: String = "production",
     /** Readable per-install pseudonym, e.g. KV-4F9-K2Q. Not personal data. */
     val userCode: String = "KV-000-000",
+    /**
+     * Where this build is running. A developer's own noise and a user's real
+     * session are different things, and mixing them makes every count wrong.
+     */
+    val environment: String = "production",
 )
 
 /** Reads and writes events as one JSON object per line. */
@@ -82,6 +103,11 @@ object LogEventCodec {
         out["screen_or_route"] = event.screenOrRoute
         out["log_level"] = event.logLevel.name.lowercase(Locale.US)
         out["release_channel"] = envelope.releaseChannel
+        out["environment"] = envelope.environment
+        event.requestId?.let { out["request_id"] = it }
+        // The catalogue knows what kind of log this is; carrying it on the line
+        // means a reader can filter by category without the catalogue.
+        EventSchema.specFor(event.eventName)?.let { out["category"] = it.category }
 
         val body = StringBuilder("{")
         var first = true
@@ -112,6 +138,7 @@ object LogEventCodec {
         val reserved = setOf(
             "event_name", "schema_version", "timestamp", "session_id", "attempt_id",
             "user_id", "user_code", "platform", "app_version", "os", "device_model",
+            "category", "request_id", "environment",
             "network_type", "screen_or_route", "log_level", "release_channel",
         )
         return LogEvent(

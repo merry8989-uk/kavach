@@ -96,6 +96,15 @@ class RecordingCrypto @Inject constructor() {
     }.getOrNull()
 
     /** Decrypt to a throwaway file, for players that need a path. */
+    /**
+     * Decrypt to a temporary file for playback.
+     *
+     * A failure here is not routine. The GCM tag authenticates the whole file, so
+     * a decryption failure means the file was **modified or truncated** — the
+     * exact thing the encryption was there to catch. So it is recorded as a
+     * security event rather than swallowed, and it returns false so the caller
+     * refuses to play garbage.
+     */
     fun decryptToTemp(encrypted: File, target: File): Boolean = runCatching {
         openForRead(encrypted)?.use { input ->
             target.outputStream().buffered().use { output -> input.copyTo(output) }

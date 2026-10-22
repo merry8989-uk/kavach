@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from . import models  # noqa: F401  (register models with Base.metadata)
 from .config import get_settings
+from .logging import configure_logging, request_logging_middleware
 from .db import Base, get_engine
 from .routers import (
     account, ai, app_auth, appeals, auth, businesses, lookup, me, reports, telemetry,
@@ -37,6 +38,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Before anything else, so a failure during startup is itself a structured line
+# rather than a traceback on stderr.
+configure_logging()
+
 app = FastAPI(
     title="Kavach API",
     version="0.1.0",
@@ -46,6 +51,8 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+
+app.middleware("http")(request_logging_middleware)
 
 app.include_router(app_auth.router)
 app.include_router(appeals.router)

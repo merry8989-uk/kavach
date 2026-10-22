@@ -18,12 +18,54 @@ package com.kavach.caller.data.diagnostics
  */
 object EventSchema {
 
-    /** Bump on any breaking change and announce it. */
-    const val VERSION = "1.0.0"
+    /**
+     * Bump on any breaking change and announce it.
+     *
+     * 1.1.0 adds the two severity levels the taxonomy asks for and this project
+     * was missing (trace, fatal), a **category** on every event, a
+     * **correlation id** so one action can be followed across the app and the
+     * server, and an **environment**. It is additive: an event written against
+     * 1.0.0 still validates.
+     */
+    const val VERSION = "1.1.0"
 
     // ---------------- fixed vocabularies ----------------
 
-    val LOG_LEVELS = setOf("debug", "info", "warn", "error")
+    /**
+     * Six levels, not four.
+     *
+     * The two that were missing are the two that matter at the edges: `trace` is
+     * the step-by-step detail you only want when something is wrong, and `fatal`
+     * is the failure that ends the process — without it a crash and a caught
+     * exception looked the same in the log.
+     */
+    val LOG_LEVELS = setOf("trace", "debug", "info", "warn", "error", "fatal")
+
+    /**
+     * What kind of log this is, as opposed to how severe it is.
+     *
+     * The two are independent: a failed login is an `error` *and* a
+     * `security` event. Without this field a log is a flat list sorted by
+     * severity, and "show me everything that touched the database" is a text
+     * search rather than a filter.
+     */
+    val CATEGORIES = setOf(
+        "application",   // what the app is doing: screens, sessions, features
+        "error",         // crashes, ANRs, failed operations
+        "security",      // auth failures, permission denials, anything suspicious
+        "performance",   // timings, memory, slow work
+        "activity",      // what the user did: taps, searches, navigation
+        "infrastructure",// the process itself: start, stop, availability
+        "network",       // requests, responses, latency, rate limits
+        "database",      // queries, migrations, transactions
+        "audit",         // who changed what, when, and on which resource
+        "analytics",     // counts and adoption, kept apart from raw events
+        "background",    // scheduled work, retries, jobs
+        "trace",         // step-by-step detail, for when something is wrong
+    )
+
+    /** Where this build is running. Separates a developer's noise from a user's. */
+    val ENVIRONMENTS = setOf("development", "staging", "production")
     val PLATFORMS = setOf("android")
     val NETWORK_TYPES = setOf("wifi", "cellular", "ethernet", "offline", "unknown")
     val RELEASE_CHANNELS = setOf("debug", "beta", "production")
@@ -53,6 +95,8 @@ object EventSchema {
 
     val ENVELOPE_OPTIONAL = setOf(
         "attempt_id", "user_id", "user_code", "network_type", "release_channel",
+        // Added in 1.1.0.
+        "category", "request_id", "environment",
     )
 
     // ---------------- catalogue (Part C, adapted to Kavach) ----------------
@@ -224,6 +268,68 @@ object EventSchema {
             required = setOf("percent"),
             optional = setOf("list_name"),
         ),
+
+        // ---- the families the taxonomy asks for that Kavach had none of ----
+
+        EventSpec(
+            name = "security_event",
+            category = "security",
+            required = setOf("kind", "outcome"),
+            optional = setOf("detail", "source"),
+            enums = mapOf(
+                "kind" to setOf(
+                    "auth_failed", "permission_denied", "permission_revoked",
+                    "signature_mismatch", "tampered_file", "suspicious_input",
+                ),
+                "outcome" to setOf("blocked", "allowed", "recorded"),
+            ),
+        ),
+        EventSpec(
+            name = "background_job",
+            category = "background",
+            required = setOf("job", "outcome"),
+            optional = setOf("duration_ms", "attempt", "reason"),
+            enums = mapOf("outcome" to setOf("success", "failed", "skipped", "retry")),
+        ),
+        EventSpec(
+            name = "audit_event",
+            category = "audit",
+            // Who did what, when, to which resource. On the app the "who" is an
+            // install, because Kavach has no admin surface — but the shape is the
+            // same, so app and server records can sit side by side.
+            required = setOf("action", "resource"),
+            optional = setOf("resource_id", "before", "after"),
+        ),
+        EventSpec(
+            name = "perf_sample",
+            category = "performance",
+            required = setOf("metric", "value"),
+            optional = setOf("unit", "screen"),
+            enums = mapOf("unit" to setOf("ms", "bytes", "count", "percent")),
+        ),
+        EventSpec(
+            name = "db_query",
+            category = "database",
+            required = setOf("operation", "outcome"),
+            optional = setOf("table", "duration_ms", "rows"),
+            enums = mapOf("outcome" to setOf("success", "failed", "slow")),
+        ),
+        EventSpec(
+            name = "analytics_event",
+            category = "analytics",
+            // Counts and adoption, kept apart from raw activity on purpose: these
+            // are the numbers a weekly review reads, and mixing them into the
+            // event stream is how a dashboard becomes unreadable.
+            required = setOf("metric", "value"),
+            optional = setOf("dimension", "window"),
+        ),
+        EventSpec(
+            name = "trace_step",
+            category = "trace",
+            // Only emitted in a development build, and only when tracing is on.
+            required = setOf("step"),
+            optional = setOf("detail", "elapsed_ms"),
+        ),
     ).associateBy { it.name }
 
     fun specFor(eventName: String): EventSpec? = CATALOGUE[eventName]
@@ -237,6 +343,11 @@ data class EventSpec(
     val required: Set<String>,
     val optional: Set<String> = emptySet(),
     val enums: Map<String, Set<String>> = emptyMap(),
+    /**
+     * Which kind of log this is, as opposed to how severe. Carried on the
+     * envelope too, so a reader does not need the catalogue to filter by it.
+     */
+    val category: String = "application",
 ) {
     val allowed: Set<String> get() = required + optional
 }

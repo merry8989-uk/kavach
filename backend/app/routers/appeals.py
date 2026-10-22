@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..logging import log
 from ..schemas import (
     AppealRequest,
     AppealResponse,
@@ -147,6 +148,21 @@ def decide_moderation(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     db.commit()
+
+    # The audit category: who changed what, when, and on which resource. The
+    # database has an AuditLog table for identity writes; this is the same
+    # question asked of the log stream, so an operator can see it without a
+    # query.
+    log(
+        "audit",
+        "moderation decision",
+        actor="operator",
+        action=payload.decision,
+        resource="moderation_item",
+        resource_id=item.id,
+        number_id=item.number_id,
+        note=(payload.note or "")[:120],
+    )
 
     detail = (
         "Approved. The number's score and counts were cleared."

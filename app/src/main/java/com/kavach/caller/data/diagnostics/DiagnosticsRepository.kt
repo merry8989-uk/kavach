@@ -143,8 +143,10 @@ class DiagnosticsRepository @Inject constructor(
      * sampled, at any volume.
      */
     private fun shouldSample(eventName: String, level: LogLevel): Boolean {
-        if (level == LogLevel.ERROR || level == LogLevel.WARN) return true
-        if (level == LogLevel.DEBUG) return BuildConfig.DEBUG
+        // Nothing above warn is ever sampled, at any volume. A fatal that was
+        // sampled away is a crash nobody can explain.
+        if (level == LogLevel.FATAL || level == LogLevel.ERROR || level == LogLevel.WARN) return true
+        if (level == LogLevel.DEBUG || level == LogLevel.TRACE) return BuildConfig.DEBUG
         if (eventName in ALWAYS_KEEP) return true
 
         val now = System.currentTimeMillis()
@@ -166,10 +168,15 @@ class DiagnosticsRepository @Inject constructor(
      * quietly grow past its policy.
      */
     private fun retentionDays(level: LogLevel): Int = when (level) {
+        // A fatal is the failure that ended the process; it is kept longest
+        // because it is the one worth still having a month later.
+        LogLevel.FATAL -> 90
         LogLevel.ERROR -> 30
         LogLevel.WARN -> 14
         LogLevel.INFO -> 7
+        // Debug and trace are for the moment, not the archive.
         LogLevel.DEBUG -> 1
+        LogLevel.TRACE -> 1
     }
 
     private fun enforceRetention() {
@@ -384,6 +391,125 @@ class DiagnosticsRepository @Inject constructor(
                 put("permission", permission)
                 put("state", state)
                 itemCount?.let { put("item_count", it.toString()) }
+            },
+        )
+
+    /**
+     * A fresh correlation id for one user action.
+     *
+     * Passed to everything that action causes, so the rows join. Without it the
+     * only way to link "the lookup failed" to "the screen that asked for it" is
+     * by timestamp, which is a guess.
+     */
+    fun newRequestId(): String = "req_" + java.util.UUID.randomUUID().toString().replace("-", "").take(12)
+
+    // ------------------------------------------------------------------------
+    // The families the logging taxonomy asks for that Kavach had none of.
+    // ------------------------------------------------------------------------
+
+    /**
+     * Security events: an auth failure, a denied permission, a file that failed
+     * its integrity check.
+     *
+     * `kind` is an enum, never free text, so these can be counted. And nothing
+     * here ever carries a token or a password — see Redaction.
+     */
+    suspend fun securityEvent(
+        kind: String,
+        outcome: String,
+        detail: String? = null,
+        source: String? = null,
+    ) = emit(
+        "security_event",
+        properties = buildMap {
+            put("kind", kind)
+            put("outcome", outcome)
+            detail?.let { put("detail", it.take(120)) }
+            source?.let { put("source", it) }
+        },
+    )
+
+    /**
+     * Scheduled work: what ran, whether it worked, how long it took.
+     *
+     * A background job that fails silently is the hardest kind of bug to find,
+     * because nothing the user did is connected to it.
+     */
+    suspend fun backgroundJob(
+        job: String,
+        outcome: String,
+        durationMs: Long? = null,
+        reason: String? = null,
+    ) = emit(
+        "background_job",
+        properties = buildMap {
+            put("job", job)
+            put("outcome", outcome)
+            durationMs?.let { put("duration_ms", it.toString()) }
+            reason?.let { put("reason", it.take(120)) }
+        },
+    )
+
+    /** A measured value: memory, a slow operation, a queue depth. */
+    suspend fun perfSample(metric: String, value: Long, unit: String, screen: String? = null) =
+        emit(
+            "perf_sample",
+            properties = buildMap {
+                put("metric", metric)
+                put("value", value.toString())
+                put("unit", unit)
+                screen?.let { put("screen", it) }
+            },
+        )
+
+    /** A database operation, kept separate from the feature that triggered it. */
+    suspend fun dbQuery(
+        operation: String,
+        outcome: String,
+        table: String? = null,
+        durationMs: Long? = null,
+        rows: Int? = null,
+    ) = emit(
+        "db_query",
+        properties = buildMap {
+            put("operation", operation)
+            put("outcome", outcome)
+            table?.let { put("table", it) }
+            durationMs?.let { put("duration_ms", it.toString()) }
+            rows?.let { put("rows", it.toString()) }
+        },
+    )
+
+    /**
+     * Who changed what. On the app the "who" is an install, because Kavach has no
+     * admin surface — but the shape matches the server's audit table, so records
+     * from both can sit side by side.
+     */
+    suspend fun auditEvent(
+        action: String,
+        resource: String,
+        resourceId: String? = null,
+        before: String? = null,
+        after: String? = null,
+    ) = emit(
+        "audit_event",
+        properties = buildMap {
+            put("action", action)
+            put("resource", resource)
+            resourceId?.let { put("resource_id", it) }
+            before?.let { put("before", it.take(60)) }
+            after?.let { put("after", it.take(60)) }
+        },
+    )
+
+    /** A count, kept apart from the raw event stream on purpose. */
+    suspend fun analyticsEvent(metric: String, value: Long, dimension: String? = null) =
+        emit(
+            "analytics_event",
+            properties = buildMap {
+                put("metric", metric)
+                put("value", value.toString())
+                dimension?.let { put("dimension", it) }
             },
         )
 

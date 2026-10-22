@@ -150,5 +150,9 @@ def test_the_server_schema_matches_the_documented_event_names():
         "sms_sent", "auto_reply", "update_check", "identity_lookup",
         "rage_tap", "dead_click", "back_button_spam", "drop_off",
         "time_to_first_value", "scroll_depth",
+        # Added with schema 1.1.0: the families the logging taxonomy asks for
+        # that the app had none of.
+        "security_event", "background_job", "audit_event",
+        "perf_sample", "db_query", "analytics_event", "trace_step",
     }
     assert set(telemetry_schema.CATALOGUE) == expected

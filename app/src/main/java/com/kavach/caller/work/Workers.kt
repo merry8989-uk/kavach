@@ -20,6 +20,8 @@ import java.io.File
 @InstallIn(SingletonComponent::class)
 interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
+
+    fun diagnostics(): com.kavach.caller.data.diagnostics.DiagnosticsRepository
 }
 
 /**
@@ -32,16 +34,36 @@ class CallLogSyncWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
-    override suspend fun doWork(): Result = try {
+    override suspend fun doWork(): Result {
         val entryPoint = EntryPointAccessors.fromApplication(
             applicationContext,
             WorkerEntryPoint::class.java,
         )
-        entryPoint.callLogRepository().syncFromSystem()
-        Result.success()
-    } catch (t: Throwable) {
-        // Transient failure — let WorkManager retry with backoff.
-        Result.retry()
+        val diagnostics = entryPoint.diagnostics()
+
+        val startedAt = System.currentTimeMillis()
+        return try {
+            entryPoint.callLogRepository().syncFromSystem()
+            diagnostics.backgroundJob(
+                job = "call_log_sync",
+                outcome = "success",
+                durationMs = System.currentTimeMillis() - startedAt,
+            )
+            Result.success()
+        } catch (t: Throwable) {
+            // A background job that fails silently is the hardest kind of bug to
+            // find, because nothing the user did is connected to it. Recorded
+            // before the retry, so the attempt is visible even when the next one
+            // succeeds.
+            diagnostics.backgroundJob(
+                job = "call_log_sync",
+                outcome = "retry",
+                durationMs = System.currentTimeMillis() - startedAt,
+                reason = t.javaClass.simpleName,
+            )
+            // Transient failure — let WorkManager retry with backoff.
+            Result.retry()
+        }
     }
 }
 

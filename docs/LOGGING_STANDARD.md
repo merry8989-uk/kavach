@@ -84,6 +84,51 @@ flood the log.
 - There is no log dashboard; the on-device viewer and the export formats are the
   current way to read it.
 
+## The twelve categories
+
+The standard this was built against asks for twelve kinds of log, six severities,
+and one envelope. Schema **1.1.0** covers all twelve, on both sides of the wire.
+
+| # | Category | Kavach's events | Where |
+|---|---|---|---|
+| 1 | **Application** | `session_start`, `screen_view`, `feature_toggle`, `feature_snapshot` | app |
+| 2 | **Error** | `crash`, `anr`, `error_state_shown`, failed `api_request` | app + server |
+| 3 | **Security** | `security_event`, `access_fix_requested`, `access_fix_result`, refused requests | app + server |
+| 4 | **Performance** | `performance_marker`, `perf_sample`, `api_request.duration_ms` | app + server |
+| 5 | **User activity** | `screen_view`, `rage_tap`, `dead_click`, `back_button_spam`, `drop_off`, `scroll_depth`, `time_to_first_value` | app |
+| 6 | **Server & infrastructure** | process start, request lifecycle, service availability | server |
+| 7 | **API & network** | `api_request` (method, endpoint, status, latency, `request_id`) | app + server |
+| 8 | **Database** | `data_query_result`, `db_query` (operation, outcome, duration, rows) | app + server |
+| 9 | **Audit** | `audit_event`, `AuditLog` (moderation decisions, identity writes) | app + server |
+| 10 | **Analytics** | `analytics_event` — counts kept apart from the raw stream | app |
+| 11 | **Background jobs** | `background_job` (job, outcome, duration, reason), `update_check` | app + server |
+| 12 | **Debug & trace** | `trace_step`, `request_id` correlation across app and server | app + server |
+
+### Six severities, not four
+
+`trace` and `fatal` were missing. Their absence is why a crash and a caught
+exception looked the same in the log. Retention now follows the level: a **fatal
+is kept 90 days**, an error 30, a warn 14, info 7, and debug/trace one.
+
+Nothing above `warn` is ever sampled, at any volume. A fatal that was sampled away
+is a crash nobody can explain.
+
+### One envelope, both sides
+
+```
+timestamp · severity · category · message · app_id · environment · request_id · metadata
+```
+
+`request_id` is the field that makes this one story rather than two. The app mints
+it per user action, sends it as `X-Request-Id`, and the server reuses it — so the
+tap, the request it caused and the query that answered it all carry the same id.
+Without it the only way to join them is by timestamp, which is a guess.
+
+The server logs in the same shape from `app/logging.py`. Headers are an
+**allow-list** rather than a deny-list, because the set of headers that might
+carry a secret is unbounded and the set worth logging is not — `authorization` is
+deliberately absent.
+
 ## Where the events go
 
 **Nowhere by default. Kavach keeps its diagnostics on the device.**

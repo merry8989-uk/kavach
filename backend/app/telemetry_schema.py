@@ -18,7 +18,9 @@ ENVELOPE_OPTIONAL = {
     "attempt_id", "user_id", "user_code", "network_type", "release_channel",
 }
 
-LOG_LEVELS = {"debug", "info", "warn", "error"}
+# Six, matching the app and the taxonomy. The two that were missing are the two
+# that matter at the edges.
+LOG_LEVELS = {"trace", "debug", "info", "warn", "error", "fatal"}
 OUTCOMES = {"success", "no_op", "failed"}
 ACCESS_STATES = {"granted", "partial", "denied", "permanently_denied", "not_applicable"}
 
@@ -44,6 +46,25 @@ CATALOGUE: dict[str, tuple[set[str], set[str], dict[str, set[str]]]] = {
     "performance_marker": ({"flow", "duration_ms"}, {"frame_drops"}, {}),
     "feature_toggle": ({"feature", "enabled"}, {"status"}, {}),
     "feature_snapshot": ({"total", "enabled_count"}, {"disabled"}, {}),
+    # Added with schema 1.1.0 — the families the logging taxonomy asks for that
+    # the app had none of. Kept in step with the Android EventSchema.
+    "security_event": (
+        {"kind", "outcome"}, {"detail", "source"},
+        {"kind": {"auth_failed", "permission_denied", "permission_revoked",
+                  "signature_mismatch", "tampered_file", "suspicious_input"},
+         "outcome": {"blocked", "allowed", "recorded"}},
+    ),
+    "background_job": (
+        {"job", "outcome"}, {"duration_ms", "attempt", "reason"},
+        {"outcome": {"success", "failed", "skipped", "retry"}},
+    ),
+    "audit_event": ({"action", "resource"}, {"resource_id", "before", "after"}, {}),
+    "perf_sample": ({"metric", "value"}, {"unit", "screen"},
+                    {"unit": {"ms", "bytes", "count", "percent"}}),
+    "db_query": ({"operation", "outcome"}, {"table", "duration_ms", "rows"},
+                 {"outcome": {"success", "failed", "slow"}}),
+    "analytics_event": ({"metric", "value"}, {"dimension", "window"}, {}),
+    "trace_step": ({"step"}, {"detail", "elapsed_ms"}, {}),
     "call_screened": ({"action", "outcome"}, {"has_rule", "number_type"}, {"outcome": OUTCOMES}),
     "call_state": ({"direction", "phase"}, {"has_sim", "has_name"}, {}),
     "sms_sent": ({"outcome"}, {"parts", "error_code"}, {"outcome": OUTCOMES}),

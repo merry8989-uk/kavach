@@ -288,3 +288,110 @@ class LoggingSchemaTest {
         assertEquals(null, LogEventCodec.decode("2026-10-21 14:40:12 INFO  Screening  BLOCK"))
     }
 }
+
+
+    // ------------------------------------------------------ schema 1.1.0 --
+
+    @Test
+    fun `the six severities the taxonomy asks for are all present`() {
+        assertEquals(
+            setOf("trace", "debug", "info", "warn", "error", "fatal"),
+            EventSchema.LOG_LEVELS,
+        )
+    }
+
+    @Test
+    fun `every category the taxonomy asks for is a real category`() {
+        val expected = setOf(
+            "application", "error", "security", "performance", "activity",
+            "infrastructure", "network", "database", "audit", "analytics",
+            "background", "trace",
+        )
+        assertEquals(expected, EventSchema.CATEGORIES)
+    }
+
+    @Test
+    fun `every catalogued event declares a category from the vocabulary`() {
+        EventSchema.CATALOGUE.values.forEach { spec ->
+            assertTrue(
+                "${spec.name} has category '${spec.category}'",
+                spec.category in EventSchema.CATEGORIES,
+            )
+        }
+    }
+
+    @Test
+    fun `the families the app had none of are all catalogued`() {
+        listOf(
+            "security_event", "background_job", "audit_event",
+            "perf_sample", "db_query", "analytics_event", "trace_step",
+        ).forEach { name ->
+            assertTrue("$name is missing from the catalogue", EventSchema.isKnown(name))
+        }
+    }
+
+    @Test
+    fun `a security event carries its kind and outcome`() {
+        assertTrue(
+            EventValidator.validate(
+                "security_event",
+                mapOf("kind" to "tampered_file", "outcome" to "blocked"),
+            ).valid,
+        )
+        assertFalse(
+            EventValidator.validate("security_event", mapOf("kind" to "tampered_file")).valid,
+            "an outcome is required",
+        )
+    }
+
+    @Test
+    fun `a background job outcome must be one of the four`() {
+        assertTrue(
+            EventValidator.validate(
+                "background_job",
+                mapOf("job" to "call_log_sync", "outcome" to "retry"),
+            ).valid,
+        )
+        assertFalse(
+            EventValidator.validate(
+                "background_job",
+                mapOf("job" to "call_log_sync", "outcome" to "maybe"),
+            ).valid,
+        )
+    }
+
+    @Test
+    fun `the envelope carries category, request id and environment`() {
+        val json = LogEventCodec.encode(
+            LogEvent(
+                eventName = "screen_view",
+                logLevel = LogLevel.INFO,
+                timestampMs = 0,
+                sessionId = "s",
+                screenOrRoute = "Home",
+                requestId = "req_abc123",
+            ),
+            envelope,
+            networkType = null,
+        )
+        assertTrue(json.contains("\"category\":\"application\""), json)
+        assertTrue(json.contains("\"request_id\":\"req_abc123\""), json)
+        assertTrue(json.contains("\"environment\":"), json)
+    }
+
+    @Test
+    fun `a trace level survives the round trip`() {
+        val json = LogEventCodec.encode(
+            LogEvent(
+                eventName = "trace_step",
+                logLevel = LogLevel.TRACE,
+                timestampMs = 0,
+                sessionId = "s",
+                screenOrRoute = "Home",
+                properties = mapOf("step" to "begin"),
+            ),
+            envelope,
+            networkType = null,
+        )
+        assertTrue(json.contains("\"log_level\":\"trace\""), json)
+    }
