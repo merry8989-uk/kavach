@@ -109,5 +109,4 @@ class SettingsViewModel @Inject constructor(
     fun setSmsWarnOnSpam(value: Boolean) = viewModelScope.launch { repo.setSmsWarnOnSpam(value) }
     fun setSmsShowOtpBanner(value: Boolean) = viewModelScope.launch { repo.setSmsShowOtpBanner(value) }
     fun setBackendBaseUrl(value: String) = viewModelScope.launch { repo.setBackendBaseUrl(value) }
-    fun setBackendToken(value: String) = viewModelScope.launch { repo.setBackendToken(value) }
 }
