@@ -41,7 +41,7 @@ data class LogEvent(
     val userId: String? = null,
     val properties: Map<String, String> = emptyMap(),
 ) {
-    /** ISO 8601, UTC — as the standard requires. */
+    /** ISO 8601, UTC. A local timestamp is unusable across a timezone change. */
     fun iso8601(): String = ISO_FORMAT.get().format(Date(timestampMs))
 
     private companion object {

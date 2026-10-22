@@ -74,7 +74,7 @@ class KavachApp : Application() {
         // A startup breadcrumb plus the current module states, so a shared log
         // shows exactly what configuration produced a bug.
         scope.launch {
-            // Session context is recorded once per launch, as the standard asks.
+            // Session context is recorded once per launch.
             diagnostics.sessionStart()
             // Only modules whose state actually changed since the last launch.
             // Logging all of them every time buried the real events in a real

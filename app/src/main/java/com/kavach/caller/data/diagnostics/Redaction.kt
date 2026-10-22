@@ -110,6 +110,6 @@ object Redaction {
         return digest.digest(stack.toByteArray()).joinToString("") { "%02x".format(it) }.take(16)
     }
 
-    /** The value the standard wants for a raw query: its length, not its text. */
+    /** For a raw search query: its length, not its text. */
     fun queryLength(raw: String?): String = (raw?.length ?: 0).toString()
 }

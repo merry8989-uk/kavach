@@ -50,7 +50,7 @@ def test_a_valid_batch_is_stored(client, db):
 
 
 def test_an_event_without_its_outcome_is_rejected(client):
-    # The standard's core rule, enforced at the edge as well as in the app.
+    # The core rule, enforced at the edge as well as in the app.
     bad = _event("access_fix_result", action_taken="request_role", state_after="granted")
     response = client.post(
         "/v1/telemetry/events",

@@ -3,7 +3,7 @@ package com.kavach.caller.data.diagnostics
 /**
  * Validates an event against [EventSchema] before it is written.
  *
- * The standard asks for this in CI; it also runs at runtime, because a log that
+ * This runs in CI and at runtime, because a log that
  * silently records a malformed event is worse than no log at all. Anything that
  * fails validation is dropped and a `warn` is raised about the drop itself, so
  * the gap is visible rather than hidden.

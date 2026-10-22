@@ -22,8 +22,10 @@ import javax.inject.Singleton
 /**
  * The diagnostics log, rebuilt to the shared logging standard.
  *
- * What changed and why — the standard's own words: *"a log must capture intent,
- * outcome and context together, not intent alone."* The previous version wrote
+ * What changed and why. The rule everything here follows:
+ *
+ *   a log line must carry intent, outcome and context together. Intent alone is
+ *   not a log.* The previous version wrote
  * free-text lines, which is exactly the anti-pattern the checklist forbids
  * ("structured format — never free-text strings") and is why a 71-attempt loop
  * was visible but unexplainable.
@@ -32,8 +34,8 @@ import javax.inject.Singleton
  * envelope (session, device, version, level) plus event-specific properties.
  * Nothing is written unless it names both what was attempted and how it ended.
  *
- * Privacy (Part F) is enforced in [Redaction], not trusted to call sites.
- * Retention (Part F) is enforced here, per class.
+ * Privacy is enforced in [Redaction], not trusted to call sites.
+ * Retention is enforced here, per class.
  */
 @Singleton
 class DiagnosticsRepository @Inject constructor(
@@ -125,7 +127,7 @@ class DiagnosticsRepository @Inject constructor(
         }
     }
 
-    // ---------------- sampling (Part A) ----------------
+    // ---------------- sampling ----------------
 
     /**
      * Keep 100% of warnings and errors, and sample info **only when the app is
@@ -161,7 +163,7 @@ class DiagnosticsRepository @Inject constructor(
         return SamplingPolicy.keep(ratePerMinute = ratePerMinute, sampleTick = System.nanoTime())
     }
 
-    // ---------------- retention (Part F) ----------------
+    // ---------------- retention ----------------
 
     /**
      * How long each class is kept. Enforced on every write, so the file cannot
@@ -295,7 +297,7 @@ class DiagnosticsRepository @Inject constructor(
      *
      * This used to be emitted only by the permissions screen, so a real export
      * had it in two sessions out of ten — the eight where onboarding was not
-     * shown reported nothing. The standard defines it as
+     * shown reported nothing. It is defined as
      * "session_start → first meaningful action", which is a property of the
      * session, not of one screen.
      */
@@ -674,7 +676,7 @@ class DiagnosticsRepository @Inject constructor(
             },
         )
 
-    // ---- user-friendliness signals (Part E) ----
+    // ---- friction signals ----
 
     suspend fun rageTap(element: String, tapCount: Int) = emit(
         "rage_tap",

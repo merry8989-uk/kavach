@@ -349,7 +349,7 @@ fun PermissionsScreen(
     val friction = remember { FrictionTracker(scope, diagnosticsVm.diagnostics) }
 
     // Back on the setup screen means the user is stuck: 3+ presses raise
-    // back_button_spam (Part E).
+    // back_button_spam.
     BackHandler { friction.onBack() }
     val groups = remember { permissionGroups() }
     val roles = remember { roleItems() }

@@ -85,7 +85,7 @@ object EventSchema {
      */
     val START_TYPES = setOf("cold", "warm")
 
-    // ---------------- envelope (Part B) ----------------
+    // ---------------- envelope ----------------
 
     /** Fields every event carries. */
     val ENVELOPE_REQUIRED = setOf(
@@ -104,12 +104,12 @@ object EventSchema {
     /**
      * Kavach's own event catalogue.
      *
-     * The standard's media-access events (`permission_state_resolved`,
-     * `access_fix_requested`, `access_fix_result`, `media_query_result`) map
-     * directly onto this app: Kavach has exactly the same "user taps a fix, did
-     * it actually work?" loop for permissions and for the dialer/screening roles.
-     * `media_query_result` becomes [DATA_QUERY_RESULT] because Kavach reads the
-     * contact and call-log providers rather than MediaStore.
+     * Two events carry most of the weight here: `permission_state_resolved` and
+     * the `access_fix_requested` / `access_fix_result` pair. They exist because
+     * Kavach has a "user taps a fix, did it actually work?" loop for permissions
+     * and for the dialer and screening roles — and a loop that only logs the tap
+     * cannot say whether it worked, which is how a 71-attempt dead end stayed
+     * invisible.
      */
     val CATALOGUE: Map<String, EventSpec> = listOf(
         // ---- lifecycle ----
@@ -237,7 +237,7 @@ object EventSchema {
             optional = setOf("source", "has_name", "confidence_band"),
         ),
 
-        // ---- user-friendliness signals (Part E) ----
+        // ---- friction signals ----
         EventSpec(
             name = "rage_tap",
             required = setOf("element", "tap_count"),

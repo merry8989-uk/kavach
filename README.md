@@ -203,7 +203,7 @@ Still integration points (marked in code): the cloud ASR/LLM backend
   - an identity header — the contact name, or **"Not in your contacts"** — with the last call time and a call-back button;
   - action rows: **Create new contact**, **Add to a contact**, **Video call**, **Send a message**;
   - the number display with an overflow menu (**Paste**, **Copy number**, **Add 2-sec pause**, **Add wait**) and backspace;
-  - a keypad with the standard long-press shortcuts — 1 = voicemail, 0 = `+`, `*` = pause, `#` = wait;
+  - a keypad with the usual long-press shortcuts — 1 = voicemail, 0 = `+`, `*` = pause, `#` = wait;
   - a green **Call** pill.
 - **Create new contact** opens the editor pre-filled with the typed number; **Add to a contact** picks an existing contact and appends the number.
 - **Send a message** opens the system SMS composer for that number (works without Kavach holding the SMS role).

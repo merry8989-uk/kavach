@@ -98,7 +98,7 @@ logging standard was written to prevent.
 
 ## Retention
 
-The standard promises error 30 days, warn 14, info 7, debug 1. Supabase gives
+Kavach keeps errors 30 days, warns 14, info 7, debug 1. Supabase gives
 you `pg_cron`, so `kavach_purge()` actually runs nightly instead of being a
 promise in a document.
 

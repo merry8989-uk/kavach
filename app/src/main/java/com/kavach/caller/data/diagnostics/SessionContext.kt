@@ -12,7 +12,7 @@ import javax.inject.Singleton
 /**
  * Session and device context (standard Part B).
  *
- * The standard is explicit that this is logged **once per session**, not
+ * This is logged **once per session**, not
  * repeated on every event — so it is carried in the envelope rather than being
  * re-read per line.
  */

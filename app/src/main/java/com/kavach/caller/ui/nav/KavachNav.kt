@@ -159,7 +159,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
     val current = backStack?.destination
 
     // screen_view on every destination change, with the previous screen and how
-    // long it was shown — the standard's Part C requirement.
+    // long it was shown.
     var previousScreen by remember { mutableStateOf<String?>(null) }
     var shownAt by remember { mutableStateOf(System.currentTimeMillis()) }
     val route = current?.route

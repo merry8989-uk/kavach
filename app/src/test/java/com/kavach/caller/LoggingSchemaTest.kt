@@ -50,14 +50,14 @@ class LoggingSchemaTest {
     // ---------------- catalogue shape ----------------
 
     @Test
-    fun `catalogue satisfies the standards naming and completeness rules`() {
+    fun `catalogue satisfies the naming and completeness rules`() {
         val problems = EventValidator.validateCatalogue()
         assertTrue("catalogue problems: $problems", problems.isEmpty())
     }
 
     @Test
     fun `every event name follows object_action snake_case`() {
-        // The standard's own catalogue has single-word events ("crash", "anr"),
+        // The catalogue has single-word events ("crash", "anr"),
         // so zero underscore groups is legal. camelCase is not.
         val pattern = Regex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
         EventSchema.CATALOGUE.keys.forEach { name ->
@@ -68,7 +68,7 @@ class LoggingSchemaTest {
 
     @Test
     fun `the intent to outcome pair exists`() {
-        // The whole reason the standard exists.
+        // The whole reason this schema exists.
         assertTrue(EventSchema.isKnown("access_fix_requested"))
         assertTrue(EventSchema.isKnown("access_fix_result"))
         assertTrue(
@@ -144,7 +144,7 @@ class LoggingSchemaTest {
         assertFalse(report.valid)
     }
 
-    // ---------------- privacy (Part F) ----------------
+    // ---------------- privacy ----------------
 
     @Test
     fun `forbidden keys are blanked whatever the caller passes`() {
@@ -211,7 +211,7 @@ class LoggingSchemaTest {
     // ---------------- envelope + codec ----------------
 
     @Test
-    fun `every envelope field the standard requires is present`() {
+    fun `every required envelope field is present`() {
         val json = LogEventCodec.encode(
             event("access_fix_result", mapOf("action_taken" to "x", "state_after" to "granted", "outcome" to "success")),
             envelope,
