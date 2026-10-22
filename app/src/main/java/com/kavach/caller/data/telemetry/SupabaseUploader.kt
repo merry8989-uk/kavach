@@ -1,11 +1,9 @@
 package com.kavach.caller.data.telemetry
 
-import android.content.Context
 import com.kavach.caller.data.diagnostics.LogEventCodec
 import com.kavach.caller.data.diagnostics.SessionContext
-import com.kavach.caller.data.notion.SecretStore
+import com.kavach.caller.data.secure.SecretStore
 import com.kavach.caller.data.settings.SettingsRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
@@ -16,7 +14,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -43,8 +40,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class SupabaseUploader @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
+    private val queue: UploadQueue,
     private val secrets: SecretStore,
     private val session: SessionContext,
 ) {
@@ -64,13 +61,11 @@ class SupabaseUploader @Inject constructor(
         enabled = settings.snapshot.supabaseUploadEnabled,
         hasKey = !anonKey().isNullOrBlank() && settings.snapshot.supabaseUrl.isNotBlank(),
         pending = pendingCount(),
-        sent = settings.snapshot.notionSyncedTotal,
-        lastError = settings.snapshot.notionLastError,
+        sent = settings.snapshot.uploadSyncedTotal,
+        lastError = settings.snapshot.uploadLastError,
     )
 
-    suspend fun pendingCount(): Int = withContext(Dispatchers.IO) {
-        runCatching { queueFile().takeIf { it.exists() }?.readLines()?.size ?: 0 }.getOrDefault(0)
-    }
+    suspend fun pendingCount(): Int = queue.count()
 
     private fun anonKey(): String? = secrets.get(SecretStore.SUPABASE_ANON_KEY)
 
@@ -78,11 +73,6 @@ class SupabaseUploader @Inject constructor(
         settings.snapshot.supabaseUploadEnabled &&
             settings.snapshot.supabaseUrl.isNotBlank() &&
             !anonKey().isNullOrBlank()
-
-    private fun queueFile(): File {
-        val dir = File(context.filesDir, "notion-queue").apply { mkdirs() }
-        return File(dir, QUEUE_FILE)
-    }
 
     /**
      * Send queued events.
@@ -94,10 +84,7 @@ class SupabaseUploader @Inject constructor(
         withContext(Dispatchers.IO) {
             if (!isConfigured()) return@withContext 0 to null
 
-            val file = queueFile()
-            if (!file.exists()) return@withContext 0 to null
-
-            val lines = runCatching { file.readLines() }.getOrDefault(emptyList())
+            val lines = queue.lines()
             if (lines.isEmpty()) return@withContext 0 to null
 
             val batch = lines.take(limit)
@@ -107,21 +94,21 @@ class SupabaseUploader @Inject constructor(
                 LogEventCodec.decode(line)?.let { event -> rowFor(event) }
             }
             if (rows.isEmpty()) {
-                file.writeText(rest.joinToString("\n", postfix = if (rest.isEmpty()) "" else "\n"))
+                queue.keep(rest)
                 return@withContext 0 to null
             }
 
             val result = post(JsonArray(rows))
             when (result) {
                 is Result.Sent -> {
-                    file.writeText(rest.joinToString("\n", postfix = if (rest.isEmpty()) "" else "\n"))
-                    settings.setNotionLastSyncAt(System.currentTimeMillis())
-                    settings.setNotionSyncedTotal(settings.snapshot.notionSyncedTotal + rows.size)
-                    settings.setNotionLastError(null)
+                    queue.keep(rest)
+                    settings.setUploadLastSyncAt(System.currentTimeMillis())
+                    settings.setUploadSyncedTotal(settings.snapshot.uploadSyncedTotal + rows.size)
+                    settings.setUploadLastError(null)
                     rows.size to null
                 }
                 is Result.Failed -> {
-                    settings.setNotionLastError(result.reason)
+                    settings.setUploadLastError(result.reason)
                     0 to result.reason
                 }
             }
@@ -130,9 +117,9 @@ class SupabaseUploader @Inject constructor(
     /**
      * Send one synthetic row and report the real answer.
      *
-     * The first version of the Notion path could not be debugged because a
+     * An earlier version of the upload path could not be debugged because a
      * rejected row was dropped without a word. This does the opposite: one
-     * button, and Supabase's own status and message back.
+     * button, and the destination's own status and message back.
      */
     suspend fun testConnection(): String = withContext(Dispatchers.IO) {
         val key = anonKey()
@@ -241,7 +228,6 @@ class SupabaseUploader @Inject constructor(
     }
 
     private companion object {
-        const val QUEUE_FILE = "pending.log"
         const val MAX_PER_FLUSH = 200
         val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
     }

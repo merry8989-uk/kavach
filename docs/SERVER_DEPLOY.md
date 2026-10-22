@@ -83,7 +83,7 @@ That brings up three things:
 |---|---|
 | `db` | Postgres, not exposed to the host |
 | `api` | Migrates on boot, then serves on `:8000` |
-| `maintainer` | Every 15 min: drains telemetry into Notion, enforces retention |
+| `maintainer` | Every 15 min: enforces telemetry retention |
 
 Check it:
 

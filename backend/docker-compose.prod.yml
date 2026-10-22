@@ -40,8 +40,6 @@ services:
       AUTO_CREATE_TABLES: "false"
       OTP_DEBUG_RETURN: "false"
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
-      NOTION_TOKEN: ${NOTION_TOKEN:-}
-      NOTION_DATA_SOURCE_ID: ${NOTION_DATA_SOURCE_ID:-}
     ports:
       - "${API_PORT:-8000}:8000"
     healthcheck:
@@ -51,9 +49,8 @@ services:
       start_period: 30s
       retries: 3
 
-  # Drains collected telemetry into Notion and enforces retention.
-  # Two endpoints, called on a timer. Runs as a tiny container so there is no
-  # cron to install on the host.
+  # Enforces telemetry retention on a timer. Runs as a tiny container so there is
+  # no cron to install on the host.
   maintainer:
     image: alpine:3.20
     restart: unless-stopped
@@ -67,7 +64,6 @@ services:
       sh -c "apk add --no-cache curl >/dev/null &&
              while true; do
                sleep 900;
-               curl -fsS -X POST -H \"Authorization: Bearer $$API_TOKEN\" \"$$API_BASE/v1/admin/notion/push?limit=40\" || true;
                curl -fsS -X POST -H \"Authorization: Bearer $$API_TOKEN\" \"$$API_BASE/v1/admin/telemetry/purge?keep_days=30\" || true;
              done"
 

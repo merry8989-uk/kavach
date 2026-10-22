@@ -75,7 +75,7 @@ class SessionContext @Inject constructor(
     /**
      * A readable pseudonym for this install, format KV-XXX-XXX.
      *
-     * It exists so Notion rows from one device group together without any name,
+     * It exists so rows from one device group together without any name,
      * account, email or device identifier being involved. Random, local, and
      * never derived from anything about the person or the phone. A reinstall
      * produces a new one.
@@ -147,7 +147,7 @@ class SessionContext @Inject constructor(
 
     private fun generateUserCode(): String {
         // Unambiguous alphabet: no O/0, no I/1, so a code can be read off a
-        // screen and typed into Notion without confusion.
+        // screen and typed into a dashboard without confusion.
         val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val random = java.security.SecureRandom()
         fun block() = (1..3).map { alphabet[random.nextInt(alphabet.length)] }.joinToString("")

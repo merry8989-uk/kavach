@@ -45,12 +45,6 @@ class Settings(BaseSettings):
     # tested without an SMS gateway. NEVER enable this in production.
     otp_debug_return: bool = False
 
-    # ---- server-side Notion sink ----
-    # These live on the SERVER, never in the app. The app has no Notion
-    # credentials at all; a hundred installs send their events here instead.
-    notion_token: str = ""
-    notion_data_source_id: str = ""
-
     # Spam-score thresholds (plan section 6).
     spam_likely_threshold: int = 40
     spam_threshold: int = 70

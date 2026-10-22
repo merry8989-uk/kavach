@@ -121,23 +121,6 @@ def test_the_endpoint_needs_a_token(client):
     assert response.status_code in (401, 403)
 
 
-def test_the_notion_push_is_an_honest_no_op_when_unconfigured(client):
-    client.post(
-        "/v1/telemetry/events",
-        json={
-            "user_code": "KV-4F9-K2Q",
-            "events": [_event("session_start", start_type="cold")],
-        },
-    )
-    response = client.post("/v1/admin/notion/push")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["pushed"] == 0
-    # It says why rather than pretending to have worked.
-    assert "not configured" in (body["detail"] or "").lower()
-    assert body["remaining"] == 1
-
-
 def test_purge_removes_old_rows(client, db):
     from app.models import TelemetryEvent
 

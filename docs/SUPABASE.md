@@ -4,14 +4,17 @@ Supabase is managed Postgres, so this path needs **no server to run**. The app
 appends to a real SQL table, and you query it in the dashboard, in SQL, or from
 anything that can read Postgres.
 
-Three destinations exist, and they share one queue on the device — turning one
-off and another on loses nothing:
+Supabase is the diagnostics destination. One other exists, and they share a
+single queue on the device — turning one off and the other on loses nothing:
 
 | Destination | Use it when | What it needs |
 |---|---|---|
-| **Supabase** | you want SQL and charts, no server | a project + one SQL file |
-| Kavach server | you want to own the intake, or write to Notion | a VPS |
-| The user's Notion | one person's own dashboard | a Notion integration token |
+| **Supabase** | **the default — SQL and charts, no server** | a project + one SQL file |
+| Kavach server | you also want to own the caller-lookup and consent traffic | a VPS |
+
+Notion was removed as a destination: it required every user to create their own
+integration and paste a token, and their rows would have landed in their
+workspace rather than yours.
 
 ---
 

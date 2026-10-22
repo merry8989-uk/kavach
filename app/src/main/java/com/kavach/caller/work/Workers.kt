@@ -3,7 +3,6 @@ package com.kavach.caller.work
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.kavach.caller.data.notion.NotionSyncRepository
 import com.kavach.caller.data.telemetry.SupabaseUploader
 import com.kavach.caller.data.telemetry.TelemetryUploader
 import com.kavach.caller.data.repo.CallLogRepository
@@ -23,19 +22,18 @@ import java.io.File
 @InstallIn(SingletonComponent::class)
 interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
-    fun notionSyncRepository(): NotionSyncRepository
     fun telemetryUploader(): TelemetryUploader
     fun supabaseUploader(): SupabaseUploader
 }
 
 /**
- * Pushes queued diagnostics events to the user's Notion database.
+ * Pushes queued diagnostics events to their destination.
  *
- * Only scheduled while the user has the sync switched on. A failure here is
- * never fatal — the events stay queued and the next run retries, because a
- * dashboard that lags is fine and a log that is lost is not.
+ * Only scheduled while a destination is switched on. A failure here is never
+ * fatal — the events stay queued and the next run retries, because a dashboard
+ * that lags is fine and a log that is lost is not.
  */
-class NotionSyncWorker(
+class UploadWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
@@ -45,18 +43,20 @@ class NotionSyncWorker(
             applicationContext,
             WorkerEntryPoint::class.java,
         )
-        // One queue, three destinations. Whichever is switched on drains the
-        // same events, so turning one off and another on loses nothing.
+        // One queue, two destinations. Whichever is switched on drains the same
+        // events, so turning one off and the other on loses nothing.
         //
-        //   Supabase        — managed Postgres, no server to run
-        //   Kavach server   — your own box, which can also write to Notion
-        //   the user's Notion — for one person's own dashboard
+        //   Supabase      — managed Postgres, no server to run
+        //   Kavach server — your own box, for the non-log parts of the backend
+        //
+        // Supabase wins when both are on, because that is the destination the
+        // logs are actually reviewed in.
         val supabase = entryPoint.supabaseUploader()
         val server = entryPoint.telemetryUploader()
-        val (sent, failure) = when {
-            supabase.isConfigured() -> supabase.flush()
-            server.isConfigured() -> server.flush()
-            else -> entryPoint.notionSyncRepository().flush()
+        val (sent, failure) = if (supabase.isConfigured()) {
+            supabase.flush()
+        } else {
+            server.flush()
         }
         if (failure != null && sent == 0) Result.retry() else Result.success()
     } catch (t: Throwable) {

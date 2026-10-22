@@ -295,13 +295,16 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
-### Added in 0.24.0 — Supabase
+### Added in 0.25.0 — Notion removed, Supabase is the diagnostics destination
 
-Diagnostics can be written straight into a Supabase Postgres table. No server to
+Diagnostics are written straight into a Supabase Postgres table. No server to
 run: the app appends over PostgREST with the public anon key, and row-level
-security in `supabase/schema.sql` lets it insert but never read. Four views
-(errors, friction, intent→outcome, devices) and a nightly retention job come with
-it. See `docs/SUPABASE.md`.
+security in `supabase/schema.sql` lets it insert but never read.
+
+The Notion destination is gone. It needed every user to create their own
+integration and paste a token, and their rows would have landed in their
+workspace rather than yours. The upload queue now stands on its own
+(`UploadQueue`) instead of belonging to one destination. See `docs/SUPABASE.md`.
 
 ### Added in 0.21.2 — the server is deployable
 

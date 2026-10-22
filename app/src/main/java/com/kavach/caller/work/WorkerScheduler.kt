@@ -17,36 +17,35 @@ object WorkerScheduler {
 
     private const val CALL_LOG_SYNC = "kavach_call_log_sync"
     private const val CACHE_CLEANUP = "kavach_cache_cleanup"
-    private const val NOTION_SYNC = "kavach_notion_sync"
+    private const val UPLOAD = "kavach_upload"
 
     fun schedule(
         context: Context,
         backgroundSyncEnabled: Boolean = true,
         dataSaver: Boolean = false,
-        notionSyncEnabled: Boolean = false,
         telemetryUploadEnabled: Boolean = false,
         supabaseUploadEnabled: Boolean = false,
-        notionWifiOnly: Boolean = true,
+        uploadWifiOnly: Boolean = true,
     ) {
         val manager = WorkManager.getInstance(context)
 
-        if (notionSyncEnabled || telemetryUploadEnabled || supabaseUploadEnabled) {
+        if (telemetryUploadEnabled || supabaseUploadEnabled) {
             // Wi-Fi-only when the user asked for it, so a metered plan is not
             // spent on telemetry.
-            val notionConstraints = Constraints.Builder()
+            val uploadConstraints = Constraints.Builder()
                 .setRequiredNetworkType(
-                    if (notionWifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED,
+                    if (uploadWifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED,
                 )
                 .build()
             manager.enqueueUniquePeriodicWork(
-                NOTION_SYNC,
+                UPLOAD,
                 ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequestBuilder<NotionSyncWorker>(1, TimeUnit.HOURS)
-                    .setConstraints(notionConstraints)
+                PeriodicWorkRequestBuilder<UploadWorker>(1, TimeUnit.HOURS)
+                    .setConstraints(uploadConstraints)
                     .build(),
             )
         } else {
-            manager.cancelUniqueWork(NOTION_SYNC)
+            manager.cancelUniqueWork(UPLOAD)
         }
 
         if (backgroundSyncEnabled) {

@@ -1,10 +1,8 @@
 package com.kavach.caller.data.telemetry
 
-import android.content.Context
 import com.kavach.caller.data.diagnostics.LogEventCodec
 import com.kavach.caller.data.diagnostics.SessionContext
 import com.kavach.caller.data.settings.SettingsRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -16,7 +14,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,24 +21,21 @@ import javax.inject.Singleton
 /**
  * Sends diagnostics events to the operator's own Kavach server.
  *
- * This is the path that works at scale. Pushing to a user's personal Notion
- * database only ever works for the handful of people willing to create a Notion
- * integration and paste a token — at a hundred installs that is nobody, and the
- * rows would land in *their* workspace rather than yours.
- *
- * So: every install sends the same schema to one server, the server stores it,
- * and a server-side job writes it into the operator's Notion database using a
- * token that never leaves the server.
+ * Every install sends the same schema to one server, the server validates and
+ * stores it, and the operator owns the data. That is the shape that works at
+ * scale: a per-user destination only ever works for the handful of people
+ * willing to configure it, and their rows would land in their own workspace
+ * rather than yours.
  *
  * What still holds true from the on-device rules:
  *  - off by default; nothing is uploaded until the user switches it on;
- *  - the same queue as the direct-Notion path, so an outage loses nothing;
+ *  - the same queue as the other destinations, so an outage loses nothing;
  *  - the same redaction, because it sends the very same event lines.
  */
 @Singleton
 class TelemetryUploader @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
+    private val queue: UploadQueue,
     private val session: SessionContext,
 ) {
     private val http: OkHttpClient = OkHttpClient.Builder()
@@ -49,11 +43,6 @@ class TelemetryUploader @Inject constructor(
         .build()
 
     private val json = Json { ignoreUnknownKeys = true }
-
-    private fun queueFile(): File {
-        val dir = File(context.filesDir, "notion-queue").apply { mkdirs() }
-        return File(dir, QUEUE_FILE)
-    }
 
     fun isConfigured(): Boolean =
         settings.snapshot.telemetryUploadEnabled &&
@@ -70,10 +59,7 @@ class TelemetryUploader @Inject constructor(
         withContext(Dispatchers.IO) {
             if (!isConfigured()) return@withContext 0 to null
 
-            val file = queueFile()
-            if (!file.exists()) return@withContext 0 to null
-
-            val lines = runCatching { file.readLines() }.getOrDefault(emptyList())
+            val lines = queue.lines()
             if (lines.isEmpty()) return@withContext 0 to null
 
             val batch = lines.take(limit)
@@ -81,7 +67,7 @@ class TelemetryUploader @Inject constructor(
 
             val events = batch.mapNotNull { LogEventCodec.decode(it) }
             if (events.isEmpty()) {
-                file.writeText(rest.joinToString("\n", postfix = if (rest.isEmpty()) "" else "\n"))
+                queue.keep(rest)
                 return@withContext 0 to null
             }
 
@@ -133,19 +119,18 @@ class TelemetryUploader @Inject constructor(
             val failure = result.second
             if (failure == null) {
                 // Accepted (or permanently rejected): those lines are done.
-                file.writeText(rest.joinToString("\n", postfix = if (rest.isEmpty()) "" else "\n"))
-                settings.setNotionLastSyncAt(System.currentTimeMillis())
-                settings.setNotionSyncedTotal(settings.snapshot.notionSyncedTotal + events.size)
-                settings.setNotionLastError(null)
+                queue.keep(rest)
+                settings.setUploadLastSyncAt(System.currentTimeMillis())
+                settings.setUploadSyncedTotal(settings.snapshot.uploadSyncedTotal + events.size)
+                settings.setUploadLastError(null)
                 events.size to null
             } else {
-                settings.setNotionLastError(failure)
+                settings.setUploadLastError(failure)
                 0 to failure
             }
         }
 
     private companion object {
-        const val QUEUE_FILE = "pending.log"
         const val MAX_PER_FLUSH = 100
         val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
     }

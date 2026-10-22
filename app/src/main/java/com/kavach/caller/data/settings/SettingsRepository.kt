@@ -60,11 +60,10 @@ class SettingsRepository @Inject constructor(
         val supabaseUploadEnabled = booleanPreferencesKey("supabase_upload_enabled")
         val supabaseUrl = stringPreferencesKey("supabase_url")
         val telemetryUploadEnabled = booleanPreferencesKey("telemetry_upload_enabled")
-        val notionSyncEnabled = booleanPreferencesKey("notion_sync_enabled")
-        val notionWifiOnly = booleanPreferencesKey("notion_wifi_only")
-        val notionLastSyncAt = longPreferencesKey("notion_last_sync_at")
-        val notionSyncedTotal = longPreferencesKey("notion_synced_total")
-        val notionLastError = stringPreferencesKey("notion_last_error")
+        val uploadWifiOnly = booleanPreferencesKey("upload_wifi_only")
+        val uploadLastSyncAt = longPreferencesKey("upload_last_sync_at")
+        val uploadSyncedTotal = longPreferencesKey("upload_synced_total")
+        val uploadLastError = stringPreferencesKey("upload_last_error")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -119,11 +118,10 @@ class SettingsRepository @Inject constructor(
             supabaseUploadEnabled = p[Keys.supabaseUploadEnabled] ?: false,
             supabaseUrl = p[Keys.supabaseUrl] ?: "",
             telemetryUploadEnabled = p[Keys.telemetryUploadEnabled] ?: false,
-            notionSyncEnabled = p[Keys.notionSyncEnabled] ?: false,
-            notionWifiOnly = p[Keys.notionWifiOnly] ?: true,
-            notionLastSyncAt = p[Keys.notionLastSyncAt] ?: 0L,
-            notionSyncedTotal = p[Keys.notionSyncedTotal] ?: 0L,
-            notionLastError = p[Keys.notionLastError],
+            uploadWifiOnly = p[Keys.uploadWifiOnly] ?: true,
+            uploadLastSyncAt = p[Keys.uploadLastSyncAt] ?: 0L,
+            uploadSyncedTotal = p[Keys.uploadSyncedTotal] ?: 0L,
+            uploadLastError = p[Keys.uploadLastError],
         )
     }
 
@@ -174,12 +172,11 @@ class SettingsRepository @Inject constructor(
     /** Set once at startup so the uploader needs no Context. */
     @Volatile
     var uploadEnvelope: com.kavach.caller.data.diagnostics.EnvelopeFields? = null
-    suspend fun setNotionSyncEnabled(value: Boolean) = context.dataStore.edit { it[Keys.notionSyncEnabled] = value }
-    suspend fun setNotionWifiOnly(value: Boolean) = context.dataStore.edit { it[Keys.notionWifiOnly] = value }
-    suspend fun setNotionLastSyncAt(value: Long) = context.dataStore.edit { it[Keys.notionLastSyncAt] = value }
-    suspend fun setNotionSyncedTotal(value: Long) = context.dataStore.edit { it[Keys.notionSyncedTotal] = value }
-    suspend fun setNotionLastError(value: String?) = context.dataStore.edit { prefs ->
-        if (value == null) prefs.remove(Keys.notionLastError) else prefs[Keys.notionLastError] = value
+    suspend fun setUploadWifiOnly(value: Boolean) = context.dataStore.edit { it[Keys.uploadWifiOnly] = value }
+    suspend fun setUploadLastSyncAt(value: Long) = context.dataStore.edit { it[Keys.uploadLastSyncAt] = value }
+    suspend fun setUploadSyncedTotal(value: Long) = context.dataStore.edit { it[Keys.uploadSyncedTotal] = value }
+    suspend fun setUploadLastError(value: String?) = context.dataStore.edit { prefs ->
+        if (value == null) prefs.remove(Keys.uploadLastError) else prefs[Keys.uploadLastError] = value
     }
     suspend fun setDataSaver(value: Boolean) = context.dataStore.edit { it[Keys.dataSaver] = value }
 

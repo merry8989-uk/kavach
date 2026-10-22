@@ -84,40 +84,30 @@ flood the log.
 - There is no log dashboard; the on-device viewer and the export formats are the
   current way to read it.
 
-## Automatic push to Notion
+## Where the events go
 
-The dashboard can fill itself. `data/notion/` implements it:
+**Supabase.** `data/telemetry/` implements it:
 
 | Concern | File |
 |---|---|
-| Token storage | `SecretStore` — Keystore-encrypted, never in the APK |
-| Event → row mapping | `NotionEventMapper` |
-| Queue, flush, status | `NotionSyncRepository` |
-| Background upload | `work/NotionSyncWorker` + `WorkerScheduler` |
+| The outbound queue | `UploadQueue` — every destination drains this one queue |
+| Supabase | `SupabaseUploader` |
+| An operator's own server | `TelemetryUploader` |
+| Background upload | `work/UploadWorker` + `WorkerScheduler` |
 
-**How it works.** When the user switches it on, every event is appended to a
-local queue file as it is written. A periodic worker flushes up to 40 rows per
-run to `POST https://api.notion.com/v1/pages`, honouring a Wi-Fi-only constraint
-if the user asked for one. Nothing is deleted from the queue until Notion has
-accepted it, so a flight or an outage loses nothing.
+When a destination is switched on, every event is appended to a local queue as
+it is written. A periodic worker flushes the queue to whichever destination is
+configured, honouring a Wi-Fi-only constraint if the user asked for one. Nothing
+is removed from the queue until the destination has accepted it, so a flight or
+an outage loses nothing.
 
-**Why the user's own token.** Kavach ships no Notion credentials. A token baked
-into the APK could be extracted and used to write to the workspace, so instead
-the user creates an internal integration, shares the Kavach Diagnostics page with
-it, and pastes the token into Settings. It is stored encrypted by the Android
-Keystore — a copied preferences file is useless on another phone — and it is sent
-only to `api.notion.com`.
+The table, its row-level security and the analysis views are in
+`supabase/schema.sql`; the walkthrough is in `docs/SUPABASE.md`.
 
-**Consent.** Off by default. Nothing leaves the device until the toggle is on,
-and turning it off stops the worker and leaves the queue untouched.
-
-**Known limits.**
-- Notion's API creates **one page per request** and rate-limits, so a flush is
-  capped per run rather than hammering it. A large backlog drains over several
-  runs.
-- Rows that Notion rejects with a 4xx are dropped rather than retried forever;
-  the rest of the queue continues.
-- The `Device` and `Release` columns are written as fixed values for now.
+**Notion was removed.** It needed every user to create their own integration and
+paste a token, and their rows would have landed in *their* workspace rather than
+the operator's — so at any real number of installs it delivered nothing. A
+destination that only works for the person who set it up is not a destination.
 
 ## What a real export taught us
 
@@ -155,7 +145,7 @@ when it was being *censored*.
 
 ## Supabase
 
-A third destination, and the one that needs no server: `SupabaseUploader` appends
+The destination, and the one that needs no server: `SupabaseUploader` appends
 to a Postgres table over PostgREST. The table, its row-level security, four views
 and a nightly retention job are in `supabase/schema.sql`; the walkthrough is in
 `docs/SUPABASE.md`.
@@ -167,21 +157,18 @@ back. Everything that protects the data lives in the SQL, not in the app.
 
 ## Many installs
 
-Direct-to-Notion only works for the handful of users willing to create a Notion
-integration and paste a token, and their rows would land in *their* workspace,
-not yours. So there are two destinations, sharing one queue:
+There are two destinations, sharing one queue:
 
-| Destination | Use it when | Where the token lives |
+| Destination | Use it when | Where the key lives |
 |---|---|---|
-| The user's own Notion | one person, their own dashboard | on their device, Keystore-encrypted |
-| **The Kavach server** | **any number of installs** | **on the server, never in the app** |
+| **Supabase** | **the default — managed Postgres, no server to run** | on the device; the anon key is public by design and row-level security does the protecting |
+| The Kavach server | you also want to own the caller-lookup and consent traffic | on the server, never in the app |
 
-The server path is `POST /v1/telemetry/events` — the app batches up to 100
-schema events per run, the server validates each against `telemetry_schema.py`
-and stores it in `telemetry_events`, and `POST /v1/admin/notion/push` drains the
-table into the operator's Notion database. Both sides keep the same rules: off
-by default, queued locally first, invalid events counted and skipped rather than
-blocking the batch.
+The server path is `POST /v1/telemetry/events` — the app batches up to 100 schema
+events per run, the server validates each against `telemetry_schema.py` and
+stores it in `telemetry_events`. Both sides keep the same rules: off by default,
+queued locally first, invalid events counted and skipped rather than blocking the
+batch.
 
 ## SMS classification (Phase 8)
 

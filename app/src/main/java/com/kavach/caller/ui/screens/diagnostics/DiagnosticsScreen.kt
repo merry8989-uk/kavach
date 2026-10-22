@@ -30,8 +30,6 @@ import com.kavach.caller.data.diagnostics.EventSchema
 import com.kavach.caller.data.diagnostics.ExportFormat
 import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogLevel
-import com.kavach.caller.data.notion.NotionSyncRepository
-import com.kavach.caller.data.notion.SecretStore
 import com.kavach.caller.data.telemetry.SupabaseUploader
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
@@ -55,9 +53,10 @@ import javax.inject.Inject
 class DiagnosticsViewModel @Inject constructor(
     private val repository: DiagnosticsRepository,
     private val session: com.kavach.caller.data.diagnostics.SessionContext,
-    private val notionSync: com.kavach.caller.data.notion.NotionSyncRepository,
     private val supabaseUploader: com.kavach.caller.data.telemetry.SupabaseUploader,
-    private val secrets: com.kavach.caller.data.notion.SecretStore,
+    private val serverUploader: com.kavach.caller.data.telemetry.TelemetryUploader,
+    private val queue: com.kavach.caller.data.telemetry.UploadQueue,
+    private val secrets: com.kavach.caller.data.secure.SecretStore,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -75,25 +74,11 @@ class DiagnosticsViewModel @Inject constructor(
     /** The readable per-install code, shown so a tester can read it out. */
     val userCode: String get() = session.userCode
 
-    private val _notion = MutableStateFlow<NotionSyncRepository.Status?>(null)
-    val notion: StateFlow<NotionSyncRepository.Status?> = _notion.asStateFlow()
-
     var syncMessage by mutableStateOf<String?>(null)
         private set
 
     fun dismissSyncMessage() {
         syncMessage = null
-    }
-
-    fun refreshNotion() = viewModelScope.launch {
-        _notion.value = notionSync.status()
-        _supabase.value = supabaseUploader.status()
-    }
-
-    fun setNotionToken(token: String) = viewModelScope.launch {
-        secrets.put(SecretStore.NOTION_TOKEN, token.trim())
-        syncMessage = if (token.isBlank()) "Notion token cleared." else "Notion token saved."
-        refreshNotion()
     }
 
     val hasServerUrl: Boolean
@@ -102,30 +87,17 @@ class DiagnosticsViewModel @Inject constructor(
     fun setTelemetryUpload(enabled: Boolean) = viewModelScope.launch {
         settings.setTelemetryUploadEnabled(enabled)
         syncMessage = if (enabled) {
-            val queued = notionSync.backfillFromLog(repository.allLines())
+            val queued = queue.backfillFromLog(repository.allLines())
             "Server upload on. Queued $queued existing event(s)."
         } else {
             "Server upload off."
         }
-        refreshNotion()
+        refreshSupabase()
     }
 
-    fun setNotionEnabled(enabled: Boolean) = viewModelScope.launch {
-        settings.setNotionSyncEnabled(enabled)
-        syncMessage = if (enabled) {
-            // Catch up on everything already logged, so switching this on has a
-            // visible effect instead of looking broken.
-            val queued = notionSync.backfillFromLog(repository.allLines())
-            "Automatic sync on. Queued $queued existing event(s); new ones upload as they happen."
-        } else {
-            "Automatic sync off. Nothing leaves this phone."
-        }
-        refreshNotion()
-    }
-
-    fun setNotionWifiOnly(wifiOnly: Boolean) = viewModelScope.launch {
-        settings.setNotionWifiOnly(wifiOnly)
-        refreshNotion()
+    fun setUploadWifiOnly(wifiOnly: Boolean) = viewModelScope.launch {
+        settings.setUploadWifiOnly(wifiOnly)
+        refreshSupabase()
     }
 
     private val _supabase = MutableStateFlow<SupabaseUploader.Status?>(null)
@@ -149,7 +121,9 @@ class DiagnosticsViewModel @Inject constructor(
     fun setSupabaseEnabled(enabled: Boolean) = viewModelScope.launch {
         settings.setSupabaseUploadEnabled(enabled)
         syncMessage = if (enabled) {
-            val queued = notionSync.backfillFromLog(repository.allLines())
+            // Catch up on everything already logged, so switching this on has a
+            // visible effect instead of looking broken.
+            val queued = queue.backfillFromLog(repository.allLines())
             "Supabase upload on. Queued $queued existing event(s)."
         } else {
             "Supabase upload off."
@@ -163,27 +137,25 @@ class DiagnosticsViewModel @Inject constructor(
         refreshSupabase()
     }
 
-    fun testNotion() = viewModelScope.launch {
-        syncMessage = "Testing…"
-        syncMessage = notionSync.testConnection()
-        refreshNotion()
-    }
-
     fun syncNow() = viewModelScope.launch {
         syncMessage = "Syncing…"
-        val (sent, failure) = notionSync.flush()
+        val (sent, failure) = if (supabaseUploader.isConfigured()) {
+            supabaseUploader.flush()
+        } else {
+            serverUploader.flush()
+        }
         syncMessage = when {
             failure != null && sent == 0 -> "Could not sync: $failure"
             sent == 0 -> "Nothing to sync."
             else -> "Sent $sent event(s)."
         }
-        refreshNotion()
+        refreshSupabase()
     }
 
-    fun clearNotionQueue() = viewModelScope.launch {
-        notionSync.clearQueue()
+    fun clearUploadQueue() = viewModelScope.launch {
+        queue.clear()
         syncMessage = "Upload queue cleared."
-        refreshNotion()
+        refreshSupabase()
     }
 
     var sizeText by mutableStateOf("0 B")
@@ -193,7 +165,6 @@ class DiagnosticsViewModel @Inject constructor(
         _entries.value = repository.entries()
         _counts.value = repository.countsByLevel()
         sizeText = repository.formattedSize()
-        _notion.value = notionSync.status()
         _supabase.value = supabaseUploader.status()
     }
 
@@ -375,15 +346,14 @@ fun DiagnosticsScreen(
                 }
 
                 item {
-                    SectionHeader("Notion dashboard")
-                    val notion = vm.notion.collectAsState().value
-                    var tokenDraft by remember { mutableStateOf("") }
-                    var showToken by remember { mutableStateOf(false) }
+                    SectionHeader("Kavach server")
+                    val serverOn = vm.appSettings.collectAsState().value.telemetryUploadEnabled
 
                     KavachCard {
                         Text(
-                            "Send events straight to the Kavach Diagnostics — Events database " +
-                                "in Notion, so the weekly review fills itself.",
+                            "Send events to your own Kavach server as well. Supabase is the " +
+                                "destination the logs are reviewed in; this one also carries the " +
+                                "caller-lookup and consent traffic.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -391,125 +361,36 @@ fun DiagnosticsScreen(
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Automatic sync", color = MaterialTheme.colorScheme.onSurface)
                                 Text(
-                                    if (notion?.hasToken == true) {
-                                        "Token saved on this device, encrypted by the Keystore."
+                                    "Send to the Kavach server",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    if (vm.hasServerUrl) {
+                                        "Server URL is set. Events upload in the background."
                                     } else {
-                                        "Paste a Notion integration token below to turn this on."
+                                        "Set a server URL in Settings → Server first."
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             Switch(
-                                checked = notion?.enabled == true,
-                                enabled = notion?.hasToken == true,
-                                onCheckedChange = { vm.setNotionEnabled(it) },
-                            )
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    "Send to the Kavach server",
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    "Use this for many installs. Your server stores the events and " +
-                                        "writes them into your Notion database, so users never need " +
-                                        "a Notion token. Needs a server URL in Settings.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = vm.appSettings.collectAsState().value.telemetryUploadEnabled,
+                                checked = serverOn,
                                 enabled = vm.hasServerUrl,
                                 onCheckedChange = { vm.setTelemetryUpload(it) },
                             )
                         }
 
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = tokenDraft,
-                            onValueChange = { tokenDraft = it },
-                            label = { Text("Notion integration token") },
-                            placeholder = { Text("ntn_… or secret_…") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            visualTransformation = if (showToken) {
-                                androidx.compose.ui.text.input.VisualTransformation.None
-                            } else {
-                                androidx.compose.ui.text.input.PasswordVisualTransformation()
-                            },
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = { vm.setNotionToken(tokenDraft); tokenDraft = "" },
-                                enabled = tokenDraft.isNotBlank(),
-                            ) { Text("Save token") }
-                            OutlinedButton(onClick = { showToken = !showToken }) {
-                                Text(if (showToken) "Hide" else "Show")
-                            }
-                            if (notion?.hasToken == true) {
-                                TextButton(onClick = { vm.setNotionToken("") }) { Text("Clear") }
-                            }
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Wi-Fi only", color = MaterialTheme.colorScheme.onSurface)
-                                Text(
-                                    "Keeps uploads off a metered plan.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = notion?.wifiOnly == true,
-                                onCheckedChange = { vm.setNotionWifiOnly(it) },
-                            )
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            buildString {
-                                append("Waiting to upload: ${notion?.pending ?: 0}")
-                                append("  ·  Uploaded: ${notion?.syncedTotal ?: 0}")
-                                notion?.lastSyncAt?.let {
-                                    append("  ·  Last: ")
-                                    append(
-                                        android.text.format.DateUtils.getRelativeTimeSpanString(it),
-                                    )
-                                }
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        notion?.lastError?.let { err ->
-                            Text(
-                                "Last problem: $err",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-
                         Spacer(Modifier.height(10.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = { vm.testNotion() },
-                                enabled = notion?.hasToken == true,
-                            ) { Text("Test connection") }
-                            Button(onClick = { vm.syncNow() }, enabled = notion?.enabled == true) {
-                                Text("Sync now")
-                            }
                             OutlinedButton(
-                                onClick = { vm.clearNotionQueue() },
-                                enabled = (notion?.pending ?: 0) > 0,
+                                onClick = { vm.syncNow() },
+                                enabled = serverOn || vm.appSettings.collectAsState().value.supabaseUploadEnabled,
+                            ) { Text("Sync now") }
+                            OutlinedButton(
+                                onClick = { vm.clearUploadQueue() },
+                                enabled = (vm.supabase.collectAsState().value?.pending ?: 0) > 0,
                             ) { Text("Clear queue") }
                         }
 
@@ -528,10 +409,8 @@ fun DiagnosticsScreen(
 
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            "Setup: in Notion, create an internal integration, give it access to " +
-                                "the Kavach Diagnostics page, copy its token, and paste it here. " +
-                                "The token stays on this phone — Kavach ships no Notion credentials, " +
-                                "and nothing is uploaded until you switch this on.",
+                            "Supabase and this server share one upload queue on the device, so " +
+                                "switching between them loses nothing.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

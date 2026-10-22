@@ -1,8 +1,7 @@
-"""Telemetry intake and the Notion push.
+"""Telemetry intake.
 
-`POST /v1/telemetry/events` is how a hundred installs all reach one dashboard:
-each app sends its schema events here, the server validates and stores them, and
-a separate push drains them into the operator's Notion database.
+`POST /v1/telemetry/events` is how a hundred installs all reach one database:
+each app sends its schema events here, the server validates and stores them.
 
 Invalid events are counted and skipped rather than failing the batch — one bad
 build must not block every other phone.
@@ -13,11 +12,11 @@ import time
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from .. import notion_sink, telemetry_schema
-from ..config import Settings, get_settings
+from .. import telemetry_schema
+from ..config import get_settings
 from ..db import get_db
 from ..models import TelemetryEvent
-from ..schemas import NotionPushResult, TelemetryAck, TelemetryBatch
+from ..schemas import TelemetryAck, TelemetryBatch
 from ..security import rate_limit, require_token
 
 router = APIRouter(tags=["telemetry"])
@@ -79,21 +78,18 @@ def ingest(
     return TelemetryAck(accepted=accepted, rejected=rejected, reasons=reasons)
 
 
-@router.post("/v1/admin/notion/push", response_model=NotionPushResult)
-def push_to_notion(
-    limit: int = Query(default=40, ge=1, le=200),
-    db: Session = Depends(get_db),
-    _token: str = Depends(require_token),
-    settings: Settings = Depends(get_settings),
-) -> NotionPushResult:
-    pushed, failed, remaining, detail = notion_sink.push_pending(db, limit=limit)
-    return NotionPushResult(pushed=pushed, failed=failed, remaining=remaining, detail=detail)
-
-
 @router.post("/v1/admin/telemetry/purge")
 def purge(
     keep_days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
     _token: str = Depends(require_token),
 ) -> dict:
-    return {"deleted": notion_sink.purge_old(db, keep_days=keep_days)}
+    """Enforce the retention policy on stored telemetry."""
+    cutoff = int(time.time()) - keep_days * 24 * 60 * 60
+    deleted = (
+        db.query(TelemetryEvent)
+        .filter(TelemetryEvent.received_at < cutoff)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": int(deleted or 0)}

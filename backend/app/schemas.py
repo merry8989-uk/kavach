@@ -176,9 +176,3 @@ class TelemetryAck(BaseModel):
     # turning the response into a log dump.
     reasons: list[str] = []
 
-
-class NotionPushResult(BaseModel):
-    pushed: int
-    failed: int
-    remaining: int
-    detail: str | None = None

@@ -77,14 +77,12 @@ data class AppSettings(
 
     /**
      * Send diagnostics events to the Kavach server instead of (or as well as)
-     * the user's own Notion. This is the path that works for many installs.
+     * the Supabase path.
      */
     val telemetryUploadEnabled: Boolean = false,
 
-    /** Automatic push of diagnostics events into the user's Notion database. */
-    val notionSyncEnabled: Boolean = false,
-    val notionWifiOnly: Boolean = true,
-    val notionLastSyncAt: Long = 0L,
-    val notionSyncedTotal: Long = 0L,
-    val notionLastError: String? = null,
+    val uploadWifiOnly: Boolean = true,
+    val uploadLastSyncAt: Long = 0L,
+    val uploadSyncedTotal: Long = 0L,
+    val uploadLastError: String? = null,
 )
