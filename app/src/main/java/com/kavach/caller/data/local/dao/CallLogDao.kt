@@ -57,6 +57,16 @@ interface RecordingDao {
 
     @Query("SELECT * FROM recordings WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): RecordingEntity?
+
+    /** One-shot list, used by quota enforcement and the recordings screen. */
+    @Query("SELECT * FROM recordings ORDER BY timestamp DESC")
+    suspend fun allOnce(): List<RecordingEntity>
+
+    @Query("DELETE FROM recordings WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(recording: RecordingEntity): Long
 }
 
 @Dao

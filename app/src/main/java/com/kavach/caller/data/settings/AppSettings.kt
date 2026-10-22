@@ -46,6 +46,14 @@ data class AppSettings(
     /** Auto-reply to incoming SMS. Off by default — it sends without asking. */
     val autoReplyEnabled: Boolean = false,
     val autoReplyText: String = "I'll get back to you soon.",
+    /**
+     * Explicit consent before the first recording (spec Phase 9: never record
+     * silently). Until this is true, Kavach refuses to start a recording and
+     * says why instead.
+     */
+    val recordingConsentGiven: Boolean = false,
+    val recordingConsentAt: Long = 0L,
+
     /** Message ids the user removed from Kavach's view. See MessagesScreen. */
     val hiddenSmsIds: Set<String> = emptySet(),
 

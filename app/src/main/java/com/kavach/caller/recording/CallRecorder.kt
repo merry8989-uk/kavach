@@ -33,7 +33,11 @@ class CallRecorder @Inject constructor(
 
     /** Best-effort start. Returns the output file, or null if the path is blocked. */
     fun start(number: String, source: Source = Source.VOICE_CALL): File? {
-        val dir = File(context.filesDir, "recordings").apply { mkdirs() }
+        // Staging, not the final directory: the file is plaintext until
+        // RecordingStore encrypts it, so it should never live where recordings
+        // live. Nothing here is readable after a reboot, because the cache is
+        // the OS's to clear.
+        val dir = File(context.cacheDir, "recording-staging").apply { mkdirs() }
         val safeNumber = PhoneUtils.normalize(number).trimStart('+').ifEmpty { "unknown" }
         val file = File(dir, "${safeNumber}_${System.currentTimeMillis()}.m4a")
 

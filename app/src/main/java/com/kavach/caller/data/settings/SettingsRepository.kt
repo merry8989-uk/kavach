@@ -51,6 +51,8 @@ class SettingsRepository @Inject constructor(
         val suggestedReplies = stringPreferencesKey("suggested_replies")
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
         val autoReplyText = stringPreferencesKey("auto_reply_text")
+        val recordingConsentGiven = booleanPreferencesKey("recording_consent_given")
+        val recordingConsentAt = longPreferencesKey("recording_consent_at")
         val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
         val telemetryUploadEnabled = booleanPreferencesKey("telemetry_upload_enabled")
         val notionSyncEnabled = booleanPreferencesKey("notion_sync_enabled")
@@ -103,6 +105,8 @@ class SettingsRepository @Inject constructor(
             suggestedReplies = p[Keys.suggestedReplies] ?: "",
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
             autoReplyText = p[Keys.autoReplyText] ?: "I'll get back to you soon.",
+            recordingConsentGiven = p[Keys.recordingConsentGiven] ?: false,
+            recordingConsentAt = p[Keys.recordingConsentAt] ?: 0L,
             hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
             telemetryUploadEnabled = p[Keys.telemetryUploadEnabled] ?: false,
             notionSyncEnabled = p[Keys.notionSyncEnabled] ?: false,
@@ -140,6 +144,10 @@ class SettingsRepository @Inject constructor(
     }
     suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
     suspend fun setTelemetryUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.telemetryUploadEnabled] = value }
+    suspend fun setRecordingConsent(given: Boolean) = context.dataStore.edit {
+        it[Keys.recordingConsentGiven] = given
+        it[Keys.recordingConsentAt] = if (given) System.currentTimeMillis() else 0L
+    }
 
     /** Envelope for an upload, built from the app's own session context. */
     fun envelopeForUpload(): com.kavach.caller.data.diagnostics.EnvelopeFields =
