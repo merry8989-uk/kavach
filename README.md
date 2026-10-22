@@ -295,6 +295,16 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
+### Added in 0.26.0 — backend reliability fixes from the audit
+
+Four P0 items confirmed against the code and fixed: **OTP delivery now actually
+sends** (MSG91 and Twilio adapters, and the endpoint returns 503 rather than a
+fake success), the **rate limiter is Redis-backed** when configured and honest
+about being per-process when not, and the **account-deletion bug** is fixed —
+corrections had no owner column at all, so a right-to-erasure request silently
+kept them. The screening service also gained a 2.5 second deadline, because a
+call with no response simply rings on. Full write-up in `docs/AUDIT-2026-02.md`.
+
 ### Added in 0.25.0 — Notion removed, Supabase is the diagnostics destination
 
 Diagnostics are written straight into a Supabase Postgres table. No server to

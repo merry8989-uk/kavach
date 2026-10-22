@@ -51,6 +51,20 @@ class Settings(BaseSettings):
     # Reports older than this stop counting toward the score.
     spam_report_half_life_days: int = 90
 
+    # ---- shared rate limiting (app/ratelimit.py) ----
+    # Empty means the in-process limiter, which is per-replica. Set it in
+    # production when you run more than one instance.
+    redis_url: str = ""
+
+    # ---- SMS delivery for OTP (app/sms.py) ----
+    # "none" means the OTP endpoint refuses rather than pretending to send.
+    sms_provider: str = "none"
+    sms_api_key: str = ""
+    sms_sender_id: str = ""
+    sms_template_id: str = ""
+    sms_account_sid: str = ""
+    sms_from: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in {"production", "prod"}
@@ -85,6 +99,17 @@ class Settings(BaseSettings):
 
         if self.otp_debug_return:
             problems.append("OTP_DEBUG_RETURN must be false in production — it hands out login codes")
+
+        # Without a gateway, nobody can sign in. Better to refuse at boot than to
+        # serve a login endpoint that always returns a code nobody receives.
+        from .sms import is_configured, missing_settings, provider_name
+
+        if not is_configured(self):
+            absent = ", ".join(missing_settings(self))
+            problems.append(
+                "No working SMS provider, so OTP sign-in cannot deliver a code "
+                f"(missing: {absent})",
+            )
 
         return problems
 

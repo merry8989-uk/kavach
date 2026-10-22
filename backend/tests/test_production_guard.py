@@ -18,6 +18,12 @@ def _settings(**overrides) -> Settings:
         jwt_secret="c" * 48,
         auto_create_tables=False,
         otp_debug_return=False,
+        # Production cannot deliver an OTP without a gateway, so a complete
+        # configuration now includes one.
+        sms_provider="msg91",
+        sms_api_key="k",
+        sms_sender_id="KAVACH",
+        sms_template_id="t",
     )
     base.update(overrides)
     return Settings(**base)
@@ -44,6 +50,7 @@ def test_development_environment_is_recognised():
         ({"auto_create_tables": True}, "AUTO_CREATE_TABLES"),
         ({"database_url": "sqlite:///./kavach.db"}, "SQLite"),
         ({"otp_debug_return": True}, "OTP_DEBUG_RETURN"),
+        ({"sms_provider": "none"}, "SMS provider"),
     ],
 )
 def test_each_unsafe_value_is_caught(overrides, expected):
@@ -61,6 +68,12 @@ def test_every_problem_is_reported_not_just_the_first():
     ).validate_for_production()
     # Four distinct mistakes, four lines telling you about them.
     assert len(problems) >= 4
+
+
+def test_production_refuses_without_a_way_to_deliver_otp():
+    """A login endpoint that can never send a code should not start at all."""
+    problems = _settings(sms_provider="none").validate_for_production()
+    assert any("SMS provider" in p for p in problems)
 
 
 def test_the_readiness_probe_reports_the_database(client):

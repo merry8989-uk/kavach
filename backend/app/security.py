@@ -12,13 +12,14 @@ from fastapi import Depends, Header, HTTPException
 
 from .config import Settings, get_settings
 
-# token -> list of request timestamps
-_buckets: dict[str, list[float]] = {}
-
-
 def reset_rate_limiter() -> None:
-    """Test helper."""
-    _buckets.clear()
+    """Test helper. Clears whichever limiter is live."""
+    from .ratelimit import get_limiter, set_limiter
+
+    limiter = get_limiter()
+    if hasattr(limiter, "reset"):
+        limiter.reset()
+    set_limiter(None)
 
 
 def actor_hash(token: str) -> str:
@@ -42,17 +43,27 @@ def rate_limit(
     authorization: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
 ) -> None:
+    """Count one request against the caller's bucket.
+
+    Delegates to `app.ratelimit`, which is Redis-backed when REDIS_URL is set and
+    in-process otherwise. The in-process version is per-replica: with N replicas
+    the effective limit is N times the configured one, which is why the backend
+    in use is reported by `backend_status()` rather than left to assumption.
+    """
+    from .ratelimit import get_limiter
+
     key = actor_hash(authorization or "anonymous")[:16]
-    now = time.time()
-    window = _buckets.setdefault(key, [])
-    window[:] = [t for t in window if now - t < 60]
-    if len(window) >= settings.rate_limit_per_minute:
+    decision = get_limiter(settings).check(key, settings.rate_limit_per_minute)
+    if not decision.allowed:
         raise HTTPException(
             status_code=429,
             detail="rate limit exceeded",
-            headers={"Retry-After": "60"},
+            headers={
+                "Retry-After": str(decision.retry_after),
+                "X-RateLimit-Limit": str(settings.rate_limit_per_minute),
+                "X-RateLimit-Backend": decision.backend,
+            },
         )
-    window.append(now)
 
 
 # ---------------------------------------------------------------------------

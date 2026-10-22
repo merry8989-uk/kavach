@@ -101,6 +101,7 @@ def create_correction(
         raise HTTPException(status_code=422, detail="invalid phone number")
 
     now = int(time.time() * 1000)
+    actor = actor_hash(token)
     db.add(
         Correction(
             number=e164,
@@ -108,11 +109,12 @@ def create_correction(
             evidence=payload.evidence,
             status="PENDING",
             created_at=now,
+            actor_hash=actor,
         )
     )
     db.add(
         AuditLog(
-            actor_hash=actor_hash(token),
+            actor_hash=actor,
             action="correction",
             subject=e164,
             created_at=now,

@@ -76,4 +76,9 @@ def readiness() -> JSONResponse:
             status_code=503,
             content={"status": "degraded", "database": "unreachable", "detail": exc.__class__.__name__},
         )
-    return JSONResponse(status_code=200, content={"status": "ready", "database": "ok"})
+    from .ratelimit import backend_status
+
+    return JSONResponse(
+        status_code=200,
+        content={"status": "ready", "database": "ok", "rate_limit": backend_status()},
+    )

@@ -40,10 +40,19 @@ def delete_account(
     data), but this actor's reports, corrections and consent records are.
     """
     actor = actor_hash(token)
+
+    # Order matters, and it used to be wrong. The corrections lookup was a
+    # subquery over the reporter's own reports — but the reports were deleted on
+    # the line above, so the subquery always matched nothing and **no correction
+    # was ever deleted**. It was also the wrong attribution: a correction is
+    # submitted by someone, not owned by whoever reported the number.
+    #
+    # Corrections are now attributable (`Correction.actor_hash`) and are removed
+    # by that, independently of the reports.
+    corrections = db.query(Correction).filter(Correction.actor_hash == actor).delete(
+        synchronize_session=False,
+    )
     reports = db.query(Report).filter(Report.reporter_hash == actor).delete()
-    corrections = db.query(Correction).filter(Correction.number.in_(
-        db.query(Report.number).filter(Report.reporter_hash == actor)
-    )).delete(synchronize_session=False)
     consents = db.query(ConsentRecord).filter(ConsentRecord.actor_hash == actor).delete()
     db.add(AuditLog(actor_hash=actor, action="account_deleted", subject=None,
                     created_at=int(time.time() * 1000)))

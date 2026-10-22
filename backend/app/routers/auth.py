@@ -19,6 +19,7 @@ from ..hashing import mask, phone_hash
 from ..jwtutil import issue
 from ..normalizer import is_valid_e164, to_e164
 from ..otp import OtpError, OtpThrottled, get_store
+from ..sms import SmsError, SmsNotConfigured, deliver_otp
 from ..schemas import OtpRequestBody, OtpRequestResponse, OtpVerifyBody, TokenResponse
 from ..security import rate_limit
 from ..services import consent
@@ -48,9 +49,25 @@ def request_otp(
             headers={"Retry-After": str(exc.retry_after)},
         ) from exc
 
-    # In production this is where the SMS gateway call goes. It is deliberately
-    # behind the OTP store so a provider can be swapped without touching routes.
-    _deliver(digest, code, settings)
+    # Actually send it. This used to be a stub that returned success while no
+    # SMS left the building, so a user waited for a code that was never coming.
+    #
+    # The one exception is the documented development hook, which the production
+    # guard refuses to allow: with OTP_DEBUG_RETURN on, the code comes back in
+    # the response instead, and nothing is sent.
+    if not settings.otp_debug_return:
+        try:
+            # The real number is passed here and used only to address the
+            # message. It is never logged and never stored — the hash above is
+            # what persists.
+            deliver_otp(e164, code, settings)
+        except SmsNotConfigured as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except SmsError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Could not send the verification code. {exc}",
+            ) from exc
 
     return OtpRequestResponse(
         request_id=request_id,
@@ -84,18 +101,3 @@ def verify_otp(
         is_new=created,
         user_id=user.id,
     )
-
-
-def _deliver(phone_digest: str, code: str, settings: Settings) -> None:
-    """SMS hand-off point.
-
-    There is no gateway wired up in this repository, so nothing is sent and
-    nothing is logged. Wire MSG91 / Twilio / SNS here; keep the code out of logs.
-    """
-    if settings.otp_debug_return:
-        # Local development only, and obvious in the response.
-        return
-    return
-
-
-__all__ = ["router", "mask"]

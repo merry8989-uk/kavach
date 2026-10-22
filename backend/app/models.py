@@ -64,6 +64,11 @@ class Correction(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     number: Mapped[str] = mapped_column(String(24), index=True)
+    # Who submitted it. Without this a correction could not be attributed to
+    # anyone, so the right-to-erasure path had no way to remove one — it tried
+    # to guess by "numbers this actor reported", which is not the same thing and
+    # did not work either (the reports were deleted first).
+    actor_hash: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     suggested_name: Mapped[str] = mapped_column(String(200))
     evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="PENDING")
