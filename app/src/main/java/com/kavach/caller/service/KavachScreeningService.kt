@@ -130,7 +130,7 @@ class KavachScreeningService : CallScreeningService() {
      * screening service that throws is a screening service that has stopped
      * screening. The flag makes the second attempt a no-op instead.
      */
-    private fun respondOnce(details: Call.Details, response: CallResponse): Boolean {
+    private suspend fun respondOnce(details: Call.Details, response: CallResponse): Boolean {
         if (!responded.compareAndSet(false, true)) return false
         return runCatching {
             respondToCall(details, response)
