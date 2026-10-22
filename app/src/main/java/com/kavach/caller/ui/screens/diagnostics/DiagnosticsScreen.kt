@@ -340,10 +340,14 @@ fun DiagnosticsScreen(
 @Composable
 private fun LogRow(event: LogEvent) {
     val colour = when (event.logLevel) {
+        // A fatal is the failure that ended the process, so it reads louder than
+        // an error rather than the same as one.
+        LogLevel.FATAL -> MaterialTheme.colorScheme.error
         LogLevel.ERROR -> MaterialTheme.colorScheme.error
         LogLevel.WARN -> MaterialTheme.colorScheme.tertiary
         LogLevel.INFO -> MaterialTheme.colorScheme.primary
         LogLevel.DEBUG -> MaterialTheme.colorScheme.onSurfaceVariant
+        LogLevel.TRACE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
