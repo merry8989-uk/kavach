@@ -287,7 +287,7 @@ class LoggingSchemaTest {
         // The old format must not parse — it predates the schema.
         assertEquals(null, LogEventCodec.decode("2026-10-21 14:40:12 INFO  Screening  BLOCK"))
     }
-}
+
 
 
     // ------------------------------------------------------ schema 1.1.0 --
@@ -333,26 +333,29 @@ class LoggingSchemaTest {
     @Test
     fun `a security event carries its kind and outcome`() {
         assertTrue(
+            "a blocked tampered file should validate",
             EventValidator.validate(
                 "security_event",
                 mapOf("kind" to "tampered_file", "outcome" to "blocked"),
             ).valid,
         )
         assertFalse(
-            EventValidator.validate("security_event", mapOf("kind" to "tampered_file")).valid,
             "an outcome is required",
+            EventValidator.validate("security_event", mapOf("kind" to "tampered_file")).valid,
         )
     }
 
     @Test
     fun `a background job outcome must be one of the four`() {
         assertTrue(
+            "retry is a real outcome",
             EventValidator.validate(
                 "background_job",
                 mapOf("job" to "call_log_sync", "outcome" to "retry"),
             ).valid,
         )
         assertFalse(
+            "an invented outcome must be refused",
             EventValidator.validate(
                 "background_job",
                 mapOf("job" to "call_log_sync", "outcome" to "maybe"),
@@ -374,9 +377,9 @@ class LoggingSchemaTest {
             envelope,
             networkType = null,
         )
-        assertTrue(json.contains("\"category\":\"application\""), json)
-        assertTrue(json.contains("\"request_id\":\"req_abc123\""), json)
-        assertTrue(json.contains("\"environment\":"), json)
+        assertTrue("category missing from $json", json.contains("\"category\":\"application\""))
+        assertTrue("request_id missing from $json", json.contains("\"request_id\":\"req_abc123\""))
+        assertTrue("environment missing from $json", json.contains("\"environment\":"))
     }
 
     @Test
@@ -393,5 +396,6 @@ class LoggingSchemaTest {
             envelope,
             networkType = null,
         )
-        assertTrue(json.contains("\"log_level\":\"trace\""), json)
+        assertTrue("trace missing from $json", json.contains("\"log_level\":\"trace\""))
     }
+}
