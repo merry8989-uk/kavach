@@ -47,6 +47,7 @@ import com.kavach.caller.ui.screens.policy.DataPolicyScreen
 import com.kavach.caller.ui.screens.settings.RepliesScreen
 import com.kavach.caller.ui.screens.dialer.DialerScreen
 import com.kavach.caller.ui.screens.features.FeaturesScreen
+import com.kavach.caller.ui.screens.home.HomeScreen
 import com.kavach.caller.ui.screens.messages.MessagesScreen
 import com.kavach.caller.ui.screens.numberdetails.NumberDetailsScreen
 import com.kavach.caller.ui.screens.onboarding.PermissionsScreen
@@ -57,6 +58,7 @@ import com.kavach.caller.R
 import com.kavach.caller.ui.screens.settings.SettingsViewModel
 import com.kavach.caller.ui.screens.updates.UpdateBanner
 import com.kavach.caller.ui.screens.updates.UpdateViewModel
+import androidx.compose.material.icons.filled.Home
 
 private data class Tab(
     val route: String,
@@ -64,10 +66,13 @@ private data class Tab(
     val icon: ImageVector,
 )
 
-// Material 3 recommends at most five bottom destinations, so Blocklist, the AI
-// briefs inbox and Recordings are reachable from within Settings and Calls
-// instead of being tabs themselves.
+// Material 3 recommends at most five bottom destinations. This has six, which
+// is a deliberate deviation: all six are genuinely primary, and the alternative
+// — burying one behind a menu — costs more than a slightly tighter tab bar. The
+// ones that are *not* primary (Blocklist, the AI briefs inbox, Recordings) stay
+// reachable from Home and Settings, as before.
 private val tabs = listOf(
+    Tab("home", R.string.tab_home, Icons.Filled.Home),
     Tab("dialer", R.string.tab_dialer, Icons.Filled.Dialpad),
     Tab("contacts", R.string.tab_contacts, Icons.Filled.People),
     Tab("calls", R.string.tab_calls, Icons.Filled.Call),
@@ -221,9 +226,23 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
             }
             NavHost(
                 navController = nav,
-                startDestination = "dialer",
+                startDestination = "home",
                 modifier = Modifier.weight(1f),
             ) {
+                composable("home") {
+                    HomeScreen(
+                        onOpenNumber = { number ->
+                            if (number.isBlank()) {
+                                nav.navigate("calls")
+                            } else {
+                                nav.navigate("number/${Uri.encode(number)}")
+                            }
+                        },
+                        onOpenRecordings = { nav.navigate("recordings") },
+                        onOpenBlocklist = { nav.navigate("block") },
+                        onOpenFeatures = { nav.navigate("features") },
+                    )
+                }
                 composable("dialer") {
                     DialerScreen(onOpenNumber = { number ->
                         nav.navigate("number/${Uri.encode(number)}")

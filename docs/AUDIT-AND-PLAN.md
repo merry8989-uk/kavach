@@ -96,7 +96,7 @@ is visible.
 
 ---
 
-**A2 · The spec asks for a home dashboard; home is the dialer**
+**A2 · The spec asks for a home dashboard; home is the dialer** — *fixed in v0.34.0*
 
 - **Evidence:** `KavachNav.kt:214` → `startDestination = "dialer"`.
 - **Why it matters:** the spec lists a home dashboard as the first Phase 1 screen,
@@ -105,8 +105,18 @@ is visible.
   keypad, with no statement of what the app is doing for them.
 - **Honest note:** this is a genuine product gap, not just a spec checkbox. There
   is nowhere that says "protection is on, 12 calls screened this week".
-- **Work:** a home tab with protection status, a search box, and shortcuts.
-- **Effort:** medium. **Blocks:** nothing.
+- **Fixed.** A **Home** tab is now the start destination. It shows protection
+  status in the module registry's own words, what needs attention (with the exact
+  missing permission or role rather than a generic apology), today's calls read
+  from the call log, a number search, and shortcuts.
+
+  Every figure is read from something real. Where a number cannot be known — no
+  calls today — the card says so instead of showing a zero that looks like an
+  answer.
+
+  **One deliberate deviation:** this makes six bottom tabs, and Material 3
+  recommends at most five. All six are genuinely primary, and burying one behind
+  a menu costs more than a slightly tighter tab bar.
 
 ---
 

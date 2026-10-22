@@ -44,7 +44,7 @@ Status vocabulary: **NOT_STARTED · IN_PROGRESS · IMPLEMENTED · VERIFIED · BL
 | Phase | Subject | State |
 |---|---|---|
 | 0 | Repo audit and product plan | IMPLEMENTED — all eight documents present |
-| 1 | Application foundation | IN_PROGRESS — no home dashboard |
+| 1 | Application foundation | IMPLEMENTED — home dashboard added |
 | 2 | Permissions and Android integration | IMPLEMENTED — contextual, roles first in setup |
 | 3 | Caller identification engine | IMPLEMENTED |
 | 4 | Live screening and caller UI | IMPLEMENTED — 2.5 s deadline, fails open |

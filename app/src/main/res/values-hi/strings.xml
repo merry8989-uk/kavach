@@ -2,6 +2,7 @@
 <!-- Hindi. Same keys as values/strings.xml. -->
 <resources>
     <string name="app_name">Kavach</string>
+    <string name="tab_home">होम</string>
     <string name="tab_dialer">डायलर</string>
     <string name="tab_contacts">संपर्क</string>
     <string name="tab_calls">कॉल</string>
