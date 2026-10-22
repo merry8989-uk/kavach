@@ -72,17 +72,10 @@ data class AppSettings(
      * Write diagnostics events straight into Supabase. No server to run: the
      * app appends to a Postgres table over PostgREST.
      */
-    val supabaseUploadEnabled: Boolean = false,
-    val supabaseUrl: String = "",
 
     /**
      * Send diagnostics events to the Kavach server instead of (or as well as)
      * the Supabase path.
      */
-    val telemetryUploadEnabled: Boolean = false,
 
-    val uploadWifiOnly: Boolean = true,
-    val uploadLastSyncAt: Long = 0L,
-    val uploadSyncedTotal: Long = 0L,
-    val uploadLastError: String? = null,
 )

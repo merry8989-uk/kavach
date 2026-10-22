@@ -1,8 +1,14 @@
 # Collecting diagnostics in Supabase
 
+> **Not wired to the app any more.** Kavach now keeps its diagnostics local and
+> the user shares them by hand, so there is no Supabase field in the app. This
+> document and `supabase/schema.sql` are kept because the schema is still
+> deployed and still useful if you want to load an exported log into it
+> yourself — see "Loading an export by hand" below.
+
 Supabase is managed Postgres, so this path needs **no server to run**. The app
-appends to a real SQL table, and you query it in the dashboard, in SQL, or from
-anything that can read Postgres.
+used to append to a real SQL table; the table, its views and its retention job
+all still work on anything you insert.
 
 Supabase is the diagnostics destination. One other exists, and they share a
 single queue on the device — turning one off and the other on loses nothing:
@@ -37,18 +43,16 @@ and a nightly retention job.
 
 ---
 
-## 3. Point the app at it
+## 3. Loading an export by hand
 
-In Kavach: **Settings → Diagnostics & logs → Supabase**
+In Kavach: **Settings → Diagnostics & logs → Export as… → .csv**, then load that
+file into the table with the Supabase dashboard's import, or with `psql`:
 
-1. Paste the project URL
-2. Paste the anon key
-3. Press **Save**
-4. Press **Test connection** — it sends one row and reports Supabase's own answer
-5. Turn **Automatic upload** on
+```bash
+psql "$DATABASE_URL" -c "\copy telemetry_events(user_code,event_name,schema_version,event_timestamp,session_id,level,app_version,os,device_model,platform,screen_or_route,properties) FROM 'export.csv' CSV HEADER"
+```
 
-From then on events are queued on the device as they happen and flushed by a
-background worker, Wi-Fi-only if you have that set.
+The views then work exactly as they did when the app was writing to it.
 
 ---
 

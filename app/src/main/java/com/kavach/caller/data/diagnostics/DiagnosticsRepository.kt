@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.SystemClock
 import com.kavach.caller.BuildConfig
 import com.kavach.caller.data.settings.SettingsRepository
-import com.kavach.caller.data.telemetry.UploadQueue
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -41,7 +40,6 @@ class DiagnosticsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
     private val session: SessionContext,
-    private val uploadQueue: UploadQueue,
 ) {
     private val lock = Any()
 
@@ -111,16 +109,9 @@ class DiagnosticsRepository @Inject constructor(
         )
         val line = LogEventCodec.encode(event, session.envelope, networkType())
 
-        // Mirror into the upload queue *before* the file write, so an event that
-        // reaches a destination is never lost to a rotation.
-        //
-        // This used to check only one destination's flag, which meant the others
-        // queued nothing at all — they looked enabled and silently sent zero
-        // events. It now asks whether *any* destination wants the data.
-        val snapshot = settings.snapshot
-        if (snapshot.telemetryUploadEnabled || snapshot.supabaseUploadEnabled) {
-            runCatching { uploadQueue.add(line) }
-        }
+        // Kavach keeps its diagnostics on the device. There is no destination to
+        // mirror into: the log is a file the user reads, exports or emails when
+        // they choose to, and nothing leaves the phone otherwise.
 
         withContext(Dispatchers.IO) {
             synchronized(lock) {

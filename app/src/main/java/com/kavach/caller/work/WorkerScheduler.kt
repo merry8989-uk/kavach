@@ -23,30 +23,8 @@ object WorkerScheduler {
         context: Context,
         backgroundSyncEnabled: Boolean = true,
         dataSaver: Boolean = false,
-        telemetryUploadEnabled: Boolean = false,
-        supabaseUploadEnabled: Boolean = false,
-        uploadWifiOnly: Boolean = true,
     ) {
         val manager = WorkManager.getInstance(context)
-
-        if (telemetryUploadEnabled || supabaseUploadEnabled) {
-            // Wi-Fi-only when the user asked for it, so a metered plan is not
-            // spent on telemetry.
-            val uploadConstraints = Constraints.Builder()
-                .setRequiredNetworkType(
-                    if (uploadWifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED,
-                )
-                .build()
-            manager.enqueueUniquePeriodicWork(
-                UPLOAD,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequestBuilder<UploadWorker>(1, TimeUnit.HOURS)
-                    .setConstraints(uploadConstraints)
-                    .build(),
-            )
-        } else {
-            manager.cancelUniqueWork(UPLOAD)
-        }
 
         if (backgroundSyncEnabled) {
             val constraints = Constraints.Builder()

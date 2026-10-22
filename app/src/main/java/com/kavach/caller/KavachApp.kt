@@ -12,7 +12,6 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import com.kavach.caller.data.remote.AppRegistration
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -27,7 +26,6 @@ class KavachApp : Application() {
     @Inject lateinit var diagnostics: DiagnosticsRepository
     @Inject lateinit var settings: com.kavach.caller.data.settings.SettingsRepository
     @Inject lateinit var session: SessionContext
-    @Inject lateinit var registration: AppRegistration
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -86,24 +84,6 @@ class KavachApp : Application() {
                     feature.name to "${features.isEnabled(feature)}|${features.stateOf(feature).status.name}"
                 },
             )
-        }
-
-        // Let the uploader reuse the exact envelope every event already carries.
-        settings.uploadEnvelope = session.envelope
-
-        // Exchange the shared bootstrap token for this install's own token, once.
-        // Doing it at startup means the first real request already carries the
-        // install token, and a failure here is recorded rather than swallowed —
-        // the app still works, it just keeps using the bootstrap.
-        scope.launch {
-            val problem = registration.ensureRegistered()
-            if (problem != null) {
-                diagnostics.errorStateShown(
-                    errorCode = "app_registration_failed",
-                    screen = "KavachApp",
-                    messageKey = problem.take(80),
-                )
-            }
         }
 
         installCrashHandler()

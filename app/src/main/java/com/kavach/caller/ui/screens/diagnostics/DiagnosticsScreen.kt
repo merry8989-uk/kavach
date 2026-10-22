@@ -30,8 +30,6 @@ import com.kavach.caller.data.diagnostics.EventSchema
 import com.kavach.caller.data.diagnostics.ExportFormat
 import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogLevel
-import com.kavach.caller.data.secure.SecretStore
-import com.kavach.caller.data.telemetry.SupabaseUploader
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.ui.components.KavachCard
@@ -56,9 +54,6 @@ import com.kavach.caller.R
 class DiagnosticsViewModel @Inject constructor(
     private val repository: DiagnosticsRepository,
     private val session: com.kavach.caller.data.diagnostics.SessionContext,
-    private val supabaseUploader: com.kavach.caller.data.telemetry.SupabaseUploader,
-    private val serverUploader: com.kavach.caller.data.telemetry.TelemetryUploader,
-    private val queue: com.kavach.caller.data.telemetry.UploadQueue,
     private val secrets: com.kavach.caller.data.secure.SecretStore,
     private val settings: SettingsRepository,
 ) : ViewModel() {
@@ -84,83 +79,6 @@ class DiagnosticsViewModel @Inject constructor(
         syncMessage = null
     }
 
-    val hasServerUrl: Boolean
-        get() = settings.snapshot.backendBaseUrl.isNotBlank()
-
-    fun setTelemetryUpload(enabled: Boolean) = viewModelScope.launch {
-        settings.setTelemetryUploadEnabled(enabled)
-        syncMessage = if (enabled) {
-            val queued = queue.backfillFromLog(repository.allLines())
-            "Server upload on. Queued $queued existing event(s)."
-        } else {
-            "Server upload off."
-        }
-        refreshSupabase()
-    }
-
-    fun setUploadWifiOnly(wifiOnly: Boolean) = viewModelScope.launch {
-        settings.setUploadWifiOnly(wifiOnly)
-        refreshSupabase()
-    }
-
-    private val _supabase = MutableStateFlow<SupabaseUploader.Status?>(null)
-    val supabase: StateFlow<SupabaseUploader.Status?> = _supabase.asStateFlow()
-
-    fun refreshSupabase() = viewModelScope.launch {
-        _supabase.value = supabaseUploader.status()
-    }
-
-    fun setSupabaseUrl(url: String) = viewModelScope.launch {
-        settings.setSupabaseUrl(url)
-        refreshSupabase()
-    }
-
-    fun setSupabaseKey(key: String) = viewModelScope.launch {
-        secrets.put(SecretStore.SUPABASE_ANON_KEY, key.trim())
-        syncMessage = if (key.isBlank()) "Supabase key cleared." else "Supabase key saved."
-        refreshSupabase()
-    }
-
-    fun setSupabaseEnabled(enabled: Boolean) = viewModelScope.launch {
-        settings.setSupabaseUploadEnabled(enabled)
-        syncMessage = if (enabled) {
-            // Catch up on everything already logged, so switching this on has a
-            // visible effect instead of looking broken.
-            val queued = queue.backfillFromLog(repository.allLines())
-            "Supabase upload on. Queued $queued existing event(s)."
-        } else {
-            "Supabase upload off."
-        }
-        refreshSupabase()
-    }
-
-    fun testSupabase() = viewModelScope.launch {
-        syncMessage = "Testing…"
-        syncMessage = supabaseUploader.testConnection()
-        refreshSupabase()
-    }
-
-    fun syncNow() = viewModelScope.launch {
-        syncMessage = "Syncing…"
-        val (sent, failure) = if (supabaseUploader.isConfigured()) {
-            supabaseUploader.flush()
-        } else {
-            serverUploader.flush()
-        }
-        syncMessage = when {
-            failure != null && sent == 0 -> "Could not sync: $failure"
-            sent == 0 -> "Nothing to sync."
-            else -> "Sent $sent event(s)."
-        }
-        refreshSupabase()
-    }
-
-    fun clearUploadQueue() = viewModelScope.launch {
-        queue.clear()
-        syncMessage = "Upload queue cleared."
-        refreshSupabase()
-    }
-
     var sizeText by mutableStateOf("0 B")
         private set
 
@@ -168,7 +86,6 @@ class DiagnosticsViewModel @Inject constructor(
         _entries.value = repository.entries()
         _counts.value = repository.countsByLevel()
         sizeText = repository.formattedSize()
-        _supabase.value = supabaseUploader.status()
     }
 
     fun setEnabled(enabled: Boolean) = viewModelScope.launch {
@@ -246,178 +163,6 @@ fun DiagnosticsScreen(
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
             ) {
-                item {
-                    SectionHeader("Supabase")
-                    val supabase = vm.supabase.collectAsState().value
-                    var urlDraft by remember { mutableStateOf("") }
-                    var keyDraft by remember { mutableStateOf("") }
-
-                    KavachCard {
-                        Text(
-                            "Write events straight into a Supabase Postgres table. No server to " +
-                                "run — the app appends over PostgREST and you query the rows in " +
-                                "the dashboard.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(10.dp))
-
-                        OutlinedTextField(
-                            value = urlDraft,
-                            onValueChange = { urlDraft = it },
-                            label = { Text(stringResource(R.string.project_url)) },
-                            placeholder = { Text(stringResource(R.string.https_xxxxxxxx_supabase_co)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = keyDraft,
-                            onValueChange = { keyDraft = it },
-                            label = { Text(stringResource(R.string.anon_key)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = {
-                                    vm.setSupabaseUrl(urlDraft)
-                                    vm.setSupabaseKey(keyDraft)
-                                    urlDraft = ""
-                                    keyDraft = ""
-                                },
-                                enabled = urlDraft.isNotBlank() && keyDraft.isNotBlank(),
-                            ) { Text(stringResource(R.string.save)) }
-                            if (supabase?.hasKey == true) {
-                                TextButton(onClick = { vm.setSupabaseKey("") }) { Text(stringResource(R.string.clear_key)) }
-                            }
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.automatic_upload), color = MaterialTheme.colorScheme.onSurface)
-                                Text(
-                                    if (supabase?.hasKey == true) {
-                                        "Queued: ${supabase.pending}  ·  Sent: ${supabase.sent}"
-                                    } else {
-                                        "Paste the project URL and anon key first."
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = supabase?.enabled == true,
-                                enabled = supabase?.hasKey == true,
-                                onCheckedChange = { vm.setSupabaseEnabled(it) },
-                            )
-                        }
-
-                        supabase?.lastError?.let { err ->
-                            Text(
-                                "Last problem: $err",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = { vm.testSupabase() },
-                                enabled = supabase?.hasKey == true,
-                            ) { Text(stringResource(R.string.test_connection)) }
-                            OutlinedButton(
-                                onClick = { vm.syncNow() },
-                                enabled = supabase?.enabled == true,
-                            ) { Text(stringResource(R.string.sync_now)) }
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            "Setup: run supabase/schema.sql in the SQL editor, then paste the " +
-                                "project URL and the anon key from Project Settings → API. The " +
-                                "anon key is public by design — row-level security in that file " +
-                                "lets it append but never read.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                item {
-                    SectionHeader("Kavach server")
-                    val serverOn = vm.appSettings.collectAsState().value.telemetryUploadEnabled
-
-                    KavachCard {
-                        Text(
-                            "Send events to your own Kavach server as well. Supabase is the " +
-                                "destination the logs are reviewed in; this one also carries the " +
-                                "caller-lookup and consent traffic.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(10.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.send_to_the_kavach_server),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    if (vm.hasServerUrl) {
-                                        "Server URL is set. Events upload in the background."
-                                    } else {
-                                        "Set a server URL in Settings → Server first."
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = serverOn,
-                                enabled = vm.hasServerUrl,
-                                onCheckedChange = { vm.setTelemetryUpload(it) },
-                            )
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { vm.syncNow() },
-                                enabled = serverOn || vm.appSettings.collectAsState().value.supabaseUploadEnabled,
-                            ) { Text(stringResource(R.string.sync_now)) }
-                            OutlinedButton(
-                                onClick = { vm.clearUploadQueue() },
-                                enabled = (vm.supabase.collectAsState().value?.pending ?: 0) > 0,
-                            ) { Text(stringResource(R.string.clear_queue)) }
-                        }
-
-                        vm.syncMessage?.let { msg ->
-                            Spacer(Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    msg,
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                TextButton(onClick = { vm.dismissSyncMessage() }) { Text(stringResource(R.string.ok)) }
-                            }
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            "Supabase and this server share one upload queue on the device, so " +
-                                "switching between them loses nothing.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
                 item {
                     SectionHeader("This device")
                     KavachCard {

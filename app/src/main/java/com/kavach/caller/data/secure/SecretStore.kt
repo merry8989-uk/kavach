@@ -88,12 +88,6 @@ class SecretStore @Inject constructor(
          */
         const val SUPABASE_ANON_KEY = "supabase_anon_key"
 
-        /**
-         * This install's own API token, exchanged for the shared bootstrap token
-         * on first run. See data/remote/AppRegistration.kt.
-         */
-        const val INSTALL_TOKEN = "install_token"
-
         private const val KEYSTORE = "AndroidKeyStore"
         private const val ALIAS = "kavach_secret_store"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"

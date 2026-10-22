@@ -57,13 +57,6 @@ class SettingsRepository @Inject constructor(
         val recordingConsentGiven = booleanPreferencesKey("recording_consent_given")
         val recordingConsentAt = longPreferencesKey("recording_consent_at")
         val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
-        val supabaseUploadEnabled = booleanPreferencesKey("supabase_upload_enabled")
-        val supabaseUrl = stringPreferencesKey("supabase_url")
-        val telemetryUploadEnabled = booleanPreferencesKey("telemetry_upload_enabled")
-        val uploadWifiOnly = booleanPreferencesKey("upload_wifi_only")
-        val uploadLastSyncAt = longPreferencesKey("upload_last_sync_at")
-        val uploadSyncedTotal = longPreferencesKey("upload_synced_total")
-        val uploadLastError = stringPreferencesKey("upload_last_error")
         val featureOverrides = stringSetPreferencesKey("feature_overrides")
     }
 
@@ -115,13 +108,6 @@ class SettingsRepository @Inject constructor(
             recordingConsentGiven = p[Keys.recordingConsentGiven] ?: false,
             recordingConsentAt = p[Keys.recordingConsentAt] ?: 0L,
             hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
-            supabaseUploadEnabled = p[Keys.supabaseUploadEnabled] ?: false,
-            supabaseUrl = p[Keys.supabaseUrl] ?: "",
-            telemetryUploadEnabled = p[Keys.telemetryUploadEnabled] ?: false,
-            uploadWifiOnly = p[Keys.uploadWifiOnly] ?: true,
-            uploadLastSyncAt = p[Keys.uploadLastSyncAt] ?: 0L,
-            uploadSyncedTotal = p[Keys.uploadSyncedTotal] ?: 0L,
-            uploadLastError = p[Keys.uploadLastError],
         )
     }
 
@@ -152,9 +138,6 @@ class SettingsRepository @Inject constructor(
     }
     suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
     suspend fun setHiddenSmsIds(ids: Set<String>) = context.dataStore.edit { it[Keys.hiddenSmsIds] = ids }
-    suspend fun setTelemetryUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.telemetryUploadEnabled] = value }
-    suspend fun setSupabaseUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.supabaseUploadEnabled] = value }
-    suspend fun setSupabaseUrl(value: String) = context.dataStore.edit { it[Keys.supabaseUrl] = value.trim() }
     suspend fun setSmsWarnOnLinks(value: Boolean) = context.dataStore.edit { it[Keys.smsWarnOnLinks] = value }
     suspend fun setSmsWarnOnSpam(value: Boolean) = context.dataStore.edit { it[Keys.smsWarnOnSpam] = value }
     suspend fun setSmsShowOtpBanner(value: Boolean) = context.dataStore.edit { it[Keys.smsShowOtpBanner] = value }
@@ -163,21 +146,6 @@ class SettingsRepository @Inject constructor(
         it[Keys.recordingConsentAt] = if (given) System.currentTimeMillis() else 0L
     }
 
-    /** Envelope for an upload, built from the app's own session context. */
-    fun envelopeForUpload(): com.kavach.caller.data.diagnostics.EnvelopeFields =
-        uploadEnvelope ?: com.kavach.caller.data.diagnostics.EnvelopeFields(
-            appVersion = "unknown", os = "unknown", deviceModel = "unknown",
-        )
-
-    /** Set once at startup so the uploader needs no Context. */
-    @Volatile
-    var uploadEnvelope: com.kavach.caller.data.diagnostics.EnvelopeFields? = null
-    suspend fun setUploadWifiOnly(value: Boolean) = context.dataStore.edit { it[Keys.uploadWifiOnly] = value }
-    suspend fun setUploadLastSyncAt(value: Long) = context.dataStore.edit { it[Keys.uploadLastSyncAt] = value }
-    suspend fun setUploadSyncedTotal(value: Long) = context.dataStore.edit { it[Keys.uploadSyncedTotal] = value }
-    suspend fun setUploadLastError(value: String?) = context.dataStore.edit { prefs ->
-        if (value == null) prefs.remove(Keys.uploadLastError) else prefs[Keys.uploadLastError] = value
-    }
     suspend fun setDataSaver(value: Boolean) = context.dataStore.edit { it[Keys.dataSaver] = value }
 
     /** Persist the signed-in account. Passing blanks signs the user out. */

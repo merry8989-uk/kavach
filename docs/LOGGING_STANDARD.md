@@ -86,28 +86,21 @@ flood the log.
 
 ## Where the events go
 
-**Supabase.** `data/telemetry/` implements it:
+**Nowhere by default. Kavach keeps its diagnostics on the device.**
 
-| Concern | File |
-|---|---|
-| The outbound queue | `UploadQueue` — every destination drains this one queue |
-| Supabase | `SupabaseUploader` |
-| An operator's own server | `TelemetryUploader` |
-| Background upload | `work/UploadWorker` + `WorkerScheduler` |
+The log is a file. It is written locally, redacted on the way in, retained on a
+schedule, and read by the user in Settings → Diagnostics & logs. From there they
+can export it, share it, or email it — when they choose to.
 
-When a destination is switched on, every event is appended to a local queue as
-it is written. A periodic worker flushes the queue to whichever destination is
-configured, honouring a Wi-Fi-only constraint if the user asked for one. Nothing
-is removed from the queue until the destination has accepted it, so a flight or
-an outage loses nothing.
+There is no automatic upload. Nothing leaves the phone unless the user sends it.
 
-The table, its row-level security and the analysis views are in
-`supabase/schema.sql`; the walkthrough is in `docs/SUPABASE.md`.
+Earlier versions had remote destinations — the user's own Notion database, an
+operator's server, a Supabase project. They were removed because they all shared
+the same flaw: they asked the user to configure something (a token, a URL, a key)
+before the app's diagnostics did anything useful, and a diagnostic that only
+works after setup is a diagnostic that mostly does not work.
 
-**Notion was removed.** It needed every user to create their own integration and
-paste a token, and their rows would have landed in *their* workspace rather than
-the operator's — so at any real number of installs it delivered nothing. A
-destination that only works for the person who set it up is not a destination.
+A local file that the user can hand over is the version that actually gets used.
 
 ## What a real export taught us
 
@@ -143,19 +136,9 @@ problems. All are fixed.
 The sampling one was the most damaging, because it made the log look *quiet*
 when it was being *censored*.
 
-## Supabase
-
-The destination, and the one that needs no server: `SupabaseUploader` appends
-to a Postgres table over PostgREST. The table, its row-level security, four views
-and a nightly retention job are in `supabase/schema.sql`; the walkthrough is in
-`docs/SUPABASE.md`.
-
-The security model is the part worth knowing: the app ships the **anon** key,
-which is public by design, and the table grants it `insert` and nothing else —
-there is deliberately no select policy, so that key cannot read a single row
-back. Everything that protects the data lives in the SQL, not in the app.
-
 ## Many installs
+
+Not applicable any more: the app does not send anything anywhere.
 
 There are two destinations, sharing one queue:
 

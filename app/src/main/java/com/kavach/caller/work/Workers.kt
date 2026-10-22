@@ -3,8 +3,6 @@ package com.kavach.caller.work
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.kavach.caller.data.telemetry.SupabaseUploader
-import com.kavach.caller.data.telemetry.TelemetryUploader
 import com.kavach.caller.data.repo.CallLogRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -22,46 +20,6 @@ import java.io.File
 @InstallIn(SingletonComponent::class)
 interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
-    fun telemetryUploader(): TelemetryUploader
-    fun supabaseUploader(): SupabaseUploader
-}
-
-/**
- * Pushes queued diagnostics events to their destination.
- *
- * Only scheduled while a destination is switched on. A failure here is never
- * fatal — the events stay queued and the next run retries, because a dashboard
- * that lags is fine and a log that is lost is not.
- */
-class UploadWorker(
-    appContext: Context,
-    params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-
-    override suspend fun doWork(): Result = try {
-        val entryPoint = EntryPointAccessors.fromApplication(
-            applicationContext,
-            WorkerEntryPoint::class.java,
-        )
-        // One queue, two destinations. Whichever is switched on drains the same
-        // events, so turning one off and the other on loses nothing.
-        //
-        //   Supabase      — managed Postgres, no server to run
-        //   Kavach server — your own box, for the non-log parts of the backend
-        //
-        // Supabase wins when both are on, because that is the destination the
-        // logs are actually reviewed in.
-        val supabase = entryPoint.supabaseUploader()
-        val server = entryPoint.telemetryUploader()
-        val (sent, failure) = if (supabase.isConfigured()) {
-            supabase.flush()
-        } else {
-            server.flush()
-        }
-        if (failure != null && sent == 0) Result.retry() else Result.success()
-    } catch (t: Throwable) {
-        Result.retry()
-    }
 }
 
 /**
