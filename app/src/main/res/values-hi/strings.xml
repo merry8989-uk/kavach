@@ -148,7 +148,6 @@
     <string name="loading">लोड हो रहा है…</string>
     <string name="no_calls_recorded_yet_history_imports_from_your_devi">अभी कोई कॉल दर्ज नहीं है। इतिहास आपके डिवाइस कॉल लॉग से आता है।</string>
     <string name="set_up_kavach">कवच सेट करें</string>
-    <string name="how_kavach_identifies_callers">कवच कॉलर को कैसे पहचानता है</string>
     <string name="n0_39_clean_40_69_likely_spam_70_100_spam">0–39 साफ़ · 40–69 संभावित स्पैम · 70–100 स्पैम</string>
     <string name="recordings">रिकॉर्डिंग</string>
     <string name="if_recording_is_not_enough_you_can">अगर रिकॉर्डिंग काफ़ी न हो, तो आप यह कर सकते हैं:</string>

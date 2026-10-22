@@ -40,7 +40,13 @@ jobs:
           if not default.exists():
               sys.exit("values/strings.xml is missing")
 
-          expected = keys(default)
+          expected_list = keys(default)
+          duplicates = sorted({k for k in expected_list if expected_list.count(k) > 1})
+          if duplicates:
+              print(f"FAIL default: duplicated key(s): {duplicates}")
+              sys.exit(1)
+
+          expected = set(expected_list)
           failed = False
 
           for folder in sorted(base.glob("values-*")):
@@ -49,7 +55,12 @@ jobs:
                   print(f"FAIL {folder.name}: no strings.xml")
                   failed = True
                   continue
-              found = keys(path)
+              found_list = keys(path)
+              dupes = sorted({k for k in found_list if found_list.count(k) > 1})
+              if dupes:
+                  print(f"FAIL {folder.name}: duplicated key(s): {dupes}")
+                  failed = True
+              found = set(found_list)
               missing = expected - found
               extra = found - expected
               if missing:
