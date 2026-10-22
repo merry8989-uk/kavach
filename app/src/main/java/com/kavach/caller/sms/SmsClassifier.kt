@@ -166,23 +166,29 @@ object SmsClassifier {
         // ---------------- spam ----------------
         var score = 0
 
+        // Each family of signals scales with how many distinct phrases matched.
+        // A flat score per family was wrong: a message saying "earn from home",
+        // "part time job", "daily income" and "no documents" is four independent
+        // pieces of evidence, and scoring it the same as one was the difference
+        // between catching it and letting it through.
         val prize = PRIZE_WORDS.filter { text.contains(it) }
         if (prize.isNotEmpty()) {
-            score += 40
+            score += (35 + (prize.size - 1) * 10).coerceAtMost(55)
             reasons += "uses prize or lottery language"
         }
 
         val threat = THREAT_WORDS.filter { text.contains(it) }
         if (threat.isNotEmpty()) {
             // A threat plus a link is the classic KYC scam. A threat alone is
-            // often a real bank, so it scores lower on its own.
-            score += if (links.isNotEmpty()) 35 else 18
+            // often a real bank, so it scores much lower on its own.
+            val base = if (links.isNotEmpty()) 35 else 18
+            score += (base + (threat.size - 1) * 5).coerceAtMost(45)
             reasons += "threatens that an account will be blocked or closed"
         }
 
         val jobLoan = JOB_LOAN_WORDS.filter { text.contains(it) }
         if (jobLoan.isNotEmpty()) {
-            score += 30
+            score += (30 + (jobLoan.size - 1) * 8).coerceAtMost(50)
             reasons += "promises income or a loan with no checks"
         }
 
