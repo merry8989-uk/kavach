@@ -153,6 +153,18 @@ problems. All are fixed.
 The sampling one was the most damaging, because it made the log look *quiet*
 when it was being *censored*.
 
+## Supabase
+
+A third destination, and the one that needs no server: `SupabaseUploader` appends
+to a Postgres table over PostgREST. The table, its row-level security, four views
+and a nightly retention job are in `supabase/schema.sql`; the walkthrough is in
+`docs/SUPABASE.md`.
+
+The security model is the part worth knowing: the app ships the **anon** key,
+which is public by design, and the table grants it `insert` and nothing else —
+there is deliberately no select policy, so that key cannot read a single row
+back. Everything that protects the data lives in the SQL, not in the app.
+
 ## Many installs
 
 Direct-to-Notion only works for the handful of users willing to create a Notion

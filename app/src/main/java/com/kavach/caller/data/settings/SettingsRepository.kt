@@ -57,6 +57,8 @@ class SettingsRepository @Inject constructor(
         val recordingConsentGiven = booleanPreferencesKey("recording_consent_given")
         val recordingConsentAt = longPreferencesKey("recording_consent_at")
         val hiddenSmsIds = stringSetPreferencesKey("hidden_sms_ids")
+        val supabaseUploadEnabled = booleanPreferencesKey("supabase_upload_enabled")
+        val supabaseUrl = stringPreferencesKey("supabase_url")
         val telemetryUploadEnabled = booleanPreferencesKey("telemetry_upload_enabled")
         val notionSyncEnabled = booleanPreferencesKey("notion_sync_enabled")
         val notionWifiOnly = booleanPreferencesKey("notion_wifi_only")
@@ -114,6 +116,8 @@ class SettingsRepository @Inject constructor(
             recordingConsentGiven = p[Keys.recordingConsentGiven] ?: false,
             recordingConsentAt = p[Keys.recordingConsentAt] ?: 0L,
             hiddenSmsIds = p[Keys.hiddenSmsIds] ?: emptySet(),
+            supabaseUploadEnabled = p[Keys.supabaseUploadEnabled] ?: false,
+            supabaseUrl = p[Keys.supabaseUrl] ?: "",
             telemetryUploadEnabled = p[Keys.telemetryUploadEnabled] ?: false,
             notionSyncEnabled = p[Keys.notionSyncEnabled] ?: false,
             notionWifiOnly = p[Keys.notionWifiOnly] ?: true,
@@ -151,6 +155,8 @@ class SettingsRepository @Inject constructor(
     suspend fun clearHiddenSms() = context.dataStore.edit { it.remove(Keys.hiddenSmsIds) }
     suspend fun setHiddenSmsIds(ids: Set<String>) = context.dataStore.edit { it[Keys.hiddenSmsIds] = ids }
     suspend fun setTelemetryUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.telemetryUploadEnabled] = value }
+    suspend fun setSupabaseUploadEnabled(value: Boolean) = context.dataStore.edit { it[Keys.supabaseUploadEnabled] = value }
+    suspend fun setSupabaseUrl(value: String) = context.dataStore.edit { it[Keys.supabaseUrl] = value.trim() }
     suspend fun setSmsWarnOnLinks(value: Boolean) = context.dataStore.edit { it[Keys.smsWarnOnLinks] = value }
     suspend fun setSmsWarnOnSpam(value: Boolean) = context.dataStore.edit { it[Keys.smsWarnOnSpam] = value }
     suspend fun setSmsShowOtpBanner(value: Boolean) = context.dataStore.edit { it[Keys.smsShowOtpBanner] = value }

@@ -295,6 +295,14 @@ There is therefore no deep link that can carry a number, so instead of faking on
 Kavach opens the site **and copies the number to the clipboard**, with the UI saying
 "number copied — paste it into the search box".
 
+### Added in 0.24.0 — Supabase
+
+Diagnostics can be written straight into a Supabase Postgres table. No server to
+run: the app appends over PostgREST with the public anon key, and row-level
+security in `supabase/schema.sql` lets it insert but never read. Four views
+(errors, friction, intent→outcome, devices) and a nightly retention job come with
+it. See `docs/SUPABASE.md`.
+
 ### Added in 0.21.2 — the server is deployable
 
 The backend now ships as a multi-architecture container image on GitHub

@@ -32,6 +32,7 @@ import com.kavach.caller.data.diagnostics.LogEvent
 import com.kavach.caller.data.diagnostics.LogLevel
 import com.kavach.caller.data.notion.NotionSyncRepository
 import com.kavach.caller.data.notion.SecretStore
+import com.kavach.caller.data.telemetry.SupabaseUploader
 import com.kavach.caller.data.settings.AppSettings
 import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.ui.components.KavachCard
@@ -55,6 +56,7 @@ class DiagnosticsViewModel @Inject constructor(
     private val repository: DiagnosticsRepository,
     private val session: com.kavach.caller.data.diagnostics.SessionContext,
     private val notionSync: com.kavach.caller.data.notion.NotionSyncRepository,
+    private val supabaseUploader: com.kavach.caller.data.telemetry.SupabaseUploader,
     private val secrets: com.kavach.caller.data.notion.SecretStore,
     private val settings: SettingsRepository,
 ) : ViewModel() {
@@ -85,6 +87,7 @@ class DiagnosticsViewModel @Inject constructor(
 
     fun refreshNotion() = viewModelScope.launch {
         _notion.value = notionSync.status()
+        _supabase.value = supabaseUploader.status()
     }
 
     fun setNotionToken(token: String) = viewModelScope.launch {
@@ -125,6 +128,41 @@ class DiagnosticsViewModel @Inject constructor(
         refreshNotion()
     }
 
+    private val _supabase = MutableStateFlow<SupabaseUploader.Status?>(null)
+    val supabase: StateFlow<SupabaseUploader.Status?> = _supabase.asStateFlow()
+
+    fun refreshSupabase() = viewModelScope.launch {
+        _supabase.value = supabaseUploader.status()
+    }
+
+    fun setSupabaseUrl(url: String) = viewModelScope.launch {
+        settings.setSupabaseUrl(url)
+        refreshSupabase()
+    }
+
+    fun setSupabaseKey(key: String) = viewModelScope.launch {
+        secrets.put(SecretStore.SUPABASE_ANON_KEY, key.trim())
+        syncMessage = if (key.isBlank()) "Supabase key cleared." else "Supabase key saved."
+        refreshSupabase()
+    }
+
+    fun setSupabaseEnabled(enabled: Boolean) = viewModelScope.launch {
+        settings.setSupabaseUploadEnabled(enabled)
+        syncMessage = if (enabled) {
+            val queued = notionSync.backfillFromLog(repository.allLines())
+            "Supabase upload on. Queued $queued existing event(s)."
+        } else {
+            "Supabase upload off."
+        }
+        refreshSupabase()
+    }
+
+    fun testSupabase() = viewModelScope.launch {
+        syncMessage = "Testing…"
+        syncMessage = supabaseUploader.testConnection()
+        refreshSupabase()
+    }
+
     fun testNotion() = viewModelScope.launch {
         syncMessage = "Testing…"
         syncMessage = notionSync.testConnection()
@@ -156,6 +194,7 @@ class DiagnosticsViewModel @Inject constructor(
         _counts.value = repository.countsByLevel()
         sizeText = repository.formattedSize()
         _notion.value = notionSync.status()
+        _supabase.value = supabaseUploader.status()
     }
 
     fun setEnabled(enabled: Boolean) = viewModelScope.launch {
@@ -234,6 +273,107 @@ fun DiagnosticsScreen(
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
             ) {
+                item {
+                    SectionHeader("Supabase")
+                    val supabase = vm.supabase.collectAsState().value
+                    var urlDraft by remember { mutableStateOf("") }
+                    var keyDraft by remember { mutableStateOf("") }
+
+                    KavachCard {
+                        Text(
+                            "Write events straight into a Supabase Postgres table. No server to " +
+                                "run — the app appends over PostgREST and you query the rows in " +
+                                "the dashboard.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(10.dp))
+
+                        OutlinedTextField(
+                            value = urlDraft,
+                            onValueChange = { urlDraft = it },
+                            label = { Text("Project URL") },
+                            placeholder = { Text("https://xxxxxxxx.supabase.co") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = keyDraft,
+                            onValueChange = { keyDraft = it },
+                            label = { Text("Anon key") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    vm.setSupabaseUrl(urlDraft)
+                                    vm.setSupabaseKey(keyDraft)
+                                    urlDraft = ""
+                                    keyDraft = ""
+                                },
+                                enabled = urlDraft.isNotBlank() && keyDraft.isNotBlank(),
+                            ) { Text("Save") }
+                            if (supabase?.hasKey == true) {
+                                TextButton(onClick = { vm.setSupabaseKey("") }) { Text("Clear key") }
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Automatic upload", color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    if (supabase?.hasKey == true) {
+                                        "Queued: ${supabase.pending}  ·  Sent: ${supabase.sent}"
+                                    } else {
+                                        "Paste the project URL and anon key first."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = supabase?.enabled == true,
+                                enabled = supabase?.hasKey == true,
+                                onCheckedChange = { vm.setSupabaseEnabled(it) },
+                            )
+                        }
+
+                        supabase?.lastError?.let { err ->
+                            Text(
+                                "Last problem: $err",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { vm.testSupabase() },
+                                enabled = supabase?.hasKey == true,
+                            ) { Text("Test connection") }
+                            OutlinedButton(
+                                onClick = { vm.syncNow() },
+                                enabled = supabase?.enabled == true,
+                            ) { Text("Sync now") }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Setup: run supabase/schema.sql in the SQL editor, then paste the " +
+                                "project URL and the anon key from Project Settings → API. The " +
+                                "anon key is public by design — row-level security in that file " +
+                                "lets it append but never read.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
                 item {
                     SectionHeader("Notion dashboard")
                     val notion = vm.notion.collectAsState().value

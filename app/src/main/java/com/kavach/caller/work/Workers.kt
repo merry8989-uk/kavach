@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.kavach.caller.data.notion.NotionSyncRepository
+import com.kavach.caller.data.telemetry.SupabaseUploader
 import com.kavach.caller.data.telemetry.TelemetryUploader
 import com.kavach.caller.data.repo.CallLogRepository
 import dagger.hilt.EntryPoint
@@ -24,6 +25,7 @@ interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
     fun notionSyncRepository(): NotionSyncRepository
     fun telemetryUploader(): TelemetryUploader
+    fun supabaseUploader(): SupabaseUploader
 }
 
 /**
@@ -43,14 +45,18 @@ class NotionSyncWorker(
             applicationContext,
             WorkerEntryPoint::class.java,
         )
-        // One queue, two destinations: the operator's server (the path that
-        // works for many installs) or the user's own Notion (the path that
-        // works for one). Whichever is switched on drains the same events.
-        val uploader = entryPoint.telemetryUploader()
-        val (sent, failure) = if (uploader.isConfigured()) {
-            uploader.flush()
-        } else {
-            entryPoint.notionSyncRepository().flush()
+        // One queue, three destinations. Whichever is switched on drains the
+        // same events, so turning one off and another on loses nothing.
+        //
+        //   Supabase        — managed Postgres, no server to run
+        //   Kavach server   — your own box, which can also write to Notion
+        //   the user's Notion — for one person's own dashboard
+        val supabase = entryPoint.supabaseUploader()
+        val server = entryPoint.telemetryUploader()
+        val (sent, failure) = when {
+            supabase.isConfigured() -> supabase.flush()
+            server.isConfigured() -> server.flush()
+            else -> entryPoint.notionSyncRepository().flush()
         }
         if (failure != null && sent == 0) Result.retry() else Result.success()
     } catch (t: Throwable) {

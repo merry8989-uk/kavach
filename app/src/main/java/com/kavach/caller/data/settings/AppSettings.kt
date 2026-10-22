@@ -69,6 +69,13 @@ data class AppSettings(
     val hiddenSmsIds: Set<String> = emptySet(),
 
     /**
+     * Write diagnostics events straight into Supabase. No server to run: the
+     * app appends to a Postgres table over PostgREST.
+     */
+    val supabaseUploadEnabled: Boolean = false,
+    val supabaseUrl: String = "",
+
+    /**
      * Send diagnostics events to the Kavach server instead of (or as well as)
      * the user's own Notion. This is the path that works for many installs.
      */

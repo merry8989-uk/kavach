@@ -84,6 +84,12 @@ class SecretStore @Inject constructor(
         /** Key names used by this app. */
         const val NOTION_TOKEN = "notion_token"
 
+        /**
+         * The Supabase anon key. It is public by design — row-level security in
+         * supabase/schema.sql is what protects the table, not this value.
+         */
+        const val SUPABASE_ANON_KEY = "supabase_anon_key"
+
         private const val KEYSTORE = "AndroidKeyStore"
         private const val ALIAS = "kavach_secret_store"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"

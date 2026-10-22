@@ -118,7 +118,9 @@ class DiagnosticsRepository @Inject constructor(
         // destination queued nothing at all — it looked enabled and silently
         // sent zero events.
         val snapshot = settings.snapshot
-        if (snapshot.notionSyncEnabled || snapshot.telemetryUploadEnabled) {
+        if (snapshot.notionSyncEnabled || snapshot.telemetryUploadEnabled ||
+            snapshot.supabaseUploadEnabled
+        ) {
             runCatching { notionSync.get().enqueue(line) }
         }
 
