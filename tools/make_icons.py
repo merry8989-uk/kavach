@@ -139,7 +139,11 @@ def cut_out_backdrop(image: Image.Image, base: tuple[int, int, int]) -> Image.Im
     rgb = image.convert("RGB")
     filled = rgb.copy()
     sentinel = (255, 0, 255)
-    tolerance = 34
+    # Generous on purpose. At 34 the fill stopped inside the artwork's own glow,
+    # leaving a dark halo that read as a faint square over the background layer.
+    # The background layer is already a blurred copy of this artwork, so it
+    # supplies the glow; the foreground only needs the object itself.
+    tolerance = 78
 
     w, h = filled.size
     for seed in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
