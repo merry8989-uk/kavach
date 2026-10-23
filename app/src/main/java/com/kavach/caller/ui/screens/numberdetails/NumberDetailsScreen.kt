@@ -48,6 +48,7 @@ import com.kavach.caller.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.AlertDialog
 
 /**
  * Everything known about one number, in one place (F9.13).
@@ -90,6 +91,36 @@ class NumberDetailsViewModel @Inject constructor(
      * rather than pretending. A silent no-op would leave someone believing they
      * had appealed.
      */
+    // ---- claiming a listing ----
+
+    var claimMessage by mutableStateOf<String?>(null)
+        private set
+
+    var claiming by mutableStateOf(false)
+        private set
+
+    /**
+     * File a claim for a business listing.
+     *
+     * With no server configured this cannot be filed, and the message says so.
+     * A silent no-op would leave a business believing they had claimed something.
+     */
+    fun claimBusiness(number: String, name: String, category: String?, evidence: String) =
+        viewModelScope.launch {
+            claiming = true
+            claimMessage = null
+            val response = runCatching { api.claimBusiness(number, name, category, evidence) }.getOrNull()
+            claimMessage = when {
+                response == null ->
+                    "Could not send the claim — no server is configured, or it could not be reached."
+                response.accepted -> response.detail
+                else -> "The server did not accept the claim."
+            }
+            claiming = false
+        }
+
+    fun clearClaimMessage() { claimMessage = null }
+
     fun appeal(number: String) = viewModelScope.launch {
         appealing = true
         appealMessage = null
@@ -158,10 +189,23 @@ fun NumberDetailsScreen(
     val recent by vm.recent.collectAsState()
     val loading by vm.loading.collectAsState()
     var lookup by remember { mutableStateOf(false) }
+    var showClaim by remember { mutableStateOf(false) }
 
     LaunchedEffect(number) { vm.load(number) }
 
     val primary = contact?.numbers?.firstOrNull()?.number ?: number
+
+    if (showClaim) {
+        ClaimDialog(
+            number = primary,
+            submitting = vm.claiming,
+            onSubmit = { name, category, evidence ->
+                vm.claimBusiness(primary, name, category, evidence)
+                showClaim = false
+            },
+            onDismiss = { showClaim = false },
+        )
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -340,6 +384,24 @@ fun NumberDetailsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
+                // The counterpart to "This is not spam". Without this, a listing
+                // could be shown as a business and never become a verified one —
+                // the app would be showing a status nobody could reach.
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = { showClaim = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("This is my business") }
+
+                vm.claimMessage?.let { message ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             // ---- history with this number ----
@@ -422,6 +484,79 @@ private fun SpamBadge(identity: CallerIdentity?) {
             color = MaterialTheme.colorScheme.onSurface,
         )
     }
+}
+
+/**
+ * The claim form.
+ *
+ * Evidence is required and the button stays disabled without it, because a claim
+ * with nothing to check can only be decided on how confident the claimant
+ * sounds — and that is how an impersonator gets verified.
+ */
+@Composable
+private fun ClaimDialog(
+    number: String,
+    submitting: Boolean,
+    onSubmit: (name: String, category: String?, evidence: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+    var evidence by remember { mutableStateOf("") }
+    val ready = name.trim().length >= 2 && evidence.trim().length >= 10
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Claim this listing") },
+        text = {
+            Column {
+                Text(
+                    "A person reviews this before the listing is marked verified. " +
+                        "Nothing changes until then.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Business name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = evidence,
+                    onValueChange = { evidence = it },
+                    label = { Text("How can this be verified?") },
+                    placeholder = { Text("Registration number, website, listing") },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Claiming $number",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(name.trim(), category.trim().ifBlank { null }, evidence.trim()) },
+                enabled = ready && !submitting,
+            ) { Text(if (submitting) "Sending…" else "Send claim") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

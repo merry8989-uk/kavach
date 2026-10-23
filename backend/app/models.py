@@ -265,6 +265,12 @@ class ModerationItem(Base):
     # identity.
     appellant_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
+    # A business claim carries what is being claimed. Kept as columns rather
+    # than parsed back out of `detail`, because an approval has to apply the
+    # claimed name exactly and free-text parsing is how that goes wrong.
+    claim_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    claim_category: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
     resolved_at: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     # Kept so a decision can be explained later rather than being a bare status.
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)

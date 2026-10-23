@@ -233,6 +233,10 @@ class ModerationItemView(BaseModel):
     number: str | None = None
     reason: str
     detail: str | None = None
+    # Present on a business claim, so a moderator can see exactly what they are
+    # about to publish rather than approving a note about it.
+    claim_name: str | None = None
+    claim_category: str | None = None
     age_seconds: int
     created_at: int
 
@@ -250,4 +254,29 @@ class ModerationDecisionBody(BaseModel):
 class ModerationDecisionResponse(BaseModel):
     id: int
     status: str
+    detail: str
+
+
+# ---------------------------------------------------------------------------
+# Business claims (app/routers/businesses.py).
+# ---------------------------------------------------------------------------
+
+
+class BusinessClaimRequest(BaseModel):
+    """A business saying a listing is theirs.
+
+    `evidence` is what a moderator reads to decide. It is required, because a
+    claim with nothing to check is a claim that can only be decided on how
+    confident the claimant sounds — which is not a decision.
+    """
+
+    number: str = Field(min_length=4, max_length=24)
+    business_name: str = Field(min_length=2, max_length=200)
+    category: str | None = Field(default=None, max_length=60)
+    evidence: str = Field(min_length=10, max_length=1000)
+
+
+class BusinessClaimResponse(BaseModel):
+    accepted: bool
+    claim_id: int | None = None
     detail: str

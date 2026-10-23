@@ -19,7 +19,7 @@ import time
 
 from sqlalchemy.orm import Session
 
-from ..models import ModerationItem, Number, SpamScore
+from ..models import Business, ModerationItem, Number, SpamScore
 
 # The reasons the queue accepts. Anything else is a typo, not a new category.
 REASONS = {"flagged_by_threshold", "user_appeal", "business_claim", "burst_reports"}
@@ -65,6 +65,51 @@ def file_appeal(
     return item, True
 
 
+def file_business_claim(
+    db: Session,
+    number_id: int,
+    appellant_hash: str,
+    name: str,
+    category: str | None,
+    evidence: str | None,
+) -> tuple[ModerationItem, bool]:
+    """Record that a business says a listing is theirs.
+
+    Same dedupe rule as an appeal: one source cannot bury the queue with the same
+    claim. Returns `(item, created)`.
+    """
+    existing = (
+        db.query(ModerationItem)
+        .filter(
+            ModerationItem.number_id == number_id,
+            ModerationItem.appellant_hash == appellant_hash,
+            ModerationItem.reason == "business_claim",
+            ModerationItem.status == "pending",
+        )
+        .one_or_none()
+    )
+    if existing is not None:
+        existing.claim_name = name.strip()[:200]
+        existing.claim_category = (category or "").strip()[:60] or None
+        if evidence:
+            existing.detail = evidence.strip()[:1000]
+        return existing, False
+
+    item = ModerationItem(
+        number_id=number_id,
+        reason="business_claim",
+        status="pending",
+        detail=(evidence or "").strip()[:1000] or None,
+        claim_name=name.strip()[:200],
+        claim_category=(category or "").strip()[:60] or None,
+        appellant_hash=appellant_hash,
+        created_at=int(time.time()),
+    )
+    db.add(item)
+    db.flush()
+    return item, True
+
+
 def pending(db: Session, limit: int = 50, offset: int = 0) -> list[ModerationItem]:
     """The queue, oldest first — the order it should be worked in."""
     return (
@@ -100,7 +145,12 @@ def decide(
     item.resolved_at = int(time.time())
     item.resolution_note = note
 
-    if decision == "approved" and item.number_id is not None:
+    # A business claim is the one reason whose approval changes what the app
+    # *shows*, rather than what it blocks. Approving it publishes the name.
+    if decision == "approved" and item.reason == "business_claim" and item.number_id is not None:
+        _approve_business_claim(db, item)
+
+    if decision == "approved" and item.reason == "user_appeal" and item.number_id is not None:
         score = db.query(SpamScore).filter(SpamScore.number_id == item.number_id).one_or_none()
         if score is not None:
             # Zeroed rather than deleted, so the record of there having been a
@@ -124,6 +174,48 @@ def decide(
             other.status = "approved"
             other.resolved_at = int(time.time())
             other.resolution_note = "closed by an approved appeal on the same number"
+
+
+def _approve_business_claim(db: Session, item: ModerationItem) -> None:
+    """Publish the claimed name, and mark the directory listing verified.
+
+    This is the step that was missing. `Business.verified` had existed since the
+    first schema with nothing ever setting it — so a listing could be shown as a
+    business and could never become a verified one. A claim that is approved now
+    does three things, and all three are needed for the claim to have meant
+    anything:
+
+    1. the number is published under the claimed name, with `business` provenance
+       and a confidence that puts it above community suggestions;
+    2. the directory row is marked verified;
+    3. any pending community name for the same number is left alone — it will lose
+       to the business entry on provenance, which is the correct outcome and does
+       not need a destructive step here.
+    """
+    from . import names
+
+    name = (item.claim_name or "").strip()
+    if not name:
+        # Nothing to publish. Refusing here rather than publishing an empty name
+        # is the difference between a no-op and a wrong record.
+        return
+
+    number = db.query(Number).filter(Number.id == item.number_id).one_or_none()
+    if number is None:
+        return
+
+    names.add_business_name_by_hash(db, number.phone_hash, name, verified=True)
+
+    business = (
+        db.query(Business)
+        .filter(Business.name.ilike(name))
+        .one_or_none()
+    )
+    if business is None:
+        business = Business(name=name, category=item.claim_category, source="BUSINESS")
+        db.add(business)
+    business.category = item.claim_category or business.category
+    business.verified = True
 
 
 def find_number(db: Session, phone_hash: str) -> Number | None:

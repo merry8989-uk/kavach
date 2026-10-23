@@ -103,6 +103,30 @@ def add_business_name(
     return entry
 
 
+def add_business_name_by_hash(
+    db: Session, digest: str, name: str, verified: bool = True,
+) -> NameEntry:
+    """Publish a claimed business name, addressed by hash.
+
+    The approval path only ever holds a `phone_hash` — the moderation queue does
+    not store raw numbers — so this variant exists rather than making the caller
+    reconstruct an E.164 string it does not have.
+    """
+    number = upsert_number_by_hash(db, digest)
+    _deactivate(db, number.id, source="business")
+    entry = NameEntry(
+        number_id=number.id,
+        name=name.strip()[:200],
+        source="business" if verified else "community",
+        confidence=SOURCE_CONFIDENCE["business"] if verified else SOURCE_CONFIDENCE["community"],
+        is_active=True,
+        created_at=int(time.time()),
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
 def add_community_name(
     db: Session, e164: str, name: str, contributor_user: str,
 ) -> NameEntry:

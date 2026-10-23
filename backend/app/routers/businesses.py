@@ -1,11 +1,20 @@
-"""Business directory search."""
-from fastapi import APIRouter, Depends, Query
+"""Business directory search, and claiming a listing."""
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..hashing import phone_hash
 from ..models import Business
-from ..schemas import BusinessResult, BusinessSearchResponse
-from ..security import rate_limit, require_app_token
+from ..normalizer import is_valid_e164, to_e164
+from ..schemas import (
+    BusinessClaimRequest,
+    BusinessClaimResponse,
+    BusinessResult,
+    BusinessSearchResponse,
+)
+from ..security import actor_hash, rate_limit, require_app_token
+from ..services import moderation
+from ..services.names import upsert_number_by_hash
 
 router = APIRouter(tags=["businesses"])
 
@@ -43,4 +52,51 @@ def search(
             )
             for b in rows
         ],
+    )
+
+
+@router.post("/v1/businesses/claim", response_model=BusinessClaimResponse, status_code=202)
+def claim(
+    payload: BusinessClaimRequest,
+    db: Session = Depends(get_db),
+    token: str = Depends(require_app_token),
+    _rl: None = Depends(rate_limit),
+) -> BusinessClaimResponse:
+    """A business says a listing is theirs.
+
+    This endpoint exists because `Business.verified` did not have one. The column
+    had been in the schema since the first migration and **nothing ever set it**,
+    so the directory could show a listing as a business and no listing could ever
+    become a verified one. A field that cannot become true is a field that lies.
+
+    The claim goes to the moderation queue rather than publishing itself. That is
+    the point: a business is a claim about a *person's phone number*, and the only
+    thing standing between a real clinic and someone impersonating one is a person
+    reading the evidence.
+    """
+    e164 = to_e164(payload.number)
+    if not is_valid_e164(e164):
+        raise HTTPException(status_code=422, detail="invalid phone number")
+
+    number = upsert_number_by_hash(db, phone_hash(e164))
+
+    item, created = moderation.file_business_claim(
+        db,
+        number_id=number.id,
+        appellant_hash=actor_hash(token),
+        name=payload.business_name,
+        category=payload.category,
+        evidence=payload.evidence,
+    )
+    db.commit()
+
+    return BusinessClaimResponse(
+        accepted=True,
+        claim_id=item.id,
+        detail=(
+            "Claim received. A person reviews the evidence before the listing is "
+            "marked verified — nothing changes until then."
+            if created
+            else "You already have an open claim for this number. It was updated."
+        ),
     )

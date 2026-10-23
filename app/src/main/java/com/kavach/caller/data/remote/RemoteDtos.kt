@@ -157,3 +157,26 @@ data class AppealResponseDto(
     @SerialName("appeal_id") val appealId: Int? = null,
     val detail: String = "",
 )
+
+
+/**
+ * A business claiming a listing.
+ *
+ * `evidence` is required on the server and is required here too — a claim with
+ * nothing to check can only be decided on how confident the claimant sounds,
+ * which is not a decision.
+ */
+@Serializable
+data class BusinessClaimRequestDto(
+    val number: String,
+    @SerialName("business_name") val businessName: String,
+    val category: String? = null,
+    val evidence: String,
+)
+
+@Serializable
+data class BusinessClaimResponseDto(
+    val accepted: Boolean = false,
+    @SerialName("claim_id") val claimId: Int? = null,
+    val detail: String = "",
+)

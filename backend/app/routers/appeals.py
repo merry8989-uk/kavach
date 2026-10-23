@@ -110,6 +110,8 @@ def list_moderation(
                 number=number,
                 reason=item.reason,
                 detail=item.detail,
+                claim_name=item.claim_name,
+                claim_category=item.claim_category,
                 age_seconds=max(0, now - (item.created_at or now)),
                 created_at=item.created_at or 0,
             )

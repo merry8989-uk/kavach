@@ -107,7 +107,7 @@ The review's first section, item by item.
 | E1 | Search history | 7 | **Done** v0.37.0 |
 | E2 | Motion / reduced-animation settings | 14 | **Done** v0.37.0 |
 | E3 | Missed-call prioritisation | 10 | **Done** v0.37.0 |
-| E4 | Business-claim flow (how a listing becomes *verified*) | 7 | **Open** |
+| E4 | Business-claim flow (how a listing becomes *verified*) | 7 | **Done** v0.41.0 — `Business.verified` had existed since the first schema with nothing ever setting it. A claim now files to the moderation queue, and approving one publishes the name, marks the listing verified, and changes what a lookup returns |
 | E5 | Scam-pattern detection across numbers | 10 | **Open** — worth doing only with real data |
 | E6 | Business categorisation | 10 | **Open** |
 | E7 | Accuracy measurement: precision, recall, false-positive rate | 10 | **Open** — the harness is cheap; it means nothing without labelled data |
@@ -134,7 +134,7 @@ Sequenced by dependency and by what unblocks the most. Not by phase number.
 | # | Work | Why here | Effort |
 |---|---|---|---|
 | 1 | **Run the self-test, then the 15 device checks** | Nothing else can be called verified until this happens, and it is one afternoon | S |
-| 2 | **Business-claim flow** (E4) | The only remaining gap where the app implies something it cannot do — a listing can be shown as "business" but never *verified* | M |
+| ~~2~~ | ~~Business-claim flow~~ (E4) | **Done** v0.41.0 | M |
 | ~~3~~ | ~~Spam warning reason on the in-call screen~~ (D1) | **Done** v0.40.0 | S |
 | ~~4~~ | ~~Result freshness + retry~~ (D3) | **Done** v0.40.0 | S |
 | ~~5~~ | ~~User-visible auto-block threshold~~ (D4) | **Done** v0.40.0 | S |

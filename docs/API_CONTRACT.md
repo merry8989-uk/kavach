@@ -176,3 +176,51 @@ Service token. `{"decision": "approved" | "rejected", "note": "..."}`
 flags on the same number. That is the part that makes this a workflow: without it
 the queue would record that a mistake was acknowledged and leave the mistake in
 place. Deciding an already-decided item is a `409`.
+
+
+## Business claims
+
+Added at v0.41.0. This endpoint exists because `Business.verified` did not have
+one: the column had been in the schema since the first migration and **nothing
+ever set it**, so the directory could show a listing as a business and no listing
+could ever become a verified one. A field that cannot become true is a field that
+lies.
+
+### `POST /v1/businesses/claim`
+
+App token. A business says a listing is theirs.
+
+```json
+{
+  "number": "+919876543210",
+  "business_name": "Sunrise Diagnostics",
+  "category": "Healthcare",
+  "evidence": "Registered at sunrise-diagnostics.example, listed in the state register."
+}
+```
+
+`evidence` is **required** (10–1000 characters). A claim with nothing to check can
+only be decided on how confident the claimant sounds, which is not a decision.
+
+A second pending claim from the same source about the same number updates the
+statement rather than filing a duplicate.
+
+The response says what happens next, in as many words:
+
+> "Claim received. A person reviews the evidence before the listing is marked
+> verified — nothing changes until then."
+
+**Claiming publishes nothing on its own.** That is the point: a business is a claim
+about a *person's phone number*, and the only thing standing between a real clinic
+and someone impersonating one is a person reading the evidence.
+
+### Approving a claim — `POST /v1/admin/moderation/{id}`
+
+The queue's decision endpoint already existed; what is new is that approving a
+`business_claim` now **has an effect**, the same way approving an appeal clears a
+score:
+
+1. the number is published under the claimed name with `business` provenance and
+   a confidence above community suggestions, so a lookup returns it;
+2. the directory row is marked `verified`;
+3. a claim with no name publishes nothing, rather than creating an empty record.

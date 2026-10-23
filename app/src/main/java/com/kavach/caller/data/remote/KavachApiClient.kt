@@ -155,6 +155,34 @@ class KavachApiClient @Inject constructor(
         )
     }
 
+    /**
+     * Claim a listing for a business.
+     *
+     * Goes to the moderation queue rather than publishing itself, and the
+     * response says so. A business is a claim about a person's phone number, and
+     * the only thing between a real clinic and someone impersonating one is a
+     * person reading the evidence.
+     */
+    suspend fun claimBusiness(
+        number: String,
+        businessName: String,
+        category: String?,
+        evidence: String,
+    ): BusinessClaimResponseDto? {
+        val url = baseUrl() ?: return null
+        return post(
+            "$url/v1/businesses/claim",
+            BusinessClaimRequestDto(
+                number = number,
+                businessName = businessName,
+                category = category,
+                evidence = evidence,
+            ),
+            BusinessClaimRequestDto.serializer(),
+            BusinessClaimResponseDto.serializer(),
+        )
+    }
+
     suspend fun suggestName(number: String, name: String, evidence: String? = null): CorrectionResponseDto? {
         val url = baseUrl() ?: return null
         return post(
