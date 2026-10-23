@@ -98,6 +98,10 @@ class SettingsViewModel @Inject constructor(
     fun setThemePack(value: String) = viewModelScope.launch { repo.setThemePack(value) }
 
     fun setMotionMode(value: String) = viewModelScope.launch { repo.setMotionMode(value) }
+
+    fun setAutoBlockScore(value: Int) = viewModelScope.launch { repo.setAutoBlockScore(value) }
+
+    fun setAutoBlockAction(value: String) = viewModelScope.launch { repo.setAutoBlockAction(value) }
     fun setAnnouncerMode(value: String) = viewModelScope.launch { repo.setAnnouncerMode(value) }
     fun setAnnounceSpamVerdict(value: Boolean) = viewModelScope.launch { repo.setAnnounceSpamVerdict(value) }
     fun setCloudAiEnabled(value: Boolean) = viewModelScope.launch { repo.setCloudAiEnabled(value) }

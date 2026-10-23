@@ -14,6 +14,29 @@ data class AppSettings(
      * vestibular disorders do — Kavach does not animate, without being told twice.
      */
     val motionMode: String = "system",
+
+    /**
+     * Act on the reputation score alone: 0 means never.
+     *
+     * **Zero is the default, and that is the point.** The review was explicit —
+     * *"sirf reputation score ke basis par genuine calls automatically block na
+     * hon; threshold aur action user control kare."* A score is other people's
+     * opinion plus pattern rules; it is not evidence, and a genuine call that a
+     * few people wrongly reported should not be silently killed.
+     *
+     * So rules block by default, and the score only acts if the user asks it to,
+     * at a threshold they choose.
+     */
+    val autoBlockScore: Int = 0,
+
+    /**
+     * What to do when the score crosses [autoBlockScore]:
+     * "silence" | "block" | "warn".
+     *
+     * Silence is the default because it is the gentlest of the three: the call
+     * still arrives and is still logged, it just does not ring.
+     */
+    val autoBlockAction: String = "silence",
     val announcerMode: String = "KNOWN_ONLY",
     val announceSpamVerdict: Boolean = true,
     val cloudAiEnabled: Boolean = false,

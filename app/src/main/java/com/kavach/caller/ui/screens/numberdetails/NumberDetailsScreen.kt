@@ -123,6 +123,27 @@ class NumberDetailsViewModel @Inject constructor(
     }
 }
 
+/** "Updated 3 days ago" — or an honest "not known", never a blank. */
+private fun freshnessLabel(identity: com.kavach.caller.domain.model.CallerIdentity?): String {
+    val updated = identity?.lastUpdated ?: 0L
+    if (updated <= 0L) {
+        return when (identity?.freshness) {
+            "FRESH" -> "Recently"
+            "RECENT" -> "Recently"
+            "STALE" -> "A while ago"
+            else -> "Not known"
+        }
+    }
+    val ageMs = System.currentTimeMillis() - updated
+    val minutes = ageMs / 60_000
+    return when {
+        minutes < 2 -> "Just now"
+        minutes < 60 -> "$minutes minutes ago"
+        minutes < 60 * 48 -> "${minutes / 60} hours ago"
+        else -> "${minutes / (60 * 24)} days ago"
+    }
+}
+
 @Composable
 fun NumberDetailsScreen(
     number: String,
@@ -277,6 +298,30 @@ fun NumberDetailsScreen(
                 )
                 InfoRow(label = "Spam reports", value = "${identity?.reports ?: 0}")
                 InfoRow(label = "Risk score", value = "${identity?.spamScore ?: 0} / 100")
+                // The review asked for this by name: "Data kab update hua". A name
+                // from eighteen months ago and one from this morning should not
+                // look alike, so the age is stated rather than implied.
+                InfoRow(label = "Data updated", value = freshnessLabel(identity))
+
+                // "We found nothing" and "the lookup could not run" are different
+                // things, and only one of them is worth a retry.
+                identity?.unavailableReason?.let { reason ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                if (identity == null || identity.isUnavailable) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { vm.load(primary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !loading,
+                    ) { Text(if (loading) "Looking up…" else "Try the lookup again") }
+                }
 
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(

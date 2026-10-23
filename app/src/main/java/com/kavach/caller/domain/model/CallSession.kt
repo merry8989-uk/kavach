@@ -26,6 +26,14 @@ data class CallSession(
     val connectedAtMillis: Long? = null,
     val isMuted: Boolean = false,
     val isSpeakerOn: Boolean = false,
+    /**
+     * What to say about this caller, and why.
+     *
+     * A field rather than something the screen derives, because the screen has
+     * no identity to derive it from — and a warning that appears on some screens
+     * and not others is worse than one that never appears.
+     */
+    val verdict: com.kavach.caller.domain.CallerVerdict.Verdict? = null,
 ) {
     /** What to show as the headline: the name, else the number, else a placeholder. */
     val title: String

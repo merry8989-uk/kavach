@@ -194,6 +194,58 @@ fun InCallScreen(
                     )
                 },
             )
+
+            // ---- what we know about this caller, and why ----
+            //
+            // The review's first priority, and the second half is the important
+            // one: a warning has to carry its reason. "Risk 78" tells someone
+            // nothing they can act on — it does not say who says so or what they
+            // claimed — and a score with no reason reads like evidence.
+            session.verdict?.let { verdict ->
+                Spacer(Modifier.height(14.dp))
+                val accent = if (verdict.isWarning) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (verdict.isWarning) {
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            },
+                            RoundedCornerShape(14.dp),
+                        )
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                ) {
+                    Text(
+                        verdict.headline,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accent,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        verdict.reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (verdict.isCommunityAllegation) {
+                        Spacer(Modifier.height(5.dp))
+                        // Said once more, plainly. A community report is not a
+                        // finding, and the difference matters when the subject is
+                        // a person's phone number.
+                        Text(
+                            "This is other people's reports, not a verified fact.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.weight(1f))

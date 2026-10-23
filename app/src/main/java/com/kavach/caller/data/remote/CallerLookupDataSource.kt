@@ -51,6 +51,8 @@ class CallerLookupDataSource @Inject constructor(
                 spamRisk = it.spamRisk,
                 reports = it.reports,
                 freshness = it.freshness,
+                lastUpdated = it.lastUpdated,
+                unavailableReason = it.unavailableReason,
             )
         }
 

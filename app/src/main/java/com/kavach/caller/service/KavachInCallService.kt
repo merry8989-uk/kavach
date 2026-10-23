@@ -37,6 +37,8 @@ class KavachInCallService : InCallService() {
     @Inject lateinit var sessionManager: CallSessionManager
     @Inject lateinit var callNotifications: CallNotificationManager
     @Inject lateinit var contacts: ContactRepository
+    /** Resolves a number to a name, a source and a risk score. */
+    @Inject lateinit var identifyCaller: com.kavach.caller.domain.usecase.IdentifyCallerUseCase
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val calls = CopyOnWriteArrayList<Call>()
@@ -135,15 +137,25 @@ class KavachInCallService : InCallService() {
         sessionManager.set(session)
         callNotifications.show(session)
 
-        // The carrier rarely supplies a name, so resolve it ourselves.
-        if (session.displayName == null && number.isNotBlank()) {
-            scope.launch {
-                val name = contacts.nameFor(number)
-                if (name != null) {
-                    sessionManager.patch { it.copy(displayName = name, isKnownContact = true) }
-                    sessionManager.session.value?.let { callNotifications.show(it) }
-                }
+        // The carrier rarely supplies a name, so resolve it ourselves — and while
+        // we are here, work out what to tell the user about the caller and why.
+        // The verdict is computed even when the carrier *did* supply a name,
+        // because a name is not a safety judgement.
+        scope.launch {
+            val identity = runCatching { identifyCaller(number) }.getOrNull()
+            val verdict = com.kavach.caller.domain.CallerVerdict.of(
+                identity = identity,
+                numberIsBlank = number.isBlank(),
+            )
+            sessionManager.patch { current ->
+                current.copy(
+                    displayName = current.displayName ?: identity?.name ?: contacts.nameFor(number),
+                    isKnownContact = current.isKnownContact || identity?.source ==
+                        com.kavach.caller.domain.model.CallerIdentity.Source.CONTACT,
+                    verdict = verdict,
+                )
             }
+            sessionManager.session.value?.let { callNotifications.show(it) }
         }
     }
 

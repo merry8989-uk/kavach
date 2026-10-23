@@ -91,10 +91,10 @@ The review's first section, item by item.
 
 | # | The review asked for | State |
 |---|---|---|
-| 1 | Smart incoming-call screen: name, business category, spam warning **with a reason** | **Mostly** — the screen exists and never invents a name. A per-call *reason* line is still missing |
+| 1 | Smart incoming-call screen: name, business category, spam warning **with a reason** | **Done** v0.40.0 — `CallerVerdict` produces a headline and a reason, and the reason always attributes the claim ("Reported by 12 people… This is a community report, not a verified finding") |
 | 2 | Simple home screen: search, recent, protection status, short setup | **Done** v0.34.0 |
-| 3 | Reliable search results: source, risk, freshness, "unavailable" + retry | **Mostly** — source and risk are shown; a freshness timestamp and a retry button are not |
-| 4 | Customisable spam protection: toggles, thresholds, allowlist, undo | **Mostly** — rules and undo exist; the auto-block *threshold* is not user-visible |
+| 3 | Reliable search results: source, risk, freshness, "unavailable" + retry | **Done** v0.40.0 — the DTO already carried `lastUpdated`, `freshness` and `unavailableReason`; the app simply was not showing them. All three now surface, with a retry that appears only when a retry could help |
+| 4 | Customisable spam protection: toggles, thresholds, allowlist, undo | **Done** v0.40.0 — the review was explicit that a score must not kill a genuine call on its own, so the threshold ships **off** and `ScorePolicy` enforces three rules: off means off, a saved contact is never acted on, and the gentlest action is the default |
 | 5 | Privacy and permissions centre | **Done** — `docs/PERMISSIONS.md` and the data-policy screen |
 | 6 | Advanced settings, every toggle doing something real | **Done** — the feature registry reports why a module cannot run |
 | 7 | Trustworthy reporting: categories, abuse control, appeal, confirmation | **Done** v0.33.0 |
@@ -135,9 +135,9 @@ Sequenced by dependency and by what unblocks the most. Not by phase number.
 |---|---|---|---|
 | 1 | **Run the self-test, then the 15 device checks** | Nothing else can be called verified until this happens, and it is one afternoon | S |
 | 2 | **Business-claim flow** (E4) | The only remaining gap where the app implies something it cannot do — a listing can be shown as "business" but never *verified* | M |
-| 3 | **Spam warning reason on the in-call screen** (D1) | The review's own highest priority, and the one item of the eight still visibly missing | S |
-| 4 | **Result freshness + retry** (D3) | Two small things that make an unavailable result look deliberate instead of broken | S |
-| 5 | **User-visible auto-block threshold** (D4) | The review is explicit: a genuine call must not be blocked by a score alone without the user controlling it | S |
+| ~~3~~ | ~~Spam warning reason on the in-call screen~~ (D1) | **Done** v0.40.0 | S |
+| ~~4~~ | ~~Result freshness + retry~~ (D3) | **Done** v0.40.0 | S |
+| ~~5~~ | ~~User-visible auto-block threshold~~ (D4) | **Done** v0.40.0 | S |
 | 6 | **Integration test for the full journey** (C7) | Register → lookup → report → appeal → delete, in one test | M |
 | 7 | **Android dependency scanning** (F) | Add Gradle dependency locking, then osv-scanner. Deliberately deferred: a lockfile has real maintenance cost and a stale one breaks the build | M |
 | 8 | **Monitoring** (C8) | Only worth doing once the server is actually deployed | M |

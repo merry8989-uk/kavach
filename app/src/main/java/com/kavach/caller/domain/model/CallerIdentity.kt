@@ -16,7 +16,27 @@ data class CallerIdentity(
     val reports: Int = 0,
     val source: Source = Source.NONE,
     val confidence: Float = 0f,
+    /**
+     * When the record was last updated, epoch millis; 0 when unknown.
+     *
+     * The review asked for this by name — *"Data kab update hua"* — and it is the
+     * difference between a result and a claim about the present. A name from
+     * eighteen months ago and one from this morning should not look alike.
+     */
+    val lastUpdated: Long = 0L,
+    /** FRESH | RECENT | STALE | UNKNOWN — the server's own judgement. */
+    val freshness: String = "UNKNOWN",
+    /**
+     * Why there is no result, when there is none. Null when the lookup worked.
+     *
+     * An empty card and an unavailable lookup look identical otherwise, and one
+     * of them is a bug.
+     */
+    val unavailableReason: String? = null,
 ) {
+    /** True when we have nothing, and the server told us why. */
+    val isUnavailable: Boolean get() = unavailableReason != null
+
     enum class Source { CONTACT, LOCAL_DB, CLOUD, BUSINESS, NONE }
 
     val isKnown: Boolean get() = name != null

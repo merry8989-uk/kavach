@@ -26,11 +26,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.kavach.caller.ui.components.KavachCard
+import androidx.compose.material3.Slider
+import kotlin.math.roundToInt
 
 /** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
 private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
 
 /** Must match [com.kavach.caller.ui.theme.MotionMode] and the data layer's list. */
+/** Must match ScorePolicy.Mode and the data layer's AUTO_BLOCK_ACTIONS. */
+private val autoBlockActions = listOf(
+    "silence" to "Silence",
+    "block" to "Reject",
+    "warn" to "Warn only",
+)
+
 private val motionModes = listOf(
     "system" to "Follow system",
     "full" to "Full motion",
@@ -156,6 +165,67 @@ fun SettingsScreen(
                     label = { Text(label) },
                     modifier = Modifier.padding(end = 8.dp),
                 )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        SectionHeader("Acting on the spam score")
+        KavachCard {
+            // The review was explicit that a score must not kill a genuine call
+            // on its own. The shipped default is off, and the card says so before
+            // it offers the control — a user who never changes anything should
+            // know the score is not silently deciding.
+            Text(
+                if (s.autoBlockScore == 0) {
+                    "Off. Kavach only acts on rules you have written. The spam score " +
+                        "is shown to you, never enforced."
+                } else {
+                    "Kavach will act on the score at ${s.autoBlockScore} or above."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "A score is other people's reports plus Kavach's own rules. It is not " +
+                    "evidence, so a call is never rejected on the score alone unless you " +
+                    "ask for it. A number in your contacts is never acted on this way.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Threshold: " + if (s.autoBlockScore == 0) "off" else "${s.autoBlockScore} / 100",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Slider(
+                value = s.autoBlockScore.toFloat(),
+                onValueChange = { vm.setAutoBlockScore(it.roundToInt()) },
+                valueRange = 0f..100f,
+                steps = 19,
+            )
+
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "When the score crosses it",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
+                autoBlockActions.forEach { (value, label) ->
+                    FilterChip(
+                        selected = s.autoBlockAction == value,
+                        onClick = { vm.setAutoBlockAction(value) },
+                        label = { Text(label) },
+                        // Pointless while the threshold is off, and offering a
+                        // control that does nothing is the fake-toggle problem.
+                        enabled = s.autoBlockScore > 0,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
             }
         }
 

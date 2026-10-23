@@ -68,7 +68,14 @@ class CallNotificationManager @Inject constructor(
             CallPhase.DIALING -> "Outgoing call"
             else -> "${session.directionLabel} call"
         }
-        if (!session.isKnownContact) parts += "not in contacts"
+        // The verdict replaces "not in contacts" when there is one, because a
+        // warning is more useful than a fact the user can already see.
+        val verdict = session.verdict
+        if (verdict != null && verdict.isWarning) {
+            parts += verdict.headline
+        } else if (!session.isKnownContact) {
+            parts += "not in contacts"
+        }
         session.simLabel?.let { parts += it }
         if (session.isMuted) parts += "muted"
         if (session.isSpeakerOn) parts += "speaker"

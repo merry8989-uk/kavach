@@ -60,6 +60,8 @@ class IdentifyCallerUseCase @Inject constructor(
                     CallerIdentity.Source.CLOUD
                 },
                 confidence = remote.confidence.toFloat(),
+                lastUpdated = remote.lastUpdated,
+                freshness = remote.freshness,
             )
         }
 
@@ -74,6 +76,12 @@ class IdentifyCallerUseCase @Inject constructor(
             spamScore = maxOf(localScore, remoteScore),
             reports = remote?.reports ?: 0,
             source = CallerIdentity.Source.LOCAL_DB,
+            lastUpdated = remote?.lastUpdated ?: 0L,
+            freshness = remote?.freshness ?: "UNKNOWN",
+            // Carried through so the screen can tell "we found nothing" apart
+            // from "the lookup could not run". Those look identical otherwise,
+            // and one of them is a bug.
+            unavailableReason = remote?.unavailableReason,
         )
     }
 

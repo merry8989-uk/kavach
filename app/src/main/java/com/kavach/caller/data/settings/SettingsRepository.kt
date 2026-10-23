@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.datastore.preferences.core.intPreferencesKey
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "kavach_settings")
 
@@ -40,11 +41,16 @@ class SettingsRepository @Inject constructor(
          * by a test so they cannot drift.
          */
         val MOTION_MODES = setOf("system", "full", "reduced")
+
+        /** Mirrors BlockAction's names; checked against it by a test. */
+        val AUTO_BLOCK_ACTIONS = setOf("silence", "block", "warn")
     }
 
     private object Keys {
         val themePack = stringPreferencesKey("theme_pack")
         val motionMode = stringPreferencesKey("motion_mode")
+        val autoBlockScore = intPreferencesKey("auto_block_score")
+        val autoBlockAction = stringPreferencesKey("auto_block_action")
         val announcerMode = stringPreferencesKey("announcer_mode")
         val announceSpamVerdict = booleanPreferencesKey("announce_spam_verdict")
         val cloudAiEnabled = booleanPreferencesKey("cloud_ai_enabled")
@@ -96,6 +102,9 @@ class SettingsRepository @Inject constructor(
         AppSettings(
             themePack = p[Keys.themePack] ?: "AURORA",
             motionMode = p[Keys.motionMode] ?: "system",
+            autoBlockScore = (p[Keys.autoBlockScore] ?: 0).coerceIn(0, 100),
+            autoBlockAction = (p[Keys.autoBlockAction] ?: "silence").takeIf { it in AUTO_BLOCK_ACTIONS }
+                ?: "silence",
             announcerMode = p[Keys.announcerMode] ?: "KNOWN_ONLY",
             announceSpamVerdict = p[Keys.announceSpamVerdict] ?: true,
             cloudAiEnabled = p[Keys.cloudAiEnabled] ?: false,
@@ -132,6 +141,15 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
 
     /** "system" | "full" | "reduced". Unknown values fall back to "system". */
+    /** 0 turns score-based action off entirely. */
+    suspend fun setAutoBlockScore(value: Int) = context.dataStore.edit {
+        it[Keys.autoBlockScore] = value.coerceIn(0, 100)
+    }
+
+    suspend fun setAutoBlockAction(value: String) = context.dataStore.edit {
+        it[Keys.autoBlockAction] = value.takeIf { v -> v in AUTO_BLOCK_ACTIONS } ?: "silence"
+    }
+
     suspend fun setMotionMode(value: String) = context.dataStore.edit {
         it[Keys.motionMode] = value.takeIf { v -> v in MOTION_MODES } ?: "system"
     }

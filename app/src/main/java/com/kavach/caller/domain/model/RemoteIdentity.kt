@@ -19,8 +19,12 @@ data class RemoteIdentity(
     val verificationStatus: String,
     val spamRisk: Int,
     val reports: Int,
-    /** FRESH | STALE | UNKNOWN */
+    /** FRESH | RECENT | STALE | UNKNOWN */
     val freshness: String,
+    /** Epoch millis of the last update, 0 when unknown. */
+    val lastUpdated: Long = 0L,
+    /** Why there is no result, when there is none. */
+    val unavailableReason: String? = null,
 ) {
     val hasName: Boolean get() = !displayName.isNullOrBlank()
 }
