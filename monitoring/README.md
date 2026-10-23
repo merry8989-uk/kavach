@@ -191,9 +191,10 @@ npm run test:unit     # pure functions, no runtime needed
 npm run test:integration
 ```
 
-**Unit — 25 tests, no dependencies.** Node's own runner. The guard, the
-vocabularies, the metadata lifting, timestamp parsing, windows, and the summary
-queries against a fake D1.
+**Unit — 28 tests, no dependencies.** Node's own runner. The guard, the
+vocabularies, the metadata lifting, timestamp parsing, windows, the summary
+queries against a fake D1, and a static check that `index.js` exports only a
+handler.
 
 **Integration — boots the Worker in Miniflare.** That is the *real* Workers
 runtime, the same one production uses, with a real D1, dispatching real requests.
@@ -205,6 +206,24 @@ It needs about 3 GB to boot workerd. Below that it **skips itself with the reaso
 written down** rather than failing, and the memory check runs *before* the
 miniflare import — because importing it loads workerd, which then fails
 asynchronously after the tests have already reported a skip.
+
+### Why the code is split into `lib.js` and `index.js`
+
+A Worker's **named exports are entry points**. Exporting `MAX_BATCH` (a number)
+or `SEVERITIES` (an array) from the entry module makes workerd refuse to start:
+
+```
+Uncaught TypeError: Incorrect type for map entry 'MAX_BATCH':
+the provided value is not of type 'function or ExportedHandler'.
+```
+
+That is not a warning — the Worker does not boot. The first version of this code
+did exactly that, and **the unit tests could not see it**, because Node does not
+care about extra exports. The integration test caught it on its first run.
+
+So `index.js` exports exactly one thing — the default handler — and everything
+testable lives in `lib.js`. A static test asserts there are no named exports, so
+the mistake cannot come back on a machine where workerd cannot run at all.
 
 ### The two tests worth reading
 

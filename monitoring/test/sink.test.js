@@ -11,6 +11,10 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
 import {
   CATEGORIES,
   MAX_BATCH,
@@ -21,7 +25,7 @@ import {
   parseTimestamp,
   summary,
   windowMs,
-} from '../src/index.js';
+} from '../src/lib.js';
 
 // ---------------------------------------------------------------- a fake D1 --
 
@@ -250,5 +254,43 @@ describe('retention', () => {
 
   test('a batch is bounded', () => {
     assert.equal(MAX_BATCH, 200);
+  });
+});
+
+
+// ------------------------------------------------------- the entry point --
+
+describe('the entry module exports only a handler', () => {
+  /**
+   * A Worker's named exports are entry points. Exporting anything that is not a
+   * function or an ExportedHandler makes workerd refuse to start:
+   *
+   *   Incorrect type for map entry 'MAX_BATCH':
+   *   the provided value is not of type 'function or ExportedHandler'.
+   *
+   * That happened: the first version exported its constants and helpers from
+   * `index.js` and the Worker did not boot. The integration test caught it, but
+   * the integration test skips on a small machine — so this static check exists
+   * to catch it everywhere, including where workerd cannot run at all.
+   */
+  const here = dirname(fileURLToPath(import.meta.url));
+  const entry = readFileSync(join(here, '..', 'src', 'index.js'), 'utf8');
+
+  test('there are no named exports', () => {
+    const named = [...entry.matchAll(/^export\s+(?!default\b)/gm)];
+    assert.equal(
+      named.length,
+      0,
+      `index.js has ${named.length} named export(s); move them to lib.js. ` +
+        'A Worker refuses to start otherwise.',
+    );
+  });
+
+  test('the default export is the handler object', () => {
+    assert.match(entry, /^export default \{/m);
+  });
+
+  test('it imports what it needs from lib.js', () => {
+    assert.match(entry, /from '\.\/lib\.js'/);
   });
 });
