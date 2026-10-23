@@ -63,7 +63,17 @@ data class AppSettings(
     val announceSpamVerdict: Boolean = true,
     val cloudAiEnabled: Boolean = false,
     val onboardingDone: Boolean = false,
-    /** Opt-in local diagnostics log. Nothing is ever sent without the user sharing it. */
+    /**
+     * The local diagnostics log. **On by default.**
+     *
+     * The comment here used to say "opt-in", which contradicted the value and had
+     * done for several releases. Corrected to say what is true.
+     *
+     * On is the right default: the log never leaves the device, so collecting it
+     * costs the user nothing in privacy, and a log that is off until someone
+     * finds the setting is a log that is missing on the day it was needed.
+     * Turning it off deletes nothing — it stops new events being written.
+     */
     val diagnosticsEnabled: Boolean = true,
 
     /**

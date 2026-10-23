@@ -37,9 +37,16 @@ class DiagnosticsDefaultsTest {
     }
 
     @Test
-    fun `diagnostics still ships off until the user opts in`() {
-        // Separate from the caps: collection itself is opt-in, and stays so.
-        assertFalse(defaults.diagnosticsEnabled)
+    fun `collection itself is on by default`() {
+        // On, and the reason is that the log never leaves the device — so
+        // collecting it costs the user nothing in privacy, and a log that is off
+        // until someone finds the setting is missing on the day it was needed.
+        //
+        // This assertion replaced its opposite. The setting's own comment said
+        // "opt-in" while the value was `true`, and the contradiction had been
+        // there for several releases; the test now pins the value rather than the
+        // comment, so the two cannot drift apart again.
+        assertTrue(defaults.diagnosticsEnabled)
     }
 
     @Test
