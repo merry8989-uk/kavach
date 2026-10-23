@@ -70,11 +70,21 @@ before(async () => {
     bindings: { INGEST_TOKEN: TOKEN },
   });
 
-  // The schema, applied the same way `wrangler d1 execute` applies it.
+  // The schema, applied the way `wrangler d1 execute` applies it.
+  //
+  // Comments are stripped **line by line** first, and that ordering matters:
+  // `--` runs to the end of the line, so joining the file into one line before
+  // splitting on `;` lets the first comment swallow the entire schema. D1 then
+  // reports "SQL code did not contain a statement", which reads like a broken
+  // query and is really a broken comment strip.
   const db = await mf.getD1Database('DB');
-  const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
+  const schema = readFileSync(join(root, 'schema.sql'), 'utf8')
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n');
+
   for (const statement of schema.split(';').map((s) => s.trim()).filter(Boolean)) {
-    await db.exec(statement.replace(/\n/g, ' '));
+    await db.exec(statement);
   }
 });
 
