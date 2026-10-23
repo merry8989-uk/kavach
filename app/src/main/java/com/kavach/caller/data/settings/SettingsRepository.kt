@@ -145,13 +145,13 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
 
     /** "system" | "full" | "reduced". Unknown values fall back to "system". */
-    fun setDiagnosticsSampling(enabled: Boolean) = runBlocking {
-        context.dataStore.edit { it[Keys.diagnosticsSamplingEnabled] = enabled }
+    suspend fun setDiagnosticsSampling(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.diagnosticsSamplingEnabled] = enabled
     }
 
     /** 0 means keep everything, forever. */
-    fun setDiagnosticsRetentionDays(days: Int) = runBlocking {
-        context.dataStore.edit { it[Keys.diagnosticsRetentionDays] = days.coerceAtLeast(0) }
+    suspend fun setDiagnosticsRetentionDays(days: Int) = context.dataStore.edit {
+        it[Keys.diagnosticsRetentionDays] = days.coerceAtLeast(0)
     }
 
     /** 0 turns score-based action off entirely. */

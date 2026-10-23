@@ -47,8 +47,6 @@ class DiagnosticsRepository @Inject constructor(
     private val session: SessionContext,
     private val dao: LogEventDao,
 ) {
-    private val lock = Any()
-
     /** Rolling window of write times, used to decide whether to sample. */
     private val recentWrites = ArrayDeque<Long>()
 
@@ -128,25 +126,28 @@ class DiagnosticsRepository @Inject constructor(
         // they choose to, and nothing leaves the phone otherwise.
 
         withContext(Dispatchers.IO) {
-            synchronized(lock) {
-                runCatching {
-                    dao.insert(
-                        LogEventEntity(
-                            ts = event.timestampMs,
-                            severity = event.logLevel.name.lowercase(Locale.US),
-                            category = categoryFor(event.eventName),
-                            eventName = event.eventName,
-                            sessionId = event.sessionId,
-                            requestId = event.properties["request_id"],
-                            screenOrRoute = event.screenOrRoute,
-                            raw = line,
-                        ),
-                    )
-                    // Retention is a user setting and ships at zero, meaning
-                    // never. This is the only thing here that deletes, and with
-                    // the default it does nothing at all.
-                    enforceRetention()
-                }
+            // No monitor is held across these. The lock that used to be here
+            // guarded file appends, where two writes could interleave; Room
+            // serialises its own writes and its calls suspend, so a
+            // `synchronized` block around them would be both illegal in Kotlin
+            // and doing nothing.
+            runCatching {
+                dao.insert(
+                    LogEventEntity(
+                        ts = event.timestampMs,
+                        severity = event.logLevel.name.lowercase(Locale.US),
+                        category = categoryFor(event.eventName),
+                        eventName = event.eventName,
+                        sessionId = event.sessionId,
+                        requestId = event.properties["request_id"],
+                        screenOrRoute = event.screenOrRoute,
+                        raw = line,
+                    ),
+                )
+                // Retention is a user setting and ships at zero, meaning never.
+                // This is the only thing here that deletes, and with the default
+                // it does nothing at all.
+                enforceRetention()
             }
         }
     }
@@ -312,7 +313,7 @@ class DiagnosticsRepository @Inject constructor(
     }
 
     suspend fun clear() = withContext(Dispatchers.IO) {
-        synchronized(lock) { runCatching { dao.clear() } }
+        runCatching { dao.clear() }
     }
 
     /**
@@ -952,6 +953,32 @@ class DiagnosticsRepository @Inject constructor(
             }
             zip.closeEntry()
         }
+    }
+
+    /**
+     * The body of the "email this to the maintainer" message.
+     *
+     * Deliberately not the log itself — the log is the attachment. This is the
+     * context a reader needs to make sense of it without asking.
+     */
+    fun emailBody(events: Int): String = buildString {
+        appendLine("Kavach diagnostics")
+        appendLine()
+        appendLine("App version: ${session.appVersion}")
+        appendLine("Android: ${session.os}")
+        appendLine("Device: ${session.deviceModel}")
+        appendLine("Schema version: ${EventSchema.VERSION}")
+        appendLine("User code: ${session.userCode}")
+        appendLine("Session: ${session.sessionId}")
+        appendLine("Events: $events")
+        appendLine("Log size: ${formattedSize(events)}")
+        appendLine()
+        appendLine("Every line is a schema-validated JSON event, so intent and outcome")
+        appendLine("are recorded together. Numbers are masked, and names, message")
+        appendLine("contents, file paths and queries are never logged.")
+        appendLine()
+        appendLine("What went wrong:")
+        appendLine()
     }
 
     private fun csv(value: String): String =
