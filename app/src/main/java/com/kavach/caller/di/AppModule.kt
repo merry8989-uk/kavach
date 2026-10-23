@@ -72,6 +72,37 @@ object AppModule {
      * since v0.10.0 has data worth keeping, and "the schema moved" is not a
      * reason to delete it.
      */
+    /**
+     * The diagnostics log moves from a capped text file into this database.
+     *
+     * The table is created empty: the old file is imported on first launch by
+     * `DiagnosticsRepository`, so an upgrade does not silently discard the log
+     * the user already had. Doing it in SQL would mean reading a file from
+     * inside a migration, which is the wrong place for it.
+     */
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `log_events` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `ts` INTEGER NOT NULL,
+                    `severity` TEXT NOT NULL,
+                    `category` TEXT NOT NULL,
+                    `eventName` TEXT NOT NULL,
+                    `sessionId` TEXT NOT NULL,
+                    `requestId` TEXT,
+                    `screenOrRoute` TEXT,
+                    `raw` TEXT NOT NULL
+                )
+                """.trimIndent(),
+            )
+            for (index in listOf("ts", "severity", "category", "eventName", "sessionId", "requestId")) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_log_events_$index` ON `log_events` (`$index`)")
+            }
+        }
+    }
+
     private val MIGRATION_4_5 = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -104,7 +135,7 @@ object AppModule {
         )
         return Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             // Last-resort safety net only; the real path is the migration above.
             // Swap in SQLCipher for encrypted-at-rest storage.
             // Safety net only. Real migrations exist; this exists so a schema

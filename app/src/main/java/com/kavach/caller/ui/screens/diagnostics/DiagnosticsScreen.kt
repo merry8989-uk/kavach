@@ -49,6 +49,9 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 
 @HiltViewModel
 class DiagnosticsViewModel @Inject constructor(
@@ -79,13 +82,70 @@ class DiagnosticsViewModel @Inject constructor(
         syncMessage = null
     }
 
-    var sizeText by mutableStateOf("0 B")
+    var sizeText by mutableStateOf("0 events")
         private set
+
+    init {
+        // Bring across anything the old capped file held, then refresh. This runs
+        // once per process; `importLegacyFile` renames the file so a second call
+        // is a no-op, which also makes a partly-failed import safe to retry.
+        viewModelScope.launch {
+            repository.importLegacyFile()
+            refresh()
+        }
+    }
+
+    /**
+     * How many events are actually stored.
+     *
+     * Separate from `entries.size`, and that separation is the fix. The screen
+     * used to print `entries.size` and call it "recent entries" — so it said 400
+     * forever, because 400 was the page size, and the real total was never shown.
+     */
+    var totalCount by mutableStateOf(0)
+        private set
+
+    var oldestText by mutableStateOf<String?>(null)
+        private set
+
+    var samplingEnabled by mutableStateOf(false)
+        private set
+
+    var retentionDays by mutableStateOf(0)
+        private set
+
+    /** True when the page is not the whole log, so the screen can say so. */
+    val showingPartial: Boolean get() = totalCount > entries.value.size
 
     fun refresh() = viewModelScope.launch {
         _entries.value = repository.entries()
         _counts.value = repository.countsByLevel()
-        sizeText = repository.formattedSize()
+        totalCount = repository.totalCount()
+        sizeText = repository.formattedSize(totalCount)
+        samplingEnabled = settings.snapshot.diagnosticsSamplingEnabled
+        retentionDays = settings.snapshot.diagnosticsRetentionDays
+        oldestText = repository.oldestAt()?.let { stamp ->
+            SimpleDateFormat("d MMM yyyy, HH:mm", Locale.US).format(Date(stamp))
+        }
+    }
+
+    fun loadMore() = viewModelScope.launch {
+        // Pages forward through what is stored. There is no ceiling to reach.
+        val next = repository.entries(limit = 200, offset = entries.value.size)
+        if (next.isNotEmpty()) _entries.value = entries.value + next
+    }
+
+    fun setSampling(enabled: Boolean) = viewModelScope.launch {
+        settings.setDiagnosticsSampling(enabled)
+        refresh()
+    }
+
+    fun setRetention(days: Int) = viewModelScope.launch {
+        settings.setDiagnosticsRetentionDays(days)
+        // Applied at once, so the effect of the choice is visible rather than
+        // waiting for the next event to trigger a sweep.
+        repository.applyRetentionNow()
+        refresh()
     }
 
     fun setEnabled(enabled: Boolean) = viewModelScope.launch {
@@ -98,11 +158,9 @@ class DiagnosticsViewModel @Inject constructor(
         refresh()
     }
 
-    fun logFile(): File? = repository.logFile()
-
     suspend fun export(format: ExportFormat): File? = repository.export(format)
 
-    fun emailBody(): String = repository.emailBody(entries.value.size)
+    fun emailBody(): String = repository.emailBody(totalCount)
 }
 
 /**
@@ -112,6 +170,14 @@ class DiagnosticsViewModel @Inject constructor(
  * Nothing is uploaded automatically, and numbers are masked before they are ever
  * written — see [DiagnosticsRepository].
  */
+/** 0 is first because it is the default and the one worth choosing. */
+private val retentionChoices = listOf(
+    0 to "Never",
+    30 to "30 days",
+    90 to "90 days",
+    365 to "1 year",
+)
+
 @Composable
 fun DiagnosticsScreen(
     onBack: () -> Unit,
@@ -236,22 +302,49 @@ fun DiagnosticsScreen(
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    "${entries.size} recent entries",
+                                    // The real total, not the page. This line
+                                    // said "400 recent entries" for as long as
+                                    // 400 was the page size.
+                                    when {
+                                        vm.totalCount == 0 -> "No events yet"
+                                        vm.totalCount == 1 -> "1 event"
+                                        else -> "${vm.totalCount} events"
+                                    },
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    "File size ${vm.sizeText}",
+                                    buildString {
+                                        append(vm.sizeText)
+                                        vm.oldestText?.let { append(" · oldest ").append(it) }
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
+                        if (vm.showingPartial) {
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = { vm.loadMore() },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Load ${vm.totalCount - entries.size} more")
+                            }
+                        }
+
                         Spacer(Modifier.height(12.dp))
                         // Sends straight to the maintainer with the log attached,
                         // so nothing has to be typed or attached by hand.
                         Button(
-                            onClick = { emailLog(context, vm.logFile(), vm.emailBody()) },
-                            enabled = entries.isNotEmpty(),
+                            onClick = {
+                                scope.launch {
+                                    // The export is what produces a file now; the
+                                    // store is a database, so there is nothing to
+                                    // attach until one is written.
+                                    emailLog(context, vm.export(ExportFormat.TXT), vm.emailBody())
+                                }
+                            },
+                            enabled = vm.totalCount > 0,
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("Email to $DEVELOPER_EMAIL") }
 
@@ -265,8 +358,12 @@ fun DiagnosticsScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
-                                onClick = { vm.logFile()?.let { shareLog(context, it) } },
-                                enabled = vm.logFile() != null,
+                                onClick = {
+                                    scope.launch {
+                                        vm.export(ExportFormat.TXT)?.let { shareLog(context, it) }
+                                    }
+                                },
+                                enabled = vm.totalCount > 0,
                                 modifier = Modifier.weight(1f),
                             ) { Text(stringResource(R.string.share)) }
                             OutlinedButton(
@@ -288,6 +385,69 @@ fun DiagnosticsScreen(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    SectionHeader("Collection")
+                    KavachCard {
+                        // The spec asks for 100% of eligible events, and the
+                        // shipped default is exactly that. Saying so before
+                        // offering the switch is the point: a user who never
+                        // changes anything should know nothing is being thrown
+                        // away.
+                        Text(
+                            if (vm.samplingEnabled) {
+                                "Sampling on. Above a busy threshold, routine events are thinned out."
+                            } else {
+                                "Keeping everything. Every event is stored until you delete it — " +
+                                    "no sampling, no size ceiling, no automatic expiry."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Thin out routine events", color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    "Only applies to routine events. Errors, warnings and crashes are never sampled.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = vm.samplingEnabled,
+                                onCheckedChange = { vm.setSampling(it) },
+                            )
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+                        Text("Delete events older than", color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(Modifier.height(6.dp))
+                        Row(Modifier.horizontalScroll(rememberScrollState())) {
+                            retentionChoices.forEach { (days, label) ->
+                                FilterChip(
+                                    selected = vm.retentionDays == days,
+                                    onClick = { vm.setRetention(days) },
+                                    label = { Text(label) },
+                                    modifier = Modifier.padding(end = 8.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            if (vm.retentionDays == 0) {
+                                "Never. Nothing is deleted automatically — the log only shrinks when you clear or export it."
+                            } else {
+                                "Events older than ${vm.retentionDays} days are removed. " +
+                                    "The oldest kept event is ${vm.oldestText ?: "not yet known"}."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 

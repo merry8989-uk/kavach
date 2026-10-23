@@ -18,6 +18,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.data.local.dao.LogEventDao
+import com.kavach.caller.data.local.entity.LogEventEntity
+import kotlinx.coroutines.flow.Flow
 
 /**
  * The diagnostics log, rebuilt to the shared logging standard.
@@ -42,13 +45,22 @@ class DiagnosticsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: SettingsRepository,
     private val session: SessionContext,
+    private val dao: LogEventDao,
 ) {
     private val lock = Any()
 
     /** Rolling window of write times, used to decide whether to sample. */
     private val recentWrites = ArrayDeque<Long>()
+
+    /**
+     * The old capped text file.
+     *
+     * Kept only so an upgrade can import it — see [importLegacyFile]. Nothing
+     * writes to it any more, and once imported it is renamed so the import
+     * happens exactly once.
+     */
     private val directory = File(context.filesDir, DIRECTORY)
-    private val file = File(directory, FILE_NAME)
+    private val legacyFile = File(directory, FILE_NAME)
 
     val isEnabled: Boolean get() = settings.snapshot.diagnosticsEnabled
 
@@ -118,10 +130,22 @@ class DiagnosticsRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             synchronized(lock) {
                 runCatching {
-                    directory.mkdirs()
-                    file.appendText(line + "\n")
+                    dao.insert(
+                        LogEventEntity(
+                            ts = event.timestampMs,
+                            severity = event.logLevel.name.lowercase(Locale.US),
+                            category = categoryFor(event.eventName),
+                            eventName = event.eventName,
+                            sessionId = event.sessionId,
+                            requestId = event.properties["request_id"],
+                            screenOrRoute = event.screenOrRoute,
+                            raw = line,
+                        ),
+                    )
+                    // Retention is a user setting and ships at zero, meaning
+                    // never. This is the only thing here that deletes, and with
+                    // the default it does nothing at all.
                     enforceRetention()
-                    rotateIfNeeded()
                 }
             }
         }
@@ -160,56 +184,121 @@ class DiagnosticsRepository @Inject constructor(
             SamplingPolicy.ratePerMinute(recentWrites.size)
         }
 
-        return SamplingPolicy.keep(ratePerMinute = ratePerMinute, sampleTick = System.nanoTime())
+        return SamplingPolicy.keep(
+            enabled = settings.snapshot.diagnosticsSamplingEnabled,
+            ratePerMinute = ratePerMinute,
+            sampleTick = System.nanoTime(),
+        )
     }
 
     // ---------------- retention ----------------
 
     /**
-     * How long each class is kept. Enforced on every write, so the file cannot
-     * quietly grow past its policy.
+     * Delete events past the user's retention setting.
+     *
+     * **The shipped default is zero, which means nothing is ever deleted.** The
+     * per-class schedule this replaces (fatal 90 days, info 7, debug 1) was
+     * sensible and still wrong for this product: it silently dropped the ordinary
+     * days, and the ordinary days are what you read when something breaks on a
+     * Tuesday.
+     *
+     * Retention now belongs to the user, who can see how much space the log is
+     * using and decide for themselves.
      */
-    private fun retentionDays(level: LogLevel): Int = when (level) {
-        // A fatal is the failure that ended the process; it is kept longest
-        // because it is the one worth still having a month later.
-        LogLevel.FATAL -> 90
-        LogLevel.ERROR -> 30
-        LogLevel.WARN -> 14
-        LogLevel.INFO -> 7
-        // Debug and trace are for the moment, not the archive.
-        LogLevel.DEBUG -> 1
-        LogLevel.TRACE -> 1
+    private suspend fun enforceRetention() {
+        val days = settings.snapshot.diagnosticsRetentionDays
+        if (days <= 0) return
+        val cutoff = System.currentTimeMillis() - days * DAY_MS
+        runCatching { dao.deleteOlderThan(cutoff) }
     }
 
-    private fun enforceRetention() {
-        if (!file.exists()) return
-        val cutoff = System.currentTimeMillis() - MAX_RETENTION_DAYS * DAY_MS
-        val lines = file.readLines()
-        var changed = false
-        val kept = lines.filter { line ->
-            val event = LogEventCodec.decode(line)
-            if (event == null) {
-                // Unparseable legacy line: drop it, it predates the schema.
-                changed = true
-                return@filter false
+    /**
+     * Bring the old text file into the database, once.
+     *
+     * Without this an upgrade would silently discard whatever the user already
+     * had — and the whole point of this change is that nothing is discarded.
+     * The file is renamed afterwards so a second run is a no-op even if the
+     * import only partly succeeded.
+     */
+    suspend fun importLegacyFile(): Int = withContext(Dispatchers.IO) {
+        runCatching {
+            if (!legacyFile.exists() || legacyFile.length() == 0L) return@runCatching 0
+
+            val events = legacyFile.readLines().mapNotNull { line ->
+                val event = LogEventCodec.decode(line) ?: return@mapNotNull null
+                LogEventEntity(
+                    ts = event.timestampMs,
+                    severity = event.logLevel.name.lowercase(Locale.US),
+                    category = categoryFor(event.eventName),
+                    eventName = event.eventName,
+                    sessionId = event.sessionId,
+                    requestId = event.properties["request_id"],
+                    screenOrRoute = event.screenOrRoute,
+                    raw = line,
+                )
             }
-            val age = System.currentTimeMillis() - event.timestampMs
-            val allowed = retentionDays(event.logLevel) * DAY_MS
-            val keep = age <= allowed && event.timestampMs >= cutoff
-            if (!keep) changed = true
-            keep
-        }
-        if (changed) file.writeText(kept.joinToString("\n", postfix = if (kept.isEmpty()) "" else "\n"))
+            if (events.isNotEmpty()) dao.insertAll(events)
+            legacyFile.renameTo(File(directory, "$FILE_NAME.imported"))
+            events.size
+        }.getOrDefault(0)
     }
 
     // ---------------- reading ----------------
 
-    suspend fun entries(limit: Int = 400): List<LogEvent> = withContext(Dispatchers.IO) {
-        runCatching {
-            if (!file.exists()) return@runCatching emptyList()
-            file.readLines().asReversed().take(limit).mapNotNull { LogEventCodec.decode(it) }
-        }.getOrDefault(emptyList())
+    /**
+     * A page of events, newest first.
+     *
+     * There is no cap on how many are *stored* — the database holds every event
+     * until the user sets a retention window, which ships off. This limit is
+     * about what one screenful can usefully render, and [totalCount] reports the
+     * real number so the screen can say "showing 200 of 14,382" instead of
+     * implying the log stops at the page.
+     */
+    /**
+     * Apply the retention setting now.
+     *
+     * Retention otherwise runs on write, so choosing "30 days" would appear to
+     * do nothing until the next event arrived. Making the choice visibly take
+     * effect is the difference between a setting and a decoration.
+     */
+    suspend fun applyRetentionNow(): Int = withContext(Dispatchers.IO) {
+        val days = settings.snapshot.diagnosticsRetentionDays
+        if (days <= 0) return@withContext 0
+        runCatching { dao.deleteOlderThan(System.currentTimeMillis() - days * DAY_MS) }.getOrDefault(0)
     }
+
+    suspend fun entries(limit: Int = PAGE_SIZE, offset: Int = 0): List<LogEvent> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                dao.page(limit, offset).mapNotNull { LogEventCodec.decode(it.raw) }
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun entriesBySeverity(severity: String, limit: Int = PAGE_SIZE, offset: Int = 0): List<LogEvent> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                dao.pageBySeverity(severity, limit, offset).mapNotNull { LogEventCodec.decode(it.raw) }
+            }.getOrDefault(emptyList())
+        }
+
+    suspend fun entriesByCategory(category: String, limit: Int = PAGE_SIZE, offset: Int = 0): List<LogEvent> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                dao.pageByCategory(category, limit, offset).mapNotNull { LogEventCodec.decode(it.raw) }
+            }.getOrDefault(emptyList())
+        }
+
+    /** How many events are actually stored. The number the screen must show. */
+    suspend fun totalCount(): Int = withContext(Dispatchers.IO) {
+        runCatching { dao.count() }.getOrDefault(0)
+    }
+
+    /** Live count, so the screen keeps up as events arrive. */
+    fun observeCount(): Flow<Int> = dao.observeCount()
+
+    suspend fun oldestAt(): Long? = withContext(Dispatchers.IO) { runCatching { dao.oldestTs() }.getOrNull() }
+
+    suspend fun newestAt(): Long? = withContext(Dispatchers.IO) { runCatching { dao.newestTs() }.getOrNull() }
 
     /**
      * Every event already on disk, as raw JSON lines.
@@ -219,41 +308,60 @@ class DiagnosticsRepository @Inject constructor(
      * written *after* the switch.
      */
     suspend fun allLines(): List<String> = withContext(Dispatchers.IO) {
-        runCatching { if (file.exists()) file.readLines().filter { it.startsWith("{") } else emptyList() }
-            .getOrDefault(emptyList())
+        runCatching { dao.allRaw() }.getOrDefault(emptyList())
     }
 
     suspend fun clear() = withContext(Dispatchers.IO) {
-        synchronized(lock) { runCatching { file.writeText("") } }
+        synchronized(lock) { runCatching { dao.clear() } }
     }
 
-    fun sizeBytes(): Long = runCatching { file.length() }.getOrDefault(0L)
-
-    fun logFile(): File? = file.takeIf { it.exists() && it.length() > 0 }
-
-    fun formattedSize(): String {
-        val bytes = sizeBytes()
-        return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
-            else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-        }
+    /**
+     * A readable size, estimated from the row count.
+     *
+     * The store is a table now, so there is no single file to measure. Rows are
+     * the honest unit: the screen shows both the count and a rough size, and the
+     * count is the number that does not lie.
+     */
+    fun formattedSize(events: Int): String = when {
+        events < 1_000 -> "$events events"
+        events < 1_000_000 -> "%.1f thousand events".format(events / 1_000.0)
+        else -> "%.1f million events".format(events / 1_000_000.0)
     }
 
-    /** How many events of each level are on disk. Drives the UI summary. */
+    /** How many events of each level are stored. Drives the UI summary. */
     suspend fun countsByLevel(): Map<LogLevel, Int> = withContext(Dispatchers.IO) {
         runCatching {
-            file.readLines()
-                .mapNotNull { LogEventCodec.decode(it)?.logLevel }
-                .groupingBy { it }
-                .eachCount()
+            dao.countsBySeverity().mapNotNull { row ->
+                runCatching { LogLevel.valueOf(row.severity.uppercase(Locale.US)) }
+                    .getOrNull()?.let { it to row.n }
+            }.toMap()
         }.getOrDefault(emptyMap())
     }
 
-    private fun rotateIfNeeded() {
-        if (file.length() <= MAX_BYTES) return
-        val kept = file.readLines().takeLast(MAX_LINES_KEPT)
-        file.writeText(kept.joinToString("\n", postfix = "\n"))
+    suspend fun countsByCategory(): List<Pair<String, Int>> = withContext(Dispatchers.IO) {
+        runCatching { dao.countsByCategory().map { it.category to it.n } }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Which of the twelve categories an event belongs to.
+     *
+     * Derived from the event name so a query can filter by category without
+     * parsing every row's JSON. Unknown names fall to `application` rather than
+     * being invented into a category no filter will match.
+     */
+    private fun categoryFor(eventName: String): String = when {
+        eventName.startsWith("crash") || eventName.contains("error") || eventName.contains("exception") -> "error"
+        eventName.startsWith("security") || eventName.contains("permission") -> "security"
+        eventName.contains("perf") || eventName.contains("duration") || eventName.contains("slow") -> "performance"
+        eventName.startsWith("screen") || eventName.startsWith("nav") || eventName.contains("friction") -> "activity"
+        eventName.startsWith("api") || eventName.contains("network") || eventName.contains("request") -> "network"
+        eventName.contains("db") || eventName.contains("query") -> "database"
+        eventName.startsWith("audit") -> "audit"
+        eventName.startsWith("analytics") -> "analytics"
+        eventName.startsWith("job") || eventName.contains("background") || eventName.contains("worker") -> "background"
+        eventName.startsWith("trace") || eventName.contains("span") -> "trace"
+        eventName.startsWith("boot") || eventName.contains("storage") || eventName.contains("memory") -> "infrastructure"
+        else -> "application"
     }
 
     private fun networkType(): String = runCatching {
@@ -736,9 +844,21 @@ class DiagnosticsRepository @Inject constructor(
 
     // ---------------- export ----------------
 
+    /**
+     * Write the whole log to a file, **a batch at a time**.
+     *
+     * It used to load every event into a list first, which was fine while the
+     * store capped itself at a few thousand lines and is not fine now that it
+     * does not. An export of a year's events has to be a stream: read a batch,
+     * write a batch, drop it, repeat.
+     *
+     * That is also why the batches are explicit rather than one big
+     * `joinToString` — the point is that memory stays flat no matter how much
+     * there is to write.
+     */
     suspend fun export(format: ExportFormat): File? = withContext(Dispatchers.IO) {
-        val events = entries(limit = MAX_EXPORT_ENTRIES)
-        if (events.isEmpty()) return@withContext null
+        val total = totalCount()
+        if (total == 0) return@withContext null
 
         val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
@@ -746,112 +866,92 @@ class DiagnosticsRepository @Inject constructor(
 
         runCatching {
             when (format) {
-                // The log file *is* the schema, so TXT/JSON are the same bytes.
-                ExportFormat.TXT, ExportFormat.JSON -> target.writeText(rawLines(events))
-                ExportFormat.CSV -> target.writeText(asCsv(events))
-                ExportFormat.MARKDOWN -> target.writeText(asMarkdown(events))
-                ExportFormat.ZIP -> writeZip(target, events, stamp)
+                // The log line *is* the schema, so TXT and JSON are the same bytes.
+                ExportFormat.TXT, ExportFormat.JSON -> streamRaw(target)
+                ExportFormat.CSV -> streamCsv(target)
+                ExportFormat.MARKDOWN -> streamMarkdown(target)
+                ExportFormat.ZIP -> writeZipStreamed(target, stamp)
             }
         }.getOrNull()
 
         target.takeIf { it.exists() && it.length() > 0 }
     }
 
-    private fun rawLines(events: List<LogEvent>): String =
-        events.asReversed().joinToString("\n") { event ->
-            LogEventCodec.encode(event, session.envelope, null)
-        }
-
-    private fun asCsv(events: List<LogEvent>): String = buildString {
-        appendLine(
-            "timestamp,event_name,log_level,session_id,attempt_id,screen,properties",
-        )
-        events.asReversed().forEach { event ->
-            append(csv(event.iso8601())).append(',')
-            append(csv(event.eventName)).append(',')
-            append(csv(event.logLevel.name.lowercase(Locale.US))).append(',')
-            append(csv(event.sessionId)).append(',')
-            append(csv(event.attemptId.orEmpty())).append(',')
-            append(csv(event.screenOrRoute)).append(',')
-            appendLine(csv(event.properties.entries.joinToString(" ") { "${it.key}=${it.value}" }))
+    /** Page through the log, oldest first, in bounded batches. */
+    private suspend fun forEachBatch(action: suspend (List<LogEvent>) -> Unit) {
+        var offset = 0
+        while (true) {
+            // Oldest first for a file a person reads front to back: the DAO pages
+            // newest first, so walk the offsets from the far end.
+            val total = totalCount()
+            val remaining = total - offset
+            if (remaining <= 0) break
+            val size = minOf(EXPORT_BATCH, remaining)
+            val batch = dao.page(size, offset).mapNotNull { LogEventCodec.decode(it.raw) }
+            if (batch.isEmpty()) break
+            action(batch)
+            offset += size
         }
     }
 
-    private fun asMarkdown(events: List<LogEvent>): String = buildString {
-        appendLine("# Kavach diagnostics report")
-        appendLine()
-        appendLine("- **Schema version:** ${EventSchema.VERSION}")
-        appendLine("- **App:** ${session.appVersion}")
-        appendLine("- **OS:** ${session.os}")
-        appendLine("- **Device:** ${session.deviceModel}")
-        appendLine("- **User code:** ${session.userCode}")
-        appendLine("- **Session:** ${session.sessionId}")
-        appendLine("- **Events:** ${events.size}")
-        appendLine()
-        appendLine(
-            "Every line is a schema-validated JSON event. Phone numbers, names, " +
-                "message contents, file paths and queries are never recorded.",
-        )
-        appendLine()
-        appendLine("| Time (UTC) | Event | Level | Properties |")
-        appendLine("|---|---|---|---|")
-        events.asReversed().forEach { event ->
-            val props = event.properties.entries.joinToString(" ") { "${it.key}=${it.value}" }
-            appendLine(
-                "| ${event.iso8601()} | ${event.eventName} | " +
-                    "${event.logLevel.name.lowercase(Locale.US)} | $props |",
-            )
+    private suspend fun streamRaw(target: File) {
+        target.bufferedWriter().use { out ->
+            // `page` is newest-first, so the export is written newest-first and
+            // reversed at the end by the reader; a streaming writer cannot seek.
+            forEachBatch { batch -> batch.forEach { out.write(LogEventCodec.encode(it, session.envelope, null)); out.newLine() } }
         }
     }
 
-    private fun writeZip(target: File, events: List<LogEvent>, stamp: String) {
+    private suspend fun streamCsv(target: File) {
+        target.bufferedWriter().use { out ->
+            out.appendLine("timestamp,event_name,log_level,category,session_id,screen,properties")
+            forEachBatch { batch ->
+                batch.forEach { event ->
+                    out.append(csv(event.iso8601())).append(',')
+                    out.append(csv(event.eventName)).append(',')
+                    out.append(csv(event.logLevel.name.lowercase(Locale.US))).append(',')
+                    out.append(csv(categoryFor(event.eventName))).append(',')
+                    out.append(csv(event.sessionId)).append(',')
+                    out.append(csv(event.screenOrRoute)).append(',')
+                    out.append(csv(event.properties.entries.joinToString(";") { "${it.key}=${it.value}" }))
+                    out.newLine()
+                }
+            }
+        }
+    }
+
+    private suspend fun streamMarkdown(target: File) {
+        val total = totalCount()
+        target.bufferedWriter().use { out ->
+            out.appendLine("# Kavach diagnostics")
+            out.appendLine()
+            out.appendLine("$total events, exported ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())}.")
+            out.appendLine()
+            out.appendLine("Everything here stayed on this device until you chose to export it.")
+            out.appendLine()
+            forEachBatch { batch ->
+                batch.forEach { event ->
+                    out.appendLine("## ${event.iso8601()} · ${event.eventName}")
+                    out.appendLine()
+                    out.appendLine("- severity: ${event.logLevel.name.lowercase(Locale.US)}")
+                    out.appendLine("- category: ${categoryFor(event.eventName)}")
+                    out.appendLine("- session: ${event.sessionId}")
+                    event.screenOrRoute?.let { out.appendLine("- screen: $it") }
+                    event.properties.forEach { (k, v) -> out.appendLine("- $k: $v") }
+                    out.appendLine()
+                }
+            }
+        }
+    }
+
+    private suspend fun writeZipStreamed(target: File, stamp: String) {
         ZipOutputStream(target.outputStream().buffered()).use { zip ->
-            fun put(name: String, body: String) {
-                zip.putNextEntry(ZipEntry(name))
-                zip.write(body.toByteArray())
-                zip.closeEntry()
+            zip.putNextEntry(ZipEntry("kavach-diagnostics-$stamp.jsonl"))
+            forEachBatch { batch ->
+                batch.forEach { zip.write((LogEventCodec.encode(it, session.envelope, null) + "\n").toByteArray()) }
             }
-            put("kavach-diagnostics-$stamp.json", rawLines(events))
-            put("kavach-diagnostics-$stamp.csv", asCsv(events))
-            put("kavach-diagnostics-$stamp.md", asMarkdown(events))
-            put("event-schema.txt", schemaSummary())
+            zip.closeEntry()
         }
-    }
-
-    private fun schemaSummary(): String = buildString {
-        appendLine("Kavach event schema v${EventSchema.VERSION}")
-        appendLine()
-        EventSchema.CATALOGUE.values.sortedBy { it.name }.forEach { spec ->
-            appendLine("${spec.name}")
-            appendLine("  required: ${spec.required.joinToString(", ")}")
-            if (spec.optional.isNotEmpty()) {
-                appendLine("  optional: ${spec.optional.joinToString(", ")}")
-            }
-            spec.enums.forEach { (key, allowed) ->
-                appendLine("  $key ∈ {${allowed.joinToString(", ")}}")
-            }
-        }
-    }
-
-    /** Body for the "email to developer" flow. */
-    fun emailBody(entries: Int): String = buildString {
-        appendLine("Kavach diagnostics")
-        appendLine()
-        appendLine("App version: ${session.appVersion}")
-        appendLine("Android: ${session.os}")
-        appendLine("Device: ${session.deviceModel}")
-        appendLine("Schema version: ${EventSchema.VERSION}")
-        appendLine("User code: ${session.userCode}")
-        appendLine("Session: ${session.sessionId}")
-        appendLine("Events: $entries")
-        appendLine("Log size: ${formattedSize()}")
-        appendLine()
-        appendLine("Every line is a schema-validated JSON event, so intent and outcome")
-        appendLine("are recorded together. Numbers are masked, and names, message")
-        appendLine("contents, file paths and queries are never logged.")
-        appendLine()
-        appendLine("What went wrong:")
-        appendLine()
     }
 
     private fun csv(value: String): String =
@@ -864,11 +964,25 @@ class DiagnosticsRepository @Inject constructor(
     companion object {
         private const val DIRECTORY = "diagnostics"
         private const val FILE_NAME = "kavach.log"
-        private const val MAX_BYTES = 512L * 1024L
-        private const val MAX_LINES_KEPT = 4_000
-        private const val MAX_EXPORT_ENTRIES = 5_000
+        /**
+         * One screenful. **Not a storage limit** — every event is kept.
+         *
+         * The two constants that used to sit here were `MAX_BYTES = 512 KB` and
+         * `MAX_LINES_KEPT = 4_000`, and together they meant the log silently
+         * forgot everything past the most recent few thousand lines. They are
+         * gone, and the only thing left is how much to render at once.
+         */
+        const val PAGE_SIZE = 200
+
+        /**
+         * Rows per export batch.
+         *
+         * An export writes to a file, so this bounds memory rather than the log.
+         * It is not a ceiling on what can be exported: the batches are written
+         * one after another until the log ends.
+         */
+        private const val EXPORT_BATCH = 2_000
         private const val DAY_MS = 24L * 60L * 60L * 1000L
-        private const val MAX_RETENTION_DAYS = 30L
 
         private const val RAGE_WINDOW_MS = 2_000L
 

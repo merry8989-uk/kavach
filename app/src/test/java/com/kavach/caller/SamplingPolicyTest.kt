@@ -25,7 +25,7 @@ class SamplingPolicyTest {
             (0L..7L).forEach { tick ->
                 assertTrue(
                     "dropped an event at $rate/min with tick $tick",
-                    SamplingPolicy.keep(ratePerMinute = rate, sampleTick = tick),
+                    SamplingPolicy.keep(enabled = true, ratePerMinute = rate, sampleTick = tick),
                 )
             }
         }
@@ -34,7 +34,7 @@ class SamplingPolicyTest {
     @Test
     fun `a chatty app samples roughly one in four`() {
         val kept = (0L until 100L).count {
-            SamplingPolicy.keep(ratePerMinute = 1_000.0, sampleTick = it)
+            SamplingPolicy.keep(enabled = true, ratePerMinute = 1_000.0, sampleTick = it)
         }
         assertEquals(25, kept)
     }
@@ -42,15 +42,15 @@ class SamplingPolicyTest {
     @Test
     fun `a chatty app still keeps something`() {
         val kept = (0L until 100L).count {
-            SamplingPolicy.keep(ratePerMinute = 5_000.0, sampleTick = it)
+            SamplingPolicy.keep(enabled = true, ratePerMinute = 5_000.0, sampleTick = it)
         }
         assertTrue("sampling discarded everything", kept > 0)
     }
 
     @Test
     fun `the threshold is exclusive, so the boundary keeps`() {
-        assertTrue(SamplingPolicy.keep(SamplingPolicy.CHATTY_EVENTS_PER_MINUTE, 1L))
-        assertFalse(SamplingPolicy.keep(SamplingPolicy.CHATTY_EVENTS_PER_MINUTE + 1, 1L))
+        assertTrue(SamplingPolicy.keep(enabled = true, ratePerMinute = SamplingPolicy.CHATTY_EVENTS_PER_MINUTE, sampleTick = 1L))
+        assertFalse(SamplingPolicy.keep(enabled = true, ratePerMinute = SamplingPolicy.CHATTY_EVENTS_PER_MINUTE + 1, sampleTick = 1L))
     }
 
     @Test
@@ -64,5 +64,36 @@ class SamplingPolicyTest {
     @Test
     fun `the sample rate is the documented one`() {
         assertEquals(4L, SamplingPolicy.INFO_SAMPLE_RATE)
+    }
+
+    // ------------------------------- off by default, and off means everything --
+
+    /**
+     * The shipped default is **off**, which is what "100% of eligible events"
+     * means. These are the tests that matter most: no volume, no rate and no tick
+     * may discard an event the user asked to keep.
+     */
+    @Test
+    fun `when sampling is off nothing is ever discarded`() {
+        val now = System.nanoTime()
+        listOf(0.0, 1.0, 120.0, 1_000.0, 100_000.0).forEach { rate ->
+            listOf(1L, 2L, 3L, 4L, 7L, 999L, now).forEach { tick ->
+                assertTrue(
+                    "rate $rate tick $tick should be kept with sampling off",
+                    SamplingPolicy.keep(enabled = false, ratePerMinute = rate, sampleTick = tick),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `off short-circuits before the rate is even considered`() {
+        // A rate so high that the sampling rule would certainly drop it.
+        assertTrue(SamplingPolicy.keep(enabled = false, ratePerMinute = 1_000_000.0, sampleTick = 1L))
+    }
+
+    @Test
+    fun `turning it on still keeps everything while the app is quiet`() {
+        assertTrue(SamplingPolicy.keep(enabled = true, ratePerMinute = 6.0, sampleTick = 3L))
     }
 }

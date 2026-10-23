@@ -27,6 +27,28 @@ data class AppSettings(
      * So rules block by default, and the score only acts if the user asks it to,
      * at a threshold they choose.
      */
+    /**
+     * Sample high-volume events: **off by default**.
+     *
+     * The specification asks for "100% of eligible events", and off is what that
+     * means. Sampling was on before, with a volume-aware rule that kept
+     * everything below 120 events a minute — sensible, and still loss: a busy
+     * minute discarded events the user never saw go.
+     *
+     * Turning this on is the user's call, and it is the only thing that ever
+     * discards a non-critical event.
+     */
+    val diagnosticsSamplingEnabled: Boolean = false,
+
+    /**
+     * Delete events older than this many days. **0 means never.**
+     *
+     * Zero is the shipped default: nothing is deleted. A log that quietly forgets
+     * the day you needed it is a sample, not a log. The cost is storage, and the
+     * user is the one who should decide to pay it.
+     */
+    val diagnosticsRetentionDays: Int = 0,
+
     val autoBlockScore: Int = 0,
 
     /**

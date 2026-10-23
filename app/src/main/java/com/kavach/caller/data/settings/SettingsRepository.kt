@@ -49,6 +49,8 @@ class SettingsRepository @Inject constructor(
     private object Keys {
         val themePack = stringPreferencesKey("theme_pack")
         val motionMode = stringPreferencesKey("motion_mode")
+        val diagnosticsSamplingEnabled = booleanPreferencesKey("diagnostics_sampling_enabled")
+        val diagnosticsRetentionDays = intPreferencesKey("diagnostics_retention_days")
         val autoBlockScore = intPreferencesKey("auto_block_score")
         val autoBlockAction = stringPreferencesKey("auto_block_action")
         val announcerMode = stringPreferencesKey("announcer_mode")
@@ -102,6 +104,8 @@ class SettingsRepository @Inject constructor(
         AppSettings(
             themePack = p[Keys.themePack] ?: "AURORA",
             motionMode = p[Keys.motionMode] ?: "system",
+            diagnosticsSamplingEnabled = p[Keys.diagnosticsSamplingEnabled] ?: false,
+            diagnosticsRetentionDays = (p[Keys.diagnosticsRetentionDays] ?: 0).coerceAtLeast(0),
             autoBlockScore = (p[Keys.autoBlockScore] ?: 0).coerceIn(0, 100),
             autoBlockAction = (p[Keys.autoBlockAction] ?: "silence").takeIf { it in AUTO_BLOCK_ACTIONS }
                 ?: "silence",
@@ -141,6 +145,15 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
 
     /** "system" | "full" | "reduced". Unknown values fall back to "system". */
+    fun setDiagnosticsSampling(enabled: Boolean) = runBlocking {
+        context.dataStore.edit { it[Keys.diagnosticsSamplingEnabled] = enabled }
+    }
+
+    /** 0 means keep everything, forever. */
+    fun setDiagnosticsRetentionDays(days: Int) = runBlocking {
+        context.dataStore.edit { it[Keys.diagnosticsRetentionDays] = days.coerceAtLeast(0) }
+    }
+
     /** 0 turns score-based action off entirely. */
     suspend fun setAutoBlockScore(value: Int) = context.dataStore.edit {
         it[Keys.autoBlockScore] = value.coerceIn(0, 100)

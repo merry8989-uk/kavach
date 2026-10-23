@@ -65,12 +65,21 @@ filtered, counted or joined.
 
 | Level | Meaning | Kept |
 |---|---|---|
-| `trace` | step-by-step detail, only wanted when something is wrong | 1 day |
-| `debug` | debugging information | 1 day |
-| `info` | normal event | 7 days |
-| `warn` | potential problem | 14 days |
-| `error` | operation failed | 30 days |
-| `fatal` | critical failure — the process ended | 90 days |
+| `trace` | step-by-step detail, only wanted when something is wrong | kept |
+| `debug` | debugging information | kept |
+| `info` | normal event | kept |
+| `warn` | potential problem | kept |
+| `error` | operation failed | kept |
+| `fatal` | critical failure — the process ended | kept |
+
+**Nothing expires by default.** This table used to carry a per-class schedule —
+fatal 90 days, error 30, warn 14, info 7, debug and trace 1 — and it was the
+wrong default for this product. It silently dropped the ordinary days, and the
+ordinary days are what you read when something breaks on a Tuesday.
+
+Retention is now a user setting and ships at **zero, meaning never**. The user
+can choose 30 days, 90 days or a year from the diagnostics screen, and can see
+how much the log is using before deciding.
 
 `trace` and `fatal` were missing until 1.1.0. Their absence is why **a crash and
 a caught exception looked identical** in the log. A fatal is kept longest because

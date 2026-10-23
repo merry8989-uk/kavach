@@ -16,7 +16,9 @@ import com.kavach.caller.data.local.entity.RecordingEntity
 import com.kavach.caller.data.local.entity.SpeedDialEntity
 import com.kavach.caller.data.local.entity.TranscriptEntity
 import com.kavach.caller.data.local.entity.SearchHistoryEntity
+import com.kavach.caller.data.local.dao.LogEventDao
 import com.kavach.caller.data.local.dao.SearchHistoryDao
+import com.kavach.caller.data.local.entity.LogEventEntity
 
 @Database(
     entities = [
@@ -27,8 +29,9 @@ import com.kavach.caller.data.local.dao.SearchHistoryDao
         TranscriptEntity::class,
         SpeedDialEntity::class,
         SearchHistoryEntity::class,
+        LogEventEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -40,6 +43,7 @@ abstract class KavachDatabase : RoomDatabase() {
     abstract fun recordingDao(): RecordingDao
     abstract fun transcriptDao(): TranscriptDao
     abstract fun speedDialDao(): SpeedDialDao
+    abstract fun logEventDao(): LogEventDao
 
     companion object {
         const val NAME = "kavach.db"

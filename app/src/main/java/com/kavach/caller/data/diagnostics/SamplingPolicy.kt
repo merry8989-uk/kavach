@@ -28,10 +28,21 @@ object SamplingPolicy {
     /**
      * Should this event be kept?
      *
+     * [enabled] is the user's setting and it ships **false** — sampling is off,
+     * every eligible event is kept, which is what the specification asks for
+     * ("100% of eligible events"). When it is off this returns true without
+     * looking at anything else, and that short circuit is the point: no volume,
+     * no rate and no tick can discard an event the user asked to keep.
+     *
+     * When the user turns it on, the volume-aware rule applies — keep everything
+     * while the app is quiet, sample only once the rate says there is too much.
+     *
+     * @param enabled the user's setting.
      * @param ratePerMinute how fast events are currently being written.
      * @param sampleTick a monotonically changing number, used as the sampler.
      */
-    fun keep(ratePerMinute: Double, sampleTick: Long): Boolean {
+    fun keep(enabled: Boolean, ratePerMinute: Double, sampleTick: Long): Boolean {
+        if (!enabled) return true
         if (ratePerMinute <= CHATTY_EVENTS_PER_MINUTE) return true
         return sampleTick % INFO_SAMPLE_RATE == 0L
     }
