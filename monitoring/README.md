@@ -196,11 +196,23 @@ vocabularies, the metadata lifting, timestamp parsing, windows, the summary
 queries against a fake D1, and a static check that `index.js` exports only a
 handler.
 
-**Integration — boots the Worker in Miniflare.** That is the *real* Workers
-runtime, the same one production uses, with a real D1, dispatching real requests.
-It covers the half a unit test cannot: that the route is spelled right, the
-binding name matches, and D1 accepts the INSERT. Those are the failures that
+**Integration — 20 tests, boots the Worker in Miniflare.** That is the *real*
+Workers runtime, the same one production uses, with a real D1, dispatching real
+requests. It covers the half a unit test cannot: that the route is spelled right,
+the binding name matches, and D1 accepts the INSERT. Those are the failures that
 reach production.
+
+**It earned its place on the first run, and three more times after that.** Every
+one of these was invisible to the unit tests and would have broken the deploy:
+
+| What it caught | Why the unit tests could not |
+|---|---|
+| `MAX_BATCH` exported from the entry module | A Worker's named exports are entry points; workerd refuses to start. Node does not care about extra exports |
+| `lib.js` parsed as a classic script | The harness passed one file, not the module graph |
+| `--` comments swallowing the whole schema | A broken comment strip, reported as a broken query |
+| A multi-line `CREATE TABLE` reaching D1 | D1's exec is line-oriented; it saw the first line and nothing after |
+
+That list is the argument for having written it.
 
 It needs about 3 GB to boot workerd. Below that it **skips itself with the reason
 written down** rather than failing, and the memory check runs *before* the
