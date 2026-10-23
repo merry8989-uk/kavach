@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
+import com.kavach.caller.R
 
 /**
  * The AI call assistant's runtime (F10). When call screening routes a call to
@@ -82,7 +83,7 @@ class CallAssistantService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Kavach is handling this call")
             .setContentText("Answering, announcing and transcribing")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setOngoing(true)
             .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

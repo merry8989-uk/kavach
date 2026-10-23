@@ -35,6 +35,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.kavach.caller.R
 
 /**
  * What Kavach is doing for you, in one screen.
@@ -207,17 +210,30 @@ fun HomeScreen(
     ) {
         item {
             Spacer(Modifier.height(12.dp))
-            Text(
-                "Kavach",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                "Armour for every call",
-                style = MaterialTheme.typography.bodyMedium,
-                color = muted,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The app's own mark rather than a generic icon: the same artwork
+                // as the launcher icon, so the first screen and the home screen
+                // icon are recognisably the same app.
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp),
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        "Kavach",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        "Armour for every call",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = muted,
+                    )
+                }
+            }
         }
 
         // ---------------------------------------------------- protection status

@@ -13,6 +13,7 @@ import com.kavach.caller.domain.model.CallSession
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.R
 
 /**
  * The ongoing call notification (F4).
@@ -30,7 +31,7 @@ class CallNotificationManager @Inject constructor(
         ensureChannel(manager)
 
         val builder = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_call)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(session.title)
             .setContentText(subtitle(session))
             .setOngoing(true)

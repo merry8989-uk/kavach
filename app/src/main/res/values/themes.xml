@@ -2,7 +2,9 @@
 <resources>
     <!-- Dark, edge-to-edge base so the Compose surface owns the whole screen. -->
     <style name="Theme.Kavach" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#07080F</item>
+        <!-- Matches the launcher icon's own backdrop, so the launch window
+             and the icon are the same colour. -->
+        <item name="android:windowBackground">#03090F</item>
         <item name="android:statusBarColor">#00000000</item>
         <item name="android:navigationBarColor">#00000000</item>
         <item name="android:windowLightStatusBar">false</item>

@@ -11,6 +11,7 @@ import com.kavach.caller.util.PhoneUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.R
 
 /** Posts the post-call brief (F10.7) as a notification. */
 @Singleton
@@ -26,7 +27,7 @@ class CallBriefNotifier @Inject constructor(
         }
         val urgent = brief.intent == CallIntent.EMERGENCY
         val notification = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(
                 if (urgent) "Urgent call handled by Kavach" else "Kavach handled a call"
             )

@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.kavach.caller.R
 
 /**
  * Foreground service that keeps recording alive during a call.
@@ -119,7 +120,7 @@ class CallRecorderService : Service() {
         return NotificationCompat.Builder(this, CHANNEL)
             .setContentTitle("Recording this call")
             .setContentText("${number.ifEmpty { "Unknown number" }} — tap to open Kavach")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setOngoing(true)
             .setContentIntent(open)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -150,7 +151,7 @@ class CallRecorderService : Service() {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_launcher_monochrome)
                 .setContentIntent(open)
                 .setAutoCancel(true)
                 .build(),

@@ -12,6 +12,7 @@ import com.kavach.caller.util.PhoneUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.kavach.caller.R
 
 /**
  * Missed-call reminder (F6.x).
@@ -37,7 +38,7 @@ class MissedCallNotifier @Inject constructor(
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(android.R.drawable.sym_call_missed)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(title)
             .setContentText(text)
             .setAutoCancel(true)
