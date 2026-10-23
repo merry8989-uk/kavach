@@ -30,14 +30,27 @@ jobs:
         with:
           node-version: "20"
 
-      # No `npm ci`: the Worker has no dependencies, and adding an install step
-      # for one would be machinery serving nothing. If a dependency is ever
-      # added, this is the line to change.
-      - name: Syntax check
-        run: node --check src/index.js
+      # The Worker itself has no runtime dependencies. These two are dev-only:
+      # `wrangler` to deploy, `miniflare` to run the integration tests against
+      # the real Workers runtime.
+      - name: Install dev dependencies
+        run: npm install --no-audit --no-fund
 
-      - name: Tests
-        run: node --test test/
+      - name: Syntax check
+        run: npm run check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      # Boots workerd — the actual runtime production uses — with a real D1, and
+      # dispatches requests through the Worker. This is the half a unit test
+      # cannot cover: that the route is spelled right, the binding name matches,
+      # and D1 accepts the INSERT.
+      #
+      # It needs ~3 GB and skips itself with a reason on anything smaller, so a
+      # constrained runner reports a skip rather than a failure it did not earn.
+      - name: Integration tests
+        run: npm run test:integration
 
       - name: Check the vocabularies still match the app and the server
         # The three runtimes each carry their own copy of the twelve categories

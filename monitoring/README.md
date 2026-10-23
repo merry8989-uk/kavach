@@ -185,18 +185,37 @@ To change it, edit `RETENTION_DAYS` in `src/index.js` and the `crons` entry in
 ## Tests
 
 ```bash
-node --test test/
+npm install
+npm test              # both files
+npm run test:unit     # pure functions, no runtime needed
+npm run test:integration
 ```
 
-No dependencies — Node's own runner. 25 tests covering the guard, the
+**Unit — 25 tests, no dependencies.** Node's own runner. The guard, the
 vocabularies, the metadata lifting, timestamp parsing, windows, and the summary
 queries against a fake D1.
 
-The guard test is the one worth reading. Its first version passed `user_code:
-"KV-4F9-K2Q"` and asserted a refusal — which it got, for the wrong reason. The
-implementation used `if (input.user_code)`, so an empty string would have sailed
-through. The test now covers empty and null, and the code checks for the key's
-presence instead.
+**Integration — boots the Worker in Miniflare.** That is the *real* Workers
+runtime, the same one production uses, with a real D1, dispatching real requests.
+It covers the half a unit test cannot: that the route is spelled right, the
+binding name matches, and D1 accepts the INSERT. Those are the failures that
+reach production.
+
+It needs about 3 GB to boot workerd. Below that it **skips itself with the reason
+written down** rather than failing, and the memory check runs *before* the
+miniflare import — because importing it loads workerd, which then fails
+asynchronously after the tests have already reported a skip.
+
+### The two tests worth reading
+
+The **guard** test first passed `user_code: "KV-4F9-K2Q"` and asserted a refusal —
+which it got, for the wrong reason. The implementation used
+`if (input.user_code)`, so an empty string would have sailed through. It now
+covers empty and null, and the code checks for the key's *presence* instead.
+
+The **refused-event** test asserts the row is genuinely absent from the database
+afterwards, not merely counted as rejected. A guard that reports a refusal and
+stores the row anyway is the worst of both.
 
 ---
 

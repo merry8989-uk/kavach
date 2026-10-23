@@ -1,0 +1,20 @@
+{
+  "name": "kavach-monitoring",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that receives the Kavach server's structured logs.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/",
+    "test:unit": "node --test test/sink.test.js",
+    "test:integration": "node --test test/integration.test.js",
+    "check": "node --check src/index.js",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "miniflare": "^4.20260426.0",
+    "wrangler": "^4.0.0"
+  },
+  "comment": "No runtime dependencies. The Worker uses only the platform's own APIs — D1 through a binding, fetch, and the Web Crypto-free constant-time compare it writes itself. `wrangler` and `miniflare` are dev-only: one to deploy, one to run the integration tests against the real Workers runtime."
+}
