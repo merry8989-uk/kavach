@@ -314,7 +314,10 @@ fun NumberDetailsScreen(
                     )
                 }
 
-                if (identity == null || identity.isUnavailable) {
+                // Bound to a local: `identity` comes from a delegated property,
+                // which Kotlin will not smart-cast.
+                val current = identity
+                if (current == null || current.isUnavailable) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { vm.load(primary) },

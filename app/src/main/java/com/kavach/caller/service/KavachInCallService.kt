@@ -147,9 +147,13 @@ class KavachInCallService : InCallService() {
                 identity = identity,
                 numberIsBlank = number.isBlank(),
             )
+            // Resolved before the patch: `nameFor` suspends and `patch` takes a
+            // plain lambda, so it cannot be called from inside it.
+            val resolvedName = identity?.name ?: runCatching { contacts.nameFor(number) }.getOrNull()
+
             sessionManager.patch { current ->
                 current.copy(
-                    displayName = current.displayName ?: identity?.name ?: contacts.nameFor(number),
+                    displayName = current.displayName ?: resolvedName,
                     isKnownContact = current.isKnownContact || identity?.source ==
                         com.kavach.caller.domain.model.CallerIdentity.Source.CONTACT,
                     verdict = verdict,
