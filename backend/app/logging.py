@@ -25,7 +25,10 @@ from __future__ import annotations
 
 import json
 import logging
+import queue
+import threading
 import time
+import urllib.request
 import uuid
 from contextvars import ContextVar
 from typing import Any
@@ -276,3 +279,135 @@ def _safe_headers(request) -> dict[str, str]:
         for name in LOGGED_HEADERS
         if (value := request.headers.get(name))
     }
+
+
+# --------------------------------------------------------------- log shipping --
+
+class LogShipHandler(logging.Handler):
+    """Ships this server's logs to a monitoring sink, off the request path.
+
+    Three decisions worth naming, because each is a way this goes wrong:
+
+    1. **It never blocks a request.** Records go onto a bounded queue and a
+       background thread does the sending. A monitoring path that can slow the
+       thing it monitors is worse than no monitoring.
+    2. **It drops rather than grows.** When the queue is full the oldest records
+       go. A sink that is down must not turn into unbounded memory in the server.
+    3. **It never raises into logging.** Any failure is swallowed and counted. An
+       exception here would surface inside whatever code happened to log, which is
+       exactly the wrong place.
+    """
+
+    def __init__(self, url: str, token: str, batch_size: int = 50, flush_seconds: float = 5.0):
+        super().__init__()
+        self.url = url
+        self.token = token
+        self.batch_size = max(1, batch_size)
+        self.flush_seconds = max(0.5, flush_seconds)
+
+        self._queue: queue.Queue[dict] = queue.Queue(maxsize=2000)
+        self._stop = threading.Event()
+        self.dropped = 0
+        self.shipped = 0
+
+        self._thread = threading.Thread(target=self._run, name="kavach-log-ship", daemon=True)
+        self._thread.start()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            payload = json.loads(self.format(record))
+        except Exception:
+            return
+        try:
+            self._queue.put_nowait(payload)
+        except queue.Full:
+            # Counted, not raised. Dropping under pressure is the intended
+            # behaviour, but it is not allowed to be invisible.
+            self.dropped += 1
+
+    def _run(self) -> None:
+        batch: list[dict] = []
+        last_flush = time.monotonic()
+
+        while not self._stop.is_set():
+            timeout = max(0.1, self.flush_seconds - (time.monotonic() - last_flush))
+            try:
+                batch.append(self._queue.get(timeout=timeout))
+            except queue.Empty:
+                pass
+
+            due = (time.monotonic() - last_flush) >= self.flush_seconds
+            if batch and (len(batch) >= self.batch_size or due):
+                self._send(batch)
+                batch = []
+                last_flush = time.monotonic()
+
+        # One last attempt on the way out, so a clean shutdown does not lose the
+        # final few seconds.
+        while not self._queue.empty():
+            batch.append(self._queue.get_nowait())
+        if batch:
+            self._send(batch)
+
+    def _send(self, batch: list[dict]) -> None:
+        try:
+            request = urllib.request.Request(
+                self.url,
+                data=json.dumps({"events": batch}).encode(),
+                headers={
+                    "content-type": "application/json",
+                    "authorization": f"Bearer {self.token}",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                if 200 <= response.status < 300:
+                    self.shipped += len(batch)
+                else:
+                    self.dropped += len(batch)
+        except Exception:
+            # A monitoring sink being unreachable must never affect the server.
+            self.dropped += len(batch)
+
+    def close(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=3)
+        super().close()
+
+
+def attach_log_shipping(settings: Settings | None = None) -> LogShipHandler | None:
+    """Turn on shipping, when it has been asked for and configured.
+
+    Returns the handler so a caller can inspect `shipped` and `dropped`, or None
+    when shipping is off. Off is the default.
+    """
+    settings = settings or get_settings()
+    if not settings.log_ship_enabled:
+        return None
+    if not settings.log_ship_url or not settings.log_ship_token:
+        # Configured to ship but given nowhere to ship to. Said out loud rather
+        # than silently doing nothing.
+        log(
+            "infrastructure",
+            "log shipping is enabled but not configured; nothing will be sent",
+            level="warn",
+            missing="url" if not settings.log_ship_url else "token",
+        )
+        return None
+
+    handler = LogShipHandler(
+        url=settings.log_ship_url,
+        token=settings.log_ship_token,
+        batch_size=settings.log_ship_batch_size,
+        flush_seconds=settings.log_ship_flush_seconds,
+    )
+    handler.setFormatter(JsonFormatter(environment=settings.environment))
+    logging.getLogger().addHandler(handler)
+
+    log(
+        "infrastructure",
+        "log shipping enabled",
+        url=settings.log_ship_url,
+        batch_size=settings.log_ship_batch_size,
+    )
+    return handler

@@ -82,7 +82,7 @@ The review's P0–P2 table, re-checked against the code.
 | Database consistency | P1 | **Partly** — the lookup response, score and counts agree; no test asserts it end-to-end |
 | Reliable offline fallback | P1 | **Done** — 2.5 s screening deadline, fails open |
 | Real integration tests | P1 | **Partly** — 157 backend tests, but no full journey test |
-| Monitoring | P2 | **Open** — nothing exports latency or error rates |
+| Monitoring | P2 | **Done** v0.42.0 — a Cloudflare Worker sink in `monitoring/`, a dashboard, and a log shipper on the server. Off by default; the sink refuses any event carrying a `user_code` |
 | **Self-hosting** | — | **Done** v0.38.0 — one command, and the app can now point at it |
 
 ### D · Caller experience — the eight things a user notices
@@ -140,7 +140,7 @@ Sequenced by dependency and by what unblocks the most. Not by phase number.
 | ~~5~~ | ~~User-visible auto-block threshold~~ (D4) | **Done** v0.40.0 | S |
 | 6 | **Integration test for the full journey** (C7) | Register → lookup → report → appeal → delete, in one test | M |
 | 7 | **Android dependency scanning** (F) | Add Gradle dependency locking, then osv-scanner. Deliberately deferred: a lockfile has real maintenance cost and a stale one breaks the build | M |
-| 8 | **Monitoring** (C8) | Only worth doing once the server is actually deployed | M |
+| ~~8~~ | ~~Monitoring~~ (C8) | **Done** v0.42.0 | M |
 | 9 | **Accuracy measurement** (E7) | Build the harness now; it means something once there is labelled data | M |
 | 10 | **Scam-pattern detection, business categorisation** (E5, E6) | Worth doing with real data, not before | M–L |
 

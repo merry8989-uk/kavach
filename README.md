@@ -72,6 +72,21 @@ One command: generates secrets, writes a mode-600 `.env`, builds the image,
 starts Postgres + Redis + the API, waits until it is healthy, and prints what to
 paste into **Settings → Self-hosted lookup**. Guide: [SELF-HOST.md](SELF-HOST.md).
 
+## Monitoring
+
+The server ships its own logs — latency, error rates, provider failures — to a
+Cloudflare Worker, which stores them in D1 and serves a dashboard. Off by default.
+
+```bash
+cd monitoring && wrangler deploy
+```
+
+Guide: [monitoring/README.md](monitoring/README.md).
+
+**This is not where the app's diagnostics go.** Those stay on the device and leave
+only when the user chooses. The sink enforces it: every app event carries a
+`user_code`, the server never emits one, and anything carrying one is refused.
+
 ## Docs
 
 | Document | Contents |

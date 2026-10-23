@@ -1,0 +1,73 @@
+name: Monitoring
+
+# The Cloudflare Worker that receives the server's logs.
+#
+# Tests only. Deployment is manual and deliberate — `wrangler deploy` from a
+# developer's machine — because a monitoring sink that redeploys itself on every
+# push to main is a sink whose aggregates change shape without anyone deciding to.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "monitoring/**"
+      - ".github/workflows/monitoring.yml"
+  pull_request:
+    paths:
+      - "monitoring/**"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: monitoring
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # No `npm ci`: the Worker has no dependencies, and adding an install step
+      # for one would be machinery serving nothing. If a dependency is ever
+      # added, this is the line to change.
+      - name: Syntax check
+        run: node --check src/index.js
+
+      - name: Tests
+        run: node --test test/
+
+      - name: Check the vocabularies still match the app and the server
+        # The three runtimes each carry their own copy of the twelve categories
+        # and six severities, because they cannot share code. A drift here would
+        # mean a filter that works in one place and silently matches nothing in
+        # another.
+        run: |
+          python3 - <<'PY'
+          import re, pathlib, sys
+
+          worker = pathlib.Path("src/index.js").read_text()
+          kotlin = pathlib.Path("../app/src/main/java/com/kavach/caller/data/diagnostics/EventSchema.kt").read_text()
+          python = pathlib.Path("../backend/app/logging.py").read_text()
+
+          def cats(text, marker):
+              block = text.split(marker, 1)[1].split("]", 1)[0] if marker in text else ""
+              return set(re.findall(r"'([a-z]+)'", block) + re.findall(r'"([a-z]+)"', block))
+
+          w_cats = cats(worker, "export const CATEGORIES = [")
+          p_cats = cats(python, "CATEGORIES = {")
+          # Kotlin lists them as quoted strings inside a setOf(...)
+          k_cats = set(re.findall(r'"([a-z]+)"', kotlin.split("val CATEGORIES = setOf(", 1)[1].split(")", 1)[0]))
+
+          print("worker :", sorted(w_cats))
+          print("python :", sorted(p_cats))
+          print("kotlin :", sorted(k_cats))
+
+          for name, value in (("python", p_cats), ("kotlin", k_cats)):
+              if value and value != w_cats:
+                  print(f"::error::{name} categories differ from the worker")
+                  sys.exit(1)
+          print("all three agree")
+          PY

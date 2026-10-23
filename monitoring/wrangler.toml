@@ -1,0 +1,34 @@
+# Kavach monitoring sink — Cloudflare Worker.
+#
+#   npx wrangler d1 create kavach-monitoring        # once, then paste the id below
+#   npx wrangler d1 execute kavach-monitoring --remote --file=schema.sql
+#   npx wrangler secret put INGEST_TOKEN            # the token the server sends
+#   npx wrangler deploy
+#
+# See README.md for the whole sequence and for what this is (and is not) for.
+
+name = "kavach-monitoring"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# No Node APIs are used, so there is no compatibility flag to set. Left explicit
+# rather than omitted so a future reader does not wonder.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kavach-monitoring"
+# Replace with the id `wrangler d1 create` prints.
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+[observability]
+# The Worker's own logs, kept separate from the events it stores.
+enabled = true
+
+# Retention. A sink with no ceiling eventually costs more than it is worth and
+# holds data nobody agreed to keep.
+[triggers]
+crons = ["17 4 * * *"]
+
+[vars]
+# Non-secret settings only. INGEST_TOKEN is a secret — see the header.
+RETENTION_DAYS = "30"

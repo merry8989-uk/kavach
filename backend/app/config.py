@@ -29,6 +29,22 @@ class Settings(BaseSettings):
     # Requests per minute per token for rate-limited endpoints.
     rate_limit_per_minute: int = 60
 
+    # ---- shipping this server's own logs to a monitoring sink ----
+    #
+    # **Off by default**, and that default is the point: a server that starts
+    # posting to an endpoint somebody typed into a config file without meaning to
+    # is a server that leaks, and the quiet default is the right one.
+    #
+    # This ships the *server's* logs — latency, errors, provider failures. It is
+    # not a path for the app's diagnostics, which stay on the device. The sink
+    # refuses anything carrying a `user_code`, so that is enforced there too.
+    log_ship_enabled: bool = False
+    log_ship_url: str = ""
+    log_ship_token: str = ""
+    # Batches are bounded so a burst cannot turn into one enormous request.
+    log_ship_batch_size: int = 50
+    log_ship_flush_seconds: float = 5.0
+
     # Versioned scoring rules (spec: thresholds must be versioned).
     scoring_rule_version: str = "2026-01"
 
