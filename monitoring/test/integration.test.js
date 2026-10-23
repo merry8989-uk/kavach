@@ -83,9 +83,12 @@ before(async () => {
     .map((line) => line.replace(/--.*$/, ''))
     .join('\n');
 
-  for (const statement of schema.split(';').map((s) => s.trim()).filter(Boolean)) {
-    await db.exec(statement);
-  }
+  // The whole script in one call, which is what `wrangler d1 execute --file`
+  // does. Splitting it on `;` first and calling exec per statement does not
+  // work: D1's exec takes a script, and a single statement handed to it comes
+  // back as "incomplete input" because the driver is still looking for the
+  // terminator it expects.
+  await db.exec(schema);
 });
 
 after(async () => {
