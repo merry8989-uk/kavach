@@ -52,9 +52,19 @@ let mf;
 
 before(async () => {
   if (skip) return;
+  // Both modules are declared, and the type is explicit on each.
+  //
+  // `scriptPath` alone treats the Worker as one script, so `lib.js` was parsed
+  // as a classic script and Miniflare refused it: "'import' and 'export' may
+  // appear only with 'sourceType: module'". Production is unaffected —
+  // `wrangler deploy` bundles `main` with esbuild, so the import resolves — but
+  // a test harness that cannot load the module graph tests nothing.
   mf = new Miniflare({
-    modules: true,
-    scriptPath: join(root, 'src/index.js'),
+    modules: [
+      { type: 'ESModule', path: join(root, 'src/index.js') },
+      { type: 'ESModule', path: join(root, 'src/lib.js') },
+    ],
+    modulesRoot: join(root, 'src'),
     compatibilityDate: '2026-01-01',
     d1Databases: { DB: 'kavach-monitoring-test' },
     bindings: { INGEST_TOKEN: TOKEN },
