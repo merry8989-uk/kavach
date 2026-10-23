@@ -78,22 +78,44 @@ before(async () => {
   // reports "SQL code did not contain a statement", which reads like a broken
   // query and is really a broken comment strip.
   const db = await mf.getD1Database('DB');
-  const schema = readFileSync(join(root, 'schema.sql'), 'utf8')
-    .split('\n')
-    .map((line) => line.replace(/--.*$/, ''))
-    .join('\n');
+  const statements = splitSql(readFileSync(join(root, 'schema.sql'), 'utf8'));
 
-  // The whole script in one call, which is what `wrangler d1 execute --file`
-  // does. Splitting it on `;` first and calling exec per statement does not
-  // work: D1's exec takes a script, and a single statement handed to it comes
-  // back as "incomplete input" because the driver is still looking for the
-  // terminator it expects.
-  await db.exec(schema);
+  // Printed on every run, not only on failure. The last three CI cycles were
+  // spent guessing what D1 actually received; a log that says so costs nothing
+  // and ends that.
+  console.log(`applying ${statements.length} statements:`);
+  for (const statement of statements) {
+    console.log(`  ${statement.length} chars  ${statement.slice(0, 60)}`);
+    await db.prepare(statement).run();
+  }
 });
 
 after(async () => {
   if (mf) await mf.dispose();
 });
+
+/**
+ * Split a schema file into executable statements.
+ *
+ * Two things this has to get right, and both were learned the hard way:
+ *
+ * 1. **Comments are stripped line by line, before anything else.** `--` runs to
+ *    the end of the line, so joining the file first lets the opening comment
+ *    swallow the whole schema. D1 reports that as "SQL code did not contain a
+ *    statement", which reads like a broken query and is really a broken strip.
+ * 2. **Each statement is collapsed onto one line.** D1's exec is line-oriented:
+ *    handed a multi-line `CREATE TABLE`, it reports "Error in line 1: CREATE
+ *    TABLE ... (: incomplete input" — it saw the first line and nothing after.
+ */
+export function splitSql(sql) {
+  return sql
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n')
+    .split(';')
+    .map((statement) => statement.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
 
 const post = (body, token = TOKEN) =>
   mf.dispatchFetch('http://sink/v1/logs', {
