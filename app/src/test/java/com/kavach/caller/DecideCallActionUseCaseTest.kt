@@ -81,6 +81,7 @@ class DecideCallActionUseCaseTest {
 
         // Must not even attempt a contact lookup for a withheld number.
         coVerify(exactly = 0) { contactRepository.nameFor(any()) }
+    }
 
     // ------------------------------------------- the score must not act alone --
 
