@@ -19,6 +19,7 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.kavach.caller.data.local.dao.LogEventDao
 import com.kavach.caller.data.local.dao.SearchHistoryDao
 
 @Module
@@ -151,6 +152,7 @@ object AppModule {
     @Provides fun provideTranscriptDao(db: KavachDatabase): TranscriptDao = db.transcriptDao()
     @Provides fun provideSpeedDialDao(db: KavachDatabase): SpeedDialDao = db.speedDialDao()
     @Provides fun provideSearchHistoryDao(db: KavachDatabase): SearchHistoryDao = db.searchHistoryDao()
+    @Provides fun provideLogEventDao(db: KavachDatabase): LogEventDao = db.logEventDao()
 
     @Provides
     @Singleton
