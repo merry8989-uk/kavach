@@ -84,6 +84,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.runtime.derivedStateOf
+import kotlin.math.roundToInt
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -296,6 +301,9 @@ class MessagesViewModel @Inject constructor(
         settings.setMarkedAllReadAt(System.currentTimeMillis())
     }
 
+    /** What a swipe does right now — "none" disables the gesture entirely. */
+    fun currentSwipeAction(): String = settings.snapshot.smsSwipeAction
+
     /** Apply the swipe action the user chose. */
     fun swipe(address: String) = viewModelScope.launch {
         when (settings.snapshot.smsSwipeAction) {
@@ -504,6 +512,8 @@ fun MessagesScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     val mailbox by vm.mailbox.collectAsState()
+    // Read once for the gesture, so the swipe knows whether it does anything.
+    val swipeAction by remember { derivedStateOf { vm.currentSwipeAction() } }
 
     val current = open
     if (current == null) {
@@ -669,13 +679,42 @@ fun MessagesScreen(
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(visibleThreads, key = { it.address }) { t ->
                             val result = threadClassified[t.address]
+
+                            // Swipe, doing whatever the user chose in settings.
+                            //
+                            // Its own `pointerInput` rather than folded into the
+                            // tap detector: a gesture detector that watches for
+                            // taps and drags at once has to disambiguate them
+                            // itself, and this way the two are independent — a tap
+                            // opens the thread, a drag moves the row, and neither
+                            // has to know about the other.
+                            var drag by remember(t.address) { mutableStateOf(0f) }
+                            val threshold = 120f
+
                             Row(
                                 Modifier.fillMaxWidth()
+                                    .offset { IntOffset(drag.roundToInt(), 0) }
                                     .clickable { vm.openThread(t.address) }
                                     .pointerInput(t.address) {
                                         detectTapGestures(
                                             onLongPress = { confirmThreadDelete = t.address },
                                         )
+                                    }
+                                    .pointerInput(t.address, swipeAction) {
+                                        if (swipeAction == "none") return@pointerInput
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = {
+                                                if (kotlin.math.abs(drag) >= threshold) {
+                                                    vm.swipe(t.address)
+                                                }
+                                                drag = 0f
+                                            },
+                                            onDragCancel = { drag = 0f },
+                                        ) { _, amount ->
+                                            // Bounded, so a row cannot be dragged
+                                            // off the screen and left there.
+                                            drag = (drag + amount).coerceIn(-threshold * 1.6f, threshold * 1.6f)
+                                        }
                                     }
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
