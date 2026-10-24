@@ -66,6 +66,24 @@ import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
 import com.kavach.caller.ui.permissions.PermissionNotice
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -79,8 +97,23 @@ class MessagesViewModel @Inject constructor(
     /** Which category the list is filtered to. */
     enum class Filter { ALL, PERSONAL, OTP, TRANSACTIONAL, PROMOTIONAL, SPAM }
 
+    /**
+     * Which box the list is showing.
+     *
+     * Archiving is a place, not a deletion, and the bin is a place the user can
+     * see into and empty. Both are stored as the set of addresses moved there, so
+     * they survive a restart without a second copy of any message.
+     */
+    enum class Mailbox { INBOX, ARCHIVED, BIN }
+
     private val _filter = MutableStateFlow(Filter.ALL)
     val filter: StateFlow<Filter> = _filter.asStateFlow()
+
+    private val _mailbox = MutableStateFlow(Mailbox.INBOX)
+    val mailbox: StateFlow<Mailbox> = _mailbox.asStateFlow()
+
+    private val _boxes = MutableStateFlow(Triple(emptySet<String>(), emptySet<String>(), 0L))
+    val boxes = _boxes.asStateFlow()
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -103,8 +136,24 @@ class MessagesViewModel @Inject constructor(
 
     /** Threads after the active filter and search query. */
     val visibleThreads: StateFlow<List<SmsReader.Thread>> =
-        combine(_threads, _threadClassified, _filter, _query) { threads, classified, filter, query ->
+        combine(
+            _threads, _threadClassified, _filter, _query, _mailbox, _boxes,
+        ) { values ->
+            @Suppress("UNCHECKED_CAST")
+            val threads = values[0] as List<SmsReader.Thread>
+            val classified = values[1] as Map<String, SmsClassifier.Result>
+            val filter = values[2] as Filter
+            val query = values[3] as String
+            val mailbox = values[4] as Mailbox
+            val (archived, binned, _) = values[5] as Triple<Set<String>, Set<String>, Long>
+
             threads.filter { thread ->
+                val inThisBox = when (mailbox) {
+                    Mailbox.INBOX -> thread.address !in archived && thread.address !in binned
+                    Mailbox.ARCHIVED -> thread.address in archived
+                    Mailbox.BIN -> thread.address in binned
+                }
+                if (!inThisBox) return@filter false
                 val result = classified[thread.address]
                 val matchesFilter = when (filter) {
                     Filter.ALL -> true
@@ -198,6 +247,58 @@ class MessagesViewModel @Inject constructor(
 
     fun setFilter(value: Filter) {
         _filter.value = value
+    }
+
+    fun setMailbox(value: Mailbox) {
+        _mailbox.value = value
+        // The category chips are about the inbox; carrying one into the bin would
+        // hide everything and read as the bin being empty.
+        if (value != Mailbox.INBOX) _filter.value = Filter.ALL
+    }
+
+    init {
+        viewModelScope.launch {
+            settings.snapshot.collect {
+                _boxes.value = Triple(it.archivedSmsThreads, it.binnedSmsThreads, it.smsMarkedAllReadAt)
+            }
+        }
+    }
+
+    fun archive(address: String) = viewModelScope.launch {
+        settings.setThreadArchived(address, true)
+        settings.setThreadBinned(address, false)
+    }
+
+    fun unarchive(address: String) = viewModelScope.launch { settings.setThreadArchived(address, false) }
+
+    fun bin(address: String) = viewModelScope.launch {
+        settings.setThreadBinned(address, true)
+        settings.setThreadArchived(address, false)
+    }
+
+    fun restore(address: String) = viewModelScope.launch { settings.setThreadBinned(address, false) }
+
+    fun emptyBin() = viewModelScope.launch { settings.emptyBin() }
+
+    /**
+     * Mark everything read.
+     *
+     * Stored as a timestamp rather than by clearing a flag on each message,
+     * because reading is the system's business, not ours — Kavach is not
+     * necessarily the default SMS app and has no right to rewrite the provider.
+     * The timestamp is what the badge honours.
+     */
+    fun markAllRead() = viewModelScope.launch {
+        settings.setMarkedAllReadAt(System.currentTimeMillis())
+    }
+
+    /** Apply the swipe action the user chose. */
+    fun swipe(address: String) = viewModelScope.launch {
+        when (settings.snapshot.smsSwipeAction) {
+            "archive" -> archive(address)
+            "delete" -> bin(address)
+            else -> Unit
+        }
     }
 
     fun setQuery(value: String) {
@@ -371,7 +472,12 @@ class MessagesViewModel @Inject constructor(
 }
 
 @Composable
-fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
+fun MessagesScreen(
+    onOpenSettings: () -> Unit = {},
+    onOpenBlocklist: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
+    vm: MessagesViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
     val visibleThreads by vm.visibleThreads.collectAsState()
     val threadClassified by vm.threadClassified.collectAsState()
@@ -392,6 +498,9 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
 
     LaunchedEffect(Unit) { vm.refresh() }
 
+    var showMenu by remember { mutableStateOf(false) }
+    val mailbox by vm.mailbox.collectAsState()
+
     val current = open
     if (current == null) {
         Column(Modifier.fillMaxSize()) {
@@ -401,11 +510,91 @@ fun MessagesScreen(vm: MessagesViewModel = hiltViewModel()) {
                 rationale = "Reading SMS is what powers the thread list, spam filtering and " +
                     "one-time-password detection.",
             )
-            Text(stringResource(R.string.messages),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(16.dp),
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+            // ---- header, with the overflow menu ----
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        when (mailbox) {
+                            MessagesViewModel.Mailbox.INBOX -> stringResource(R.string.messages)
+                            MessagesViewModel.Mailbox.ARCHIVED -> "Archived"
+                            MessagesViewModel.Mailbox.BIN -> "Bin"
+                        },
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    if (mailbox == MessagesViewModel.Mailbox.ARCHIVED) {
+                        Text(
+                            "Conversations you archived. They still arrive.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (mailbox == MessagesViewModel.Mailbox.BIN) {
+                        Text(
+                            "Hidden from Kavach. Your carrier still has them.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (mailbox != MessagesViewModel.Mailbox.INBOX) {
+                            DropdownMenuItem(
+                                text = { Text("Back to inbox") },
+                                onClick = { vm.setMailbox(MessagesViewModel.Mailbox.INBOX); showMenu = false },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Archived") },
+                            onClick = { vm.setMailbox(MessagesViewModel.Mailbox.ARCHIVED); showMenu = false },
+                            leadingIcon = { Icon(Icons.Filled.Archive, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Bin") },
+                            onClick = { vm.setMailbox(MessagesViewModel.Mailbox.BIN); showMenu = false },
+                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Spam and blocked") },
+                            onClick = { showMenu = false; onOpenBlocklist() },
+                            leadingIcon = { Icon(Icons.Filled.Shield, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Mark all as read") },
+                            onClick = { vm.markAllRead(); showMenu = false },
+                            leadingIcon = { Icon(Icons.Filled.DoneAll, contentDescription = null) },
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Messages settings") },
+                            onClick = { showMenu = false; onOpenSettings() },
+                            leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Help and feedback") },
+                            onClick = { showMenu = false; onOpenHelp() },
+                            leadingIcon = { Icon(Icons.Filled.HelpOutline, contentDescription = null) },
+                        )
+                    }
+                }
+            }
+
+            // The bin is the one place a destructive action lives, so it is stated
+            // rather than left to be discovered.
+            if (mailbox == MessagesViewModel.Mailbox.BIN && visibleThreads.isNotEmpty()) {
+                TextButton(
+                    onClick = { vm.emptyBin() },
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                ) { Text("Empty the bin") }
+            }
 
             vm.status?.let { text ->
                 StatusBanner(text) { vm.dismissStatus() }

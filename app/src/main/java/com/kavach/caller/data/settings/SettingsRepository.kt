@@ -44,11 +44,28 @@ class SettingsRepository @Inject constructor(
 
         /** Mirrors BlockAction's names; checked against it by a test. */
         val AUTO_BLOCK_ACTIONS = setOf("silence", "block", "warn")
+
+        val SMS_THEMES = setOf("system", "light", "dark")
+        val SMS_BUBBLES = setOf("all", "selected", "none")
+        val SMS_SWIPE = setOf("archive", "delete", "none")
     }
 
     private object Keys {
         val themePack = stringPreferencesKey("theme_pack")
         val motionMode = stringPreferencesKey("motion_mode")
+        val smsTheme = stringPreferencesKey("sms_theme")
+        val smsSoundsEnabled = booleanPreferencesKey("sms_sounds_enabled")
+        val smsDeliveryReports = booleanPreferencesKey("sms_delivery_reports")
+        val smsAutoRetry = booleanPreferencesKey("sms_auto_retry")
+        val smsBubbles = stringPreferencesKey("sms_bubbles")
+        val smsSwipeAction = stringPreferencesKey("sms_swipe_action")
+        val smsLinkPreviews = booleanPreferencesKey("sms_link_previews")
+        val smsGroupByTime = booleanPreferencesKey("sms_group_by_time")
+        val smsAutoDownloadMms = booleanPreferencesKey("sms_auto_download_mms")
+        val smsAutoDownloadRoaming = booleanPreferencesKey("sms_auto_download_roaming")
+        val archivedSmsThreads = stringSetPreferencesKey("archived_sms_threads")
+        val binnedSmsThreads = stringSetPreferencesKey("binned_sms_threads")
+        val smsMarkedAllReadAt = longPreferencesKey("sms_marked_all_read_at")
         val diagnosticsSamplingEnabled = booleanPreferencesKey("diagnostics_sampling_enabled")
         val diagnosticsRetentionDays = intPreferencesKey("diagnostics_retention_days")
         val autoBlockScore = intPreferencesKey("auto_block_score")
@@ -104,6 +121,19 @@ class SettingsRepository @Inject constructor(
         AppSettings(
             themePack = p[Keys.themePack] ?: "AURORA",
             motionMode = p[Keys.motionMode] ?: "system",
+            smsTheme = (p[Keys.smsTheme] ?: "system").takeIf { it in SMS_THEMES } ?: "system",
+            smsSoundsEnabled = p[Keys.smsSoundsEnabled] ?: true,
+            smsDeliveryReports = p[Keys.smsDeliveryReports] ?: false,
+            smsAutoRetry = p[Keys.smsAutoRetry] ?: true,
+            smsBubbles = (p[Keys.smsBubbles] ?: "selected").takeIf { it in SMS_BUBBLES } ?: "selected",
+            smsSwipeAction = (p[Keys.smsSwipeAction] ?: "archive").takeIf { it in SMS_SWIPE } ?: "archive",
+            smsLinkPreviews = p[Keys.smsLinkPreviews] ?: true,
+            smsGroupByTime = p[Keys.smsGroupByTime] ?: true,
+            smsAutoDownloadMms = p[Keys.smsAutoDownloadMms] ?: false,
+            smsAutoDownloadRoaming = p[Keys.smsAutoDownloadRoaming] ?: false,
+            archivedSmsThreads = p[Keys.archivedSmsThreads] ?: emptySet(),
+            binnedSmsThreads = p[Keys.binnedSmsThreads] ?: emptySet(),
+            smsMarkedAllReadAt = p[Keys.smsMarkedAllReadAt] ?: 0L,
             diagnosticsSamplingEnabled = p[Keys.diagnosticsSamplingEnabled] ?: false,
             diagnosticsRetentionDays = (p[Keys.diagnosticsRetentionDays] ?: 0).coerceAtLeast(0),
             autoBlockScore = (p[Keys.autoBlockScore] ?: 0).coerceIn(0, 100),
@@ -145,6 +175,67 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemePack(value: String) = context.dataStore.edit { it[Keys.themePack] = value }
 
     /** "system" | "full" | "reduced". Unknown values fall back to "system". */
+    // ---- messaging ----
+
+    suspend fun setSmsTheme(value: String) = context.dataStore.edit {
+        it[Keys.smsTheme] = value.takeIf { v -> v in SMS_THEMES } ?: "system"
+    }
+
+    suspend fun setSmsSounds(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsSoundsEnabled] = enabled
+    }
+
+    suspend fun setSmsDeliveryReports(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsDeliveryReports] = enabled
+    }
+
+    suspend fun setSmsAutoRetry(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsAutoRetry] = enabled
+    }
+
+    suspend fun setSmsBubbles(value: String) = context.dataStore.edit {
+        it[Keys.smsBubbles] = value.takeIf { v -> v in SMS_BUBBLES } ?: "selected"
+    }
+
+    suspend fun setSmsSwipeAction(value: String) = context.dataStore.edit {
+        it[Keys.smsSwipeAction] = value.takeIf { v -> v in SMS_SWIPE } ?: "archive"
+    }
+
+    suspend fun setSmsLinkPreviews(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsLinkPreviews] = enabled
+    }
+
+    suspend fun setSmsGroupByTime(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsGroupByTime] = enabled
+    }
+
+    suspend fun setSmsAutoDownloadMms(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsAutoDownloadMms] = enabled
+    }
+
+    suspend fun setSmsAutoDownloadRoaming(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.smsAutoDownloadRoaming] = enabled
+    }
+
+    /** Archive a conversation, or take it out of the archive. */
+    suspend fun setThreadArchived(address: String, archived: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.archivedSmsThreads] ?: emptySet()
+        prefs[Keys.archivedSmsThreads] = if (archived) current + address else current - address
+    }
+
+    /** Move a conversation to the bin, or restore it. */
+    suspend fun setThreadBinned(address: String, binned: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.binnedSmsThreads] ?: emptySet()
+        prefs[Keys.binnedSmsThreads] = if (binned) current + address else current - address
+    }
+
+    /** Empty the bin. The only thing here that destroys messages. */
+    suspend fun emptyBin() = context.dataStore.edit { it[Keys.binnedSmsThreads] = emptySet() }
+
+    suspend fun setMarkedAllReadAt(at: Long) = context.dataStore.edit {
+        it[Keys.smsMarkedAllReadAt] = at
+    }
+
     suspend fun setDiagnosticsSampling(enabled: Boolean) = context.dataStore.edit {
         it[Keys.diagnosticsSamplingEnabled] = enabled
     }

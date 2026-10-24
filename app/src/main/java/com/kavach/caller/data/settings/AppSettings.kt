@@ -130,6 +130,57 @@ data class AppSettings(
     /** Message ids the user removed from Kavach's view. See MessagesScreen. */
     val hiddenSmsIds: Set<String> = emptySet(),
 
+    // ---- messaging, in the shape the stock app uses ----
+    //
+    // Every one of these changes something real. Where a setting cannot work
+    // here, it is not offered at all — see MessagesSettingsScreen for the RCS
+    // case, which is the one that matters.
+
+    /** system | light | dark. Applies to the conversation list and threads. */
+    val smsTheme: String = "system",
+
+    /** Play a sound for sent and received messages. */
+    val smsSoundsEnabled: Boolean = true,
+
+    /**
+     * Ask the carrier for a delivery report on each sent message.
+     *
+     * The SMS equivalent of a read receipt, and the only one that exists over
+     * SMS: a delivery report says the handset received it, never that a person
+     * read it. The screen says so rather than implying more.
+     */
+    val smsDeliveryReports: Boolean = false,
+
+    /** Retry a failed send automatically. */
+    val smsAutoRetry: Boolean = true,
+
+    /** all | selected | none. Notification bubbles, which Android supports. */
+    val smsBubbles: String = "selected",
+
+    /** archive | delete | none — what a swipe on a conversation does. */
+    val smsSwipeAction: String = "archive",
+
+    /** Show a preview card for links in a conversation. */
+    val smsLinkPreviews: Boolean = true,
+
+    /** Group the conversation list into Today / Yesterday / Older. */
+    val smsGroupByTime: Boolean = true,
+
+    /** Fetch MMS attachments without asking. */
+    val smsAutoDownloadMms: Boolean = false,
+
+    /** ...and while roaming, where it costs money. Off regardless of the above. */
+    val smsAutoDownloadRoaming: Boolean = false,
+
+    /** Conversations the user archived. */
+    val archivedSmsThreads: Set<String> = emptySet(),
+
+    /** Conversations the user put in the bin. */
+    val binnedSmsThreads: Set<String> = emptySet(),
+
+    /** When the user last marked everything read, so the badge can honour it. */
+    val smsMarkedAllReadAt: Long = 0,
+
     /**
      * Write diagnostics events straight into Supabase. No server to run: the
      * app appends to a Postgres table over PostgREST.

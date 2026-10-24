@@ -70,6 +70,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.animation.ExitTransition
 import com.kavach.caller.ui.screens.callingcard.CallingCardScreen
 import com.kavach.caller.ui.screens.reminders.RemindersScreen
+import com.kavach.caller.ui.screens.messages.MessagesSettingsScreen
+import com.kavach.caller.ui.screens.messages.MessagesHelpScreen
 
 private data class Tab(
     val route: String,
@@ -316,7 +318,13 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         },
                     )
                 }
-                composable("messages") { MessagesScreen() }
+                composable("messages") {
+                    MessagesScreen(
+                        onOpenSettings = { nav.navigate("messages_settings") },
+                        onOpenBlocklist = { nav.navigate("block") },
+                        onOpenHelp = { nav.navigate("messages_help") },
+                    )
+                }
                 composable("settings") {
                     SettingsScreen(
                         onOpenBlocklist = { nav.navigate("block") },
@@ -359,6 +367,13 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 }
                 composable("policy") { DataPolicyScreen(onBack = { nav.popBackStack() }) }
                 composable("reminders") { RemindersScreen(onBack = { nav.popBackStack() }) }
+                composable("messages_settings") {
+                    MessagesSettingsScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenSpamBlocked = { nav.navigate("block") },
+                    )
+                }
+                composable("messages_help") { MessagesHelpScreen(onBack = { nav.popBackStack() }) }
                 composable(
                     route = "callingcard/{number}?name={name}",
                     arguments = listOf(
