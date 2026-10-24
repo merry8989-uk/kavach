@@ -52,14 +52,71 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.data.calendar.CalendarGateway
+import com.kavach.caller.data.repo.ReminderRepository
+import com.kavach.caller.ui.screens.reminders.ReminderSheet
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
+import com.kavach.caller.domain.toVCard
+import java.io.File
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Alarm
 
 @HiltViewModel
 class ContactDetailViewModel @Inject constructor(
     private val callLogRepository: CallLogRepository,
+    private val reminders: ReminderRepository,
+    private val calendar: CalendarGateway,
 ) : ViewModel() {
 
     private val _recent = MutableStateFlow<List<CallLogEntity>>(emptyList())
     val recent: StateFlow<List<CallLogEntity>> = _recent.asStateFlow()
+
+    var savingReminder by mutableStateOf(false)
+        private set
+    var reminderMessage by mutableStateOf<String?>(null)
+        private set
+
+    /** True only when a calendar exists that can actually be written to. */
+    fun calendarAvailable(): Boolean = runCatching { calendar.canWrite() }.getOrDefault(false)
+
+    fun calendarName(): String? =
+        runCatching { calendar.writableCalendars().firstOrNull()?.displayName }.getOrNull()
+
+    /**
+     * Save a reminder and report where it ended up.
+     *
+     * The message says which of the two happened, because "I set a reminder and
+     * nothing appeared in my calendar" is the failure this avoids.
+     */
+    fun addReminder(
+        number: String,
+        title: String,
+        note: String?,
+        dueAt: Long,
+        toCalendar: Boolean,
+        onDone: () -> Unit,
+    ) = viewModelScope.launch {
+        savingReminder = true
+        when (val outcome = reminders.add(number, title, note, dueAt, toCalendar)) {
+            is ReminderRepository.Outcome.Saved ->
+                reminderMessage = if (outcome.inCalendar) {
+                    "Reminder set, and added to ${outcome.calendarName ?: "your calendar"}."
+                } else {
+                    "Reminder set in Kavach."
+                }
+            is ReminderRepository.Outcome.SavedLocalOnly ->
+                // Saved anyway, and the reason is said rather than swallowed.
+                reminderMessage = "Saved in Kavach. ${outcome.reason}"
+        }
+        savingReminder = false
+        onDone()
+    }
+
+    fun dismissReminderMessage() { reminderMessage = null }
 
     fun load(contact: ContactEntity) {
         val number = contact.numbers.firstOrNull()?.number ?: return
@@ -81,14 +138,32 @@ fun ContactDetailScreen(
     onEdit: () -> Unit,
     onDelete: (ContactEntity) -> Unit,
     onToggleFavourite: (ContactEntity) -> Unit,
+    /** Open the calling-card editor for this person. */
+    onOpenCallingCard: (String, String?) -> Unit = { _, _ -> },
+    onOpenReminders: () -> Unit = {},
     vm: ContactDetailViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val recent by vm.recent.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
     var lookupNumber by remember { mutableStateOf<String?>(null) }
+    var reminderFor by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(contact.id) { vm.load(contact) }
+
+    reminderFor?.let { number ->
+        ReminderSheet(
+            number = number,
+            contactName = contact.displayName,
+            calendarAvailable = vm.calendarAvailable(),
+            calendarName = vm.calendarName(),
+            submitting = vm.savingReminder,
+            onDismiss = { reminderFor = null },
+            onSave = { title, note, dueAt, toCalendar ->
+                vm.addReminder(number, title, note, dueAt, toCalendar) { reminderFor = null }
+            },
+        )
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -170,6 +245,38 @@ fun ContactDetailScreen(
                     enabled = primaryNumber != null,
                     modifier = Modifier.weight(1f),
                 ) { primaryNumber?.let { lookupNumber = it } }
+            }
+
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                ActionButton(
+                    icon = Icons.Filled.Share,
+                    label = "Share",
+                    modifier = Modifier.weight(1f),
+                ) { shareContact(context, contact) }
+                ActionButton(
+                    icon = Icons.Filled.Brush,
+                    label = "Calling card",
+                    enabled = primaryNumber != null,
+                    modifier = Modifier.weight(1f),
+                ) { primaryNumber?.let { onOpenCallingCard(it, contact.displayName) } }
+                ActionButton(
+                    icon = Icons.Filled.Alarm,
+                    label = "Remind",
+                    enabled = primaryNumber != null,
+                    modifier = Modifier.weight(1f),
+                ) { primaryNumber?.let { reminderFor = it } }
+            }
+
+            vm.reminderMessage?.let { message ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             // ---- numbers ----
@@ -336,4 +443,31 @@ private fun placeCall(context: Context, number: String) {
 private fun sendMessage(context: Context, number: String) {
     val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${PhoneUtils.toE164(number)}"))
     runCatching { context.startActivity(intent) }
+}
+
+
+/**
+ * Share a contact as a vCard.
+ *
+ * The file is written rather than sent as text, because a vCard is what the
+ * receiving app can actually import — a name and a number pasted into a chat is
+ * something the recipient retypes by hand. Sharing goes through the system sheet,
+ * so the user picks the destination and Kavach never learns it.
+ */
+fun shareContact(context: Context, contact: ContactEntity) {
+    runCatching {
+        val dir = File(context.cacheDir, "shared-contacts").apply { mkdirs() }
+        val safe = contact.displayName.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().ifBlank { "contact" }
+        val file = File(dir, "$safe.vcf")
+        file.writeText(contact.toVCard())
+
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/x-vcard"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, contact.displayName)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share contact"))
+    }
 }

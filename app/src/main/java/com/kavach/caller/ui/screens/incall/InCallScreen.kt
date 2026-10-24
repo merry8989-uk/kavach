@@ -74,6 +74,14 @@ fun InCallScreen(
     var showKeypad by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
 
+    // The calling card, if this person has one. Loaded here rather than pushed
+    // through the call session: the card is decoration, and a call must still
+    // ring correctly if this lookup is slow or fails.
+    val cardVm: com.kavach.caller.ui.screens.callingcard.CallingCardHolder = hiltViewModel()
+    val card by cardVm.card.collectAsState()
+    val number = session?.number.orEmpty()
+    LaunchedEffect(number) { if (number.isNotBlank()) cardVm.load(number) }
+
     val connectedAt = session?.connectedAtMillis
     val connected = session?.isConnected == true
     LaunchedEffect(connectedAt, connected) {
@@ -98,7 +106,32 @@ fun InCallScreen(
 
     val ringing = session.phase == CallPhase.RINGING
 
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+        // The card's image, if there is one, drawn behind the whole screen so it
+        // reads as a call from this person rather than a list with a photo on it.
+        card?.backgroundUri?.let { uri ->
+            coil.compose.AsyncImage(
+                model = uri,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (card?.dimBackground != false) {
+                Box(
+                    Modifier.fillMaxSize().background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.58f),
+                                Color.Black.copy(alpha = 0.28f),
+                                Color.Black.copy(alpha = 0.70f),
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }
+
+        Column(Modifier.fillMaxSize()) {
         // ---------- identity ----------
         Column(
             Modifier
@@ -108,12 +141,13 @@ fun InCallScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = if (session.simLabel != null) {
-                    "${if (ringing) "Incoming call via" else "Calling via"} ${session.simLabel}"
-                } else {
-                    session.phaseLabel
-                },
-                color = MaterialTheme.colorScheme.primary,
+                text = card?.headline?.takeIf { it.isNotBlank() }
+                    ?: if (session.simLabel != null) {
+                        "${if (ringing) "Incoming call via" else "Calling via"} ${session.simLabel}"
+                    } else {
+                        session.phaseLabel
+                    },
+                color = if (card != null) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyLarge,
             )
 
@@ -125,7 +159,7 @@ fun InCallScreen(
                     session.displayName,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = if (card != null) Color.White else MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(6.dp))
@@ -374,6 +408,7 @@ fun InCallScreen(
                     )
                 }
             }
+        }
         }
     }
 }

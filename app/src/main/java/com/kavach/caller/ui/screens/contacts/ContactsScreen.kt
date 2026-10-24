@@ -103,8 +103,25 @@ private sealed interface ContactScreenState {
 }
 
 @Composable
-fun ContactsScreen(vm: ContactsViewModel = hiltViewModel()) {
-    var state by remember { mutableStateOf<ContactScreenState>(ContactScreenState.Browse) }
+fun ContactsScreen(
+    /** Open the calling-card editor for a number. */
+    onOpenCallingCard: (String, String?) -> Unit = { _, _ -> },
+    onOpenReminders: () -> Unit = {},
+    /**
+     * Start on the create form.
+     *
+     * How "Add contact" on Home works: it navigates here with this set, so the
+     * form opens rather than the list. A separate screen would have been a second
+     * place to keep the same form working.
+     */
+    startCreating: Boolean = false,
+    vm: ContactsViewModel = hiltViewModel(),
+) {
+    var state by remember(startCreating) {
+        mutableStateOf<ContactScreenState>(
+            if (startCreating) ContactScreenState.New(null) else ContactScreenState.Browse,
+        )
+    }
     val all by vm.contacts.collectAsState()
 
     // ---- detail ----
@@ -118,6 +135,8 @@ fun ContactsScreen(vm: ContactsViewModel = hiltViewModel()) {
             onEdit = { state = ContactScreenState.Edit(fresh) },
             onDelete = { vm.delete(it); state = ContactScreenState.Browse },
             onToggleFavourite = { vm.toggleFavourite(it) },
+            onOpenCallingCard = { number, name -> onOpenCallingCard(number, name) },
+            onOpenReminders = onOpenReminders,
         )
         return
     }

@@ -6,4 +6,6 @@
     <files-path name="diagnostics" path="diagnostics/" />
     <!-- Contact photos. Needed so the camera app can write into our storage. -->
     <files-path name="contact_photos" path="contact-photos/" />
+    <!-- A calling-card background, same reason. -->
+    <files-path name="calling_cards" path="calling-cards/" />
 </paths>

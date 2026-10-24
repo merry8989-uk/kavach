@@ -283,6 +283,8 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenRecordings = { nav.navigate("recordings") },
                         onOpenBlocklist = { nav.navigate("block") },
                         onOpenFeatures = { nav.navigate("features") },
+                        onAddContact = { nav.navigate("contacts?new=true") },
+                        onOpenReminders = { nav.navigate("reminders") },
                     )
                 }
                 composable("dialer") {
@@ -290,7 +292,20 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         nav.navigate("number/${Uri.encode(number)}")
                     })
                 }
-                composable("contacts") { ContactsScreen() }
+                composable(
+                    route = "contacts?new={new}",
+                    arguments = listOf(
+                        navArgument("new") { type = NavType.BoolType; defaultValue = false },
+                    ),
+                ) { entry ->
+                    ContactsScreen(
+                        onOpenCallingCard = { number, name ->
+                            nav.navigate("callingcard/${Uri.encode(number)}?name=${Uri.encode(name.orEmpty())}")
+                        },
+                        onOpenReminders = { nav.navigate("reminders") },
+                        startCreating = entry.arguments?.getBoolean("new") == true,
+                    )
+                }
                 composable("calls") {
                     CallLogScreen(
                         onOpenAssistant = { nav.navigate("assistant") },
@@ -341,6 +356,23 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                     )
                 }
                 composable("policy") { DataPolicyScreen(onBack = { nav.popBackStack() }) }
+                composable("reminders") { RemindersScreen(onBack = { nav.popBackStack() }) }
+                composable(
+                    route = "callingcard/{number}?name={name}",
+                    arguments = listOf(
+                        navArgument("number") { type = NavType.StringType },
+                        navArgument("name") {
+                            type = NavType.StringType
+                            defaultValue = ""
+                        },
+                    ),
+                ) { entry ->
+                    CallingCardScreen(
+                        number = entry.arguments?.getString("number").orEmpty(),
+                        contactName = entry.arguments?.getString("name")?.takeIf { it.isNotBlank() },
+                        onBack = { nav.popBackStack() },
+                    )
+                }
             }
         }
     }

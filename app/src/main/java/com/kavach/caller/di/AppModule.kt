@@ -19,7 +19,9 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.kavach.caller.data.local.dao.CallingCardDao
 import com.kavach.caller.data.local.dao.LogEventDao
+import com.kavach.caller.data.local.dao.ReminderDao
 import com.kavach.caller.data.local.dao.SearchHistoryDao
 
 @Module
@@ -104,6 +106,55 @@ object AppModule {
         }
     }
 
+    /**
+     * Calling cards and reminders.
+     *
+     * Two new tables, no changes to existing ones, so nothing already stored is
+     * touched — which is the whole reason this is a migration rather than a
+     * destructive rebuild.
+     */
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `calling_cards` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `contactKey` TEXT NOT NULL,
+                    `backgroundUri` TEXT,
+                    `headline` TEXT,
+                    `subtitle` TEXT,
+                    `accentColor` INTEGER,
+                    `dimBackground` INTEGER NOT NULL DEFAULT 1,
+                    `enabled` INTEGER NOT NULL DEFAULT 1,
+                    `updatedAt` INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_calling_cards_contactKey` " +
+                    "ON `calling_cards` (`contactKey`)",
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `reminders` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `contactKey` TEXT,
+                    `title` TEXT NOT NULL,
+                    `note` TEXT,
+                    `dueAt` INTEGER NOT NULL,
+                    `destination` TEXT NOT NULL DEFAULT 'local',
+                    `calendarEventId` INTEGER,
+                    `createdAt` INTEGER NOT NULL,
+                    `notifiedAt` INTEGER,
+                    `doneAt` INTEGER
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_dueAt` ON `reminders` (`dueAt`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_contactKey` ON `reminders` (`contactKey`)")
+        }
+    }
+
     private val MIGRATION_4_5 = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -136,7 +187,9 @@ object AppModule {
         )
         return Room.databaseBuilder(context, KavachDatabase::class.java, KavachDatabase.NAME)
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(
+                MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+            )
             // Last-resort safety net only; the real path is the migration above.
             // Swap in SQLCipher for encrypted-at-rest storage.
             // Safety net only. Real migrations exist; this exists so a schema
@@ -153,6 +206,8 @@ object AppModule {
     @Provides fun provideSpeedDialDao(db: KavachDatabase): SpeedDialDao = db.speedDialDao()
     @Provides fun provideSearchHistoryDao(db: KavachDatabase): SearchHistoryDao = db.searchHistoryDao()
     @Provides fun provideLogEventDao(db: KavachDatabase): LogEventDao = db.logEventDao()
+    @Provides fun provideCallingCardDao(db: KavachDatabase): CallingCardDao = db.callingCardDao()
+    @Provides fun provideReminderDao(db: KavachDatabase): ReminderDao = db.reminderDao()
 
     @Provides
     @Singleton

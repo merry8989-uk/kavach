@@ -38,6 +38,29 @@
 
     <!-- ==== Contacts ==== -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!--
+      Reminders in the device calendar.
+
+      These are what let a reminder be written through CalendarContract. If a
+      Google account is synced, Google Calendar is one of the calendars offered
+      and the event appears there — Kavach calls no Google API and holds no
+      Google credentials. See data/calendar/CalendarGateway.kt.
+    -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+
+    <!--
+      Deliberately NOT declared: android.permission.CAMERA.
+
+      A quirk worth knowing. If an app declares CAMERA, then firing
+      ACTION_IMAGE_CAPTURE requires the permission to be granted first — so the
+      user gets a prompt for something the camera app does anyway. If the app does
+      not declare it, the intent opens the camera directly and no prompt appears.
+
+      Kavach never reads the camera itself; it hands the job to whichever camera
+      app the user has. So the permission is left out on purpose.
+    -->
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
 
     <!-- ==== Call log ==== -->

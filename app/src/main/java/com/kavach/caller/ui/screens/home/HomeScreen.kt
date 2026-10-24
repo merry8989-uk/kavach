@@ -38,6 +38,8 @@ import javax.inject.Inject
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.kavach.caller.R
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Alarm
 
 /**
  * What Kavach is doing for you, in one screen.
@@ -190,6 +192,9 @@ fun HomeScreen(
     onOpenRecordings: () -> Unit = {},
     onOpenBlocklist: () -> Unit = {},
     onOpenFeatures: () -> Unit = {},
+    /** Open the contacts tab straight on the create form. */
+    onAddContact: () -> Unit = {},
+    onOpenReminders: () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val states by vm.states.collectAsState()
@@ -443,6 +448,14 @@ fun HomeScreen(
             SectionHeader("Go to")
         }
         item {
+            // Adding someone is the thing people come to a phone app to do, so it
+            // is on the first row rather than behind the contacts tab.
+            Row(Modifier.fillMaxWidth()) {
+                Shortcut("Add contact", Icons.Filled.PersonAdd, Modifier.weight(1f), onAddContact)
+                Spacer(Modifier.width(10.dp))
+                Shortcut("Reminders", Icons.Filled.Alarm, Modifier.weight(1f), onOpenReminders)
+            }
+            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth()) {
                 Shortcut("Blocklist", Icons.Filled.Shield, Modifier.weight(1f), onOpenBlocklist)
                 Spacer(Modifier.width(10.dp))
