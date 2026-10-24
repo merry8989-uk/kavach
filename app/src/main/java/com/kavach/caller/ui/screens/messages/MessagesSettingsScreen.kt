@@ -100,235 +100,235 @@ private fun MessagesSettingsScreenContent(
 ) {
     val s by vm.state.collectAsState()
 
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Messages settings") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                )
-            },
-    ) { pad ->
-        Column(
-            Modifier
-                .padding(pad)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-        ) {
-            Spacer(Modifier.height(8.dp))
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Messages settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+) { pad ->
+    Column(
+        Modifier
+            .padding(pad)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+    ) {
+        Spacer(Modifier.height(8.dp))
 
-            // ---------------------------------------------------------- general --
-            SectionHeader("General")
-            KavachCard {
-                ChoiceRow(
-                    title = "Choose theme",
-                    options = listOf("system" to "System", "light" to "Light", "dark" to "Dark"),
-                    selected = s.smsTheme,
-                    onSelect = vm::setTheme,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Message sounds",
-                    subtitle = "A sound when a message is sent or received.",
-                    checked = s.smsSoundsEnabled,
-                    onChange = vm::setSounds,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Group by time",
-                    subtitle = "Today, Yesterday, Older — instead of one long list.",
-                    checked = s.smsGroupByTime,
-                    onChange = vm::setGroupByTime,
-                )
-                Divider()
-                InfoRow(
-                    title = "Your country or region",
-                    value = "Detected from the SIM, used to read numbers correctly.",
-                )
-            }
+        // ---------------------------------------------------------- general --
+        SectionHeader("General")
+        KavachCard {
+            ChoiceRow(
+                title = "Choose theme",
+                options = listOf("system" to "System", "light" to "Light", "dark" to "Dark"),
+                selected = s.smsTheme,
+                onSelect = vm::setTheme,
+            )
+            Divider()
+            SwitchRow(
+                title = "Message sounds",
+                subtitle = "A sound when a message is sent or received.",
+                checked = s.smsSoundsEnabled,
+                onChange = vm::setSounds,
+            )
+            Divider()
+            SwitchRow(
+                title = "Group by time",
+                subtitle = "Today, Yesterday, Older — instead of one long list.",
+                checked = s.smsGroupByTime,
+                onChange = vm::setGroupByTime,
+            )
+            Divider()
+            InfoRow(
+                title = "Your country or region",
+                value = "Detected from the SIM, used to read numbers correctly.",
+            )
+        }
 
-            // ------------------------------------------------------ notifications --
-            SectionHeader("Notifications")
-            KavachCard {
-                ChoiceRow(
-                    title = "Bubbles",
-                    options = listOf(
-                        "all" to "All",
-                        "selected" to "Selected",
-                        "none" to "None",
-                    ),
-                    selected = s.smsBubbles,
-                    onSelect = vm::setBubbles,
-                )
-                Spacer(Modifier.height(6.dp))
+        // ------------------------------------------------------ notifications --
+        SectionHeader("Notifications")
+        KavachCard {
+            ChoiceRow(
+                title = "Bubbles",
+                options = listOf(
+                    "all" to "All",
+                    "selected" to "Selected",
+                    "none" to "None",
+                ),
+                selected = s.smsBubbles,
+                onSelect = vm::setBubbles,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                when (s.smsBubbles) {
+                    "all" -> "Every conversation can float over other apps."
+                    "selected" -> "Only conversations you mark can float over other apps."
+                    else -> "Conversations stay in the notification shade."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // ------------------------------------------------------------ sending --
+        SectionHeader("Sending")
+        KavachCard {
+            SwitchRow(
+                title = "Delivery reports",
+                subtitle = "Ask the carrier to confirm each message reached the handset.",
+                checked = s.smsDeliveryReports,
+                onChange = vm::setDeliveryReports,
+            )
+            // Said plainly, because "read receipt" is what people expect from
+            // the word and it is not what this is.
+            Text(
+                "A delivery report says the handset received it. It never says a " +
+                    "person read it — nothing in SMS can, and a setting that claimed " +
+                    "otherwise would be making it up.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Divider()
+            SwitchRow(
+                title = "Retry automatically",
+                subtitle = "Send again if the first attempt fails.",
+                checked = s.smsAutoRetry,
+                onChange = vm::setAutoRetry,
+            )
+            Divider()
+            SwitchRow(
+                title = "Auto-reply",
+                subtitle = "Answer incoming messages with a set text, without asking.",
+                checked = s.autoReplyEnabled,
+                onChange = vm::setAutoReply,
+            )
+        }
+
+        // ------------------------------------------------------------ safety --
+        SectionHeader("Protection and safety")
+        KavachCard {
+            SwitchRow(
+                title = "Warn about spam",
+                subtitle = "Flag a conversation Kavach thinks is unwanted.",
+                checked = s.smsWarnOnSpam,
+                onChange = vm::setSpamWarnings,
+            )
+            Divider()
+            SwitchRow(
+                title = "Warn about links",
+                subtitle = "Check a link before you tap it and say what it is.",
+                checked = s.smsWarnOnLinks,
+                onChange = vm::setLinkWarnings,
+            )
+            Divider()
+            SwitchRow(
+                title = "Show one-time-code banners",
+                subtitle = "Pull the code out of a message so it is easy to copy.",
+                checked = s.smsShowOtpBanner,
+                onChange = vm::setOtpBanner,
+            )
+        }
+
+        // ---------------------------------------------------------- media --
+        SectionHeader("Attachments")
+        KavachCard {
+            // The stock app has auto-download settings here. Kavach does not
+            // read MMS at all, so there is nothing to download and no switch
+            // to offer — the same reasoning as the RCS card below.
+            Text(
+                "Kavach reads SMS, not MMS. Picture messages are not shown here, so " +
+                    "there is nothing to auto-download and no setting for it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // ------------------------------------------------------- swipe actions --
+        SectionHeader("Swipe actions")
+        KavachCard {
+            ChoiceRow(
+                title = "Swiping a conversation",
+                options = listOf(
+                    "archive" to "Archive",
+                    "delete" to "Bin",
+                    "none" to "Nothing",
+                ),
+                selected = s.smsSwipeAction,
+                onSelect = vm::setSwipeAction,
+            )
+        }
+
+        // ------------------------------------------------------ rich messaging --
+        SectionHeader("Rich messaging")
+        KavachCard {
+            // **This is the honest card.**
+            //
+            // The stock app has an "RCS chats" screen with read receipts,
+            // typing indicators and automatic fallback to SMS. Kavach cannot
+            // offer any of that, and the reason is not a missing feature.
+            Text(
+                "RCS is not available in Kavach, and cannot be.",
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "RCS needs carrier support and a Google-operated backend. Google " +
+                    "Messages has it because Google runs both ends. A messaging app " +
+                    "installed from outside cannot switch it on, and a screen of " +
+                    "toggles that did nothing would be worse than this paragraph.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "What does work here:",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            listOf(
+                "Plain SMS and MMS, through your carrier",
+                "Delivery reports, above — the only receipt SMS has",
+                "Link checking before you tap",
+                "One-time-code detection",
+                "Auto-reply and suggested replies",
+            ).forEach { line ->
                 Text(
-                    when (s.smsBubbles) {
-                        "all" -> "Every conversation can float over other apps."
-                        "selected" -> "Only conversations you mark can float over other apps."
-                        else -> "Conversations stay in the notification shade."
-                    },
+                    "· $line",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
 
-            // ------------------------------------------------------------ sending --
-            SectionHeader("Sending")
-            KavachCard {
-                SwitchRow(
-                    title = "Delivery reports",
-                    subtitle = "Ask the carrier to confirm each message reached the handset.",
-                    checked = s.smsDeliveryReports,
-                    onChange = vm::setDeliveryReports,
-                )
-                // Said plainly, because "read receipt" is what people expect from
-                // the word and it is not what this is.
-                Text(
-                    "A delivery report says the handset received it. It never says a " +
-                        "person read it — nothing in SMS can, and a setting that claimed " +
-                        "otherwise would be making it up.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Retry automatically",
-                    subtitle = "Send again if the first attempt fails.",
-                    checked = s.smsAutoRetry,
-                    onChange = vm::setAutoRetry,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Auto-reply",
-                    subtitle = "Answer incoming messages with a set text, without asking.",
-                    checked = s.autoReplyEnabled,
-                    onChange = vm::setAutoReply,
-                )
-            }
-
-            // ------------------------------------------------------------ safety --
-            SectionHeader("Protection and safety")
-            KavachCard {
-                SwitchRow(
-                    title = "Warn about spam",
-                    subtitle = "Flag a conversation Kavach thinks is unwanted.",
-                    checked = s.smsWarnOnSpam,
-                    onChange = vm::setSpamWarnings,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Warn about links",
-                    subtitle = "Check a link before you tap it and say what it is.",
-                    checked = s.smsWarnOnLinks,
-                    onChange = vm::setLinkWarnings,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Show one-time-code banners",
-                    subtitle = "Pull the code out of a message so it is easy to copy.",
-                    checked = s.smsShowOtpBanner,
-                    onChange = vm::setOtpBanner,
-                )
-            }
-
-            // ---------------------------------------------------------- media --
-            SectionHeader("Attachments")
-            KavachCard {
-                // The stock app has auto-download settings here. Kavach does not
-                // read MMS at all, so there is nothing to download and no switch
-                // to offer — the same reasoning as the RCS card below.
-                Text(
-                    "Kavach reads SMS, not MMS. Picture messages are not shown here, so " +
-                        "there is nothing to auto-download and no setting for it.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // ------------------------------------------------------- swipe actions --
-            SectionHeader("Swipe actions")
-            KavachCard {
-                ChoiceRow(
-                    title = "Swiping a conversation",
-                    options = listOf(
-                        "archive" to "Archive",
-                        "delete" to "Bin",
-                        "none" to "Nothing",
-                    ),
-                    selected = s.smsSwipeAction,
-                    onSelect = vm::setSwipeAction,
-                )
-            }
-
-            // ------------------------------------------------------ rich messaging --
-            SectionHeader("Rich messaging")
-            KavachCard {
-                // **This is the honest card.**
-                //
-                // The stock app has an "RCS chats" screen with read receipts,
-                // typing indicators and automatic fallback to SMS. Kavach cannot
-                // offer any of that, and the reason is not a missing feature.
-                Text(
-                    "RCS is not available in Kavach, and cannot be.",
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "RCS needs carrier support and a Google-operated backend. Google " +
-                        "Messages has it because Google runs both ends. A messaging app " +
-                        "installed from outside cannot switch it on, and a screen of " +
-                        "toggles that did nothing would be worse than this paragraph.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "What does work here:",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(4.dp))
-                listOf(
-                    "Plain SMS and MMS, through your carrier",
-                    "Delivery reports, above — the only receipt SMS has",
-                    "Link checking before you tap",
-                    "One-time-code detection",
-                    "Auto-reply and suggested replies",
-                ).forEach { line ->
+        // --------------------------------------------------------------- spam --
+        SectionHeader("Blocked")
+        KavachCard {
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Spam and blocked", color = MaterialTheme.colorScheme.onSurface)
                     Text(
-                        "· $line",
+                        "Numbers Kavach blocks, and what it has filtered.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                TextButtonish("Open") { onOpenSpamBlocked() }
             }
-
-            // --------------------------------------------------------------- spam --
-            SectionHeader("Blocked")
-            KavachCard {
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Spam and blocked", color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            "Numbers Kavach blocks, and what it has filtered.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    TextButtonish("Open") { onOpenSpamBlocked() }
-                }
-            }
-
-            Spacer(Modifier.height(28.dp))
         }
+
+        Spacer(Modifier.height(28.dp))
     }
+}
 }
 
 @Composable
