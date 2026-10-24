@@ -30,6 +30,7 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
     @Inject lateinit var settings: SettingsRepository
     @Inject lateinit var sender: SmsSender
     @Inject lateinit var diagnostics: DiagnosticsRepository
+    @Inject lateinit var notifier: MessageNotifier
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -52,6 +53,14 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
             // its defaults — reading the flow waits for the real values.
             val current = settings.settings.first()
 
+            // Notify first, before the auto-reply decides whether to return.
+            //
+            // The notifier does nothing unless Kavach is the default SMS app, and
+            // that check is inside it rather than here: when Kavach is not the
+            // default the system app already notified, and a second notification
+            // for one message is worse than none.
+            runCatching { notifier.notifyMessage(senderNumber, body) }
+
             if (!current.autoReplyEnabled) return@launch
             // Never bounce off our own reply.
             if (body.trim() == current.autoReplyText.trim()) return@launch
@@ -61,7 +70,19 @@ class SmsAutoReplyReceiver : BroadcastReceiver() {
                 return@launch
             }
 
-            when (val result = sender.send(senderNumber, current.autoReplyText)) {
+            when (
+                val result = sender.send(
+                    address = senderNumber,
+                    text = current.autoReplyText,
+                    // No delivery reports and no retry for an automatic reply.
+                    // Nobody is watching this send, so a delivery report has
+                    // nothing to report to, and a retry on a failure nobody can
+                    // see is just a second message the user did not ask for.
+                    deliveryReports = false,
+                    autoRetry = false,
+                )
+            ) {
+                is SmsSender.Result.Queued -> diagnostics.autoReply(outcome = "success")
                 is SmsSender.Result.Sent -> diagnostics.autoReply(outcome = "success")
                 is SmsSender.Result.Failed ->
                     diagnostics.autoReply(outcome = "failed", errorCode = result.reason.take(60))

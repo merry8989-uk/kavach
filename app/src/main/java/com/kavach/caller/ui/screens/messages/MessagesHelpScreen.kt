@@ -32,17 +32,20 @@ import com.kavach.caller.ui.components.SectionHeader
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesHelpScreen(onBack: () -> Unit) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Messages help") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
+    MessagesTheme {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Messages help") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            }
+    }
+,
     ) { pad ->
         Column(
             Modifier

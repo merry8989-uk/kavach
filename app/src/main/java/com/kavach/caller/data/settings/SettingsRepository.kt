@@ -61,8 +61,7 @@ class SettingsRepository @Inject constructor(
         val smsSwipeAction = stringPreferencesKey("sms_swipe_action")
         val smsLinkPreviews = booleanPreferencesKey("sms_link_previews")
         val smsGroupByTime = booleanPreferencesKey("sms_group_by_time")
-        val smsAutoDownloadMms = booleanPreferencesKey("sms_auto_download_mms")
-        val smsAutoDownloadRoaming = booleanPreferencesKey("sms_auto_download_roaming")
+        val bubbledSmsThreads = stringSetPreferencesKey("bubbled_sms_threads")
         val archivedSmsThreads = stringSetPreferencesKey("archived_sms_threads")
         val binnedSmsThreads = stringSetPreferencesKey("binned_sms_threads")
         val smsMarkedAllReadAt = longPreferencesKey("sms_marked_all_read_at")
@@ -129,8 +128,7 @@ class SettingsRepository @Inject constructor(
             smsSwipeAction = (p[Keys.smsSwipeAction] ?: "archive").takeIf { it in SMS_SWIPE } ?: "archive",
             smsLinkPreviews = p[Keys.smsLinkPreviews] ?: true,
             smsGroupByTime = p[Keys.smsGroupByTime] ?: true,
-            smsAutoDownloadMms = p[Keys.smsAutoDownloadMms] ?: false,
-            smsAutoDownloadRoaming = p[Keys.smsAutoDownloadRoaming] ?: false,
+            bubbledSmsThreads = p[Keys.bubbledSmsThreads] ?: emptySet(),
             archivedSmsThreads = p[Keys.archivedSmsThreads] ?: emptySet(),
             binnedSmsThreads = p[Keys.binnedSmsThreads] ?: emptySet(),
             smsMarkedAllReadAt = p[Keys.smsMarkedAllReadAt] ?: 0L,
@@ -209,12 +207,10 @@ class SettingsRepository @Inject constructor(
         it[Keys.smsGroupByTime] = enabled
     }
 
-    suspend fun setSmsAutoDownloadMms(enabled: Boolean) = context.dataStore.edit {
-        it[Keys.smsAutoDownloadMms] = enabled
-    }
-
-    suspend fun setSmsAutoDownloadRoaming(enabled: Boolean) = context.dataStore.edit {
-        it[Keys.smsAutoDownloadRoaming] = enabled
+    /** Allow or stop a conversation floating as a bubble. */
+    suspend fun setThreadBubbled(address: String, bubbled: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.bubbledSmsThreads] ?: emptySet()
+        prefs[Keys.bubbledSmsThreads] = if (bubbled) current + address else current - address
     }
 
     /** Archive a conversation, or take it out of the archive. */

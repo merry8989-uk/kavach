@@ -240,6 +240,19 @@
         </receiver>
 
         <!-- Shares the downloaded update APK and the diagnostics log -->
+        <!--
+          The two SMS acknowledgements. Not exported: only the platform sends
+          these, and the intents are addressed to this app explicitly.
+        -->
+        <receiver
+            android:name=".data.system.SmsDeliveryReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="kavach.sms.SENT" />
+                <action android:name="kavach.sms.DELIVERED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

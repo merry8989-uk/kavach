@@ -166,11 +166,14 @@ data class AppSettings(
     /** Group the conversation list into Today / Yesterday / Older. */
     val smsGroupByTime: Boolean = true,
 
-    /** Fetch MMS attachments without asking. */
-    val smsAutoDownloadMms: Boolean = false,
-
-    /** ...and while roaming, where it costs money. Off regardless of the above. */
-    val smsAutoDownloadRoaming: Boolean = false,
+    /**
+     * Conversations the user allowed to bubble.
+     *
+     * Only consulted when the bubble setting is "selected". Without it that
+     * option had nothing to select, so it behaved like "none" while claiming to
+     * be a middle ground.
+     */
+    val bubbledSmsThreads: Set<String> = emptySet(),
 
     /** Conversations the user archived. */
     val archivedSmsThreads: Set<String> = emptySet(),

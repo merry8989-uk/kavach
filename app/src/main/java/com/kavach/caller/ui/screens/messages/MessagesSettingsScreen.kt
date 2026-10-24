@@ -61,8 +61,6 @@ class MessagesSettingsViewModel @Inject constructor(
     fun setSwipeAction(v: String) = viewModelScope.launch { settings.setSmsSwipeAction(v) }
     fun setLinkPreviews(v: Boolean) = viewModelScope.launch { settings.setSmsLinkPreviews(v) }
     fun setGroupByTime(v: Boolean) = viewModelScope.launch { settings.setSmsGroupByTime(v) }
-    fun setAutoDownloadMms(v: Boolean) = viewModelScope.launch { settings.setSmsAutoDownloadMms(v) }
-    fun setAutoDownloadRoaming(v: Boolean) = viewModelScope.launch { settings.setSmsAutoDownloadRoaming(v) }
     fun setSpamWarnings(v: Boolean) = viewModelScope.launch { settings.setSmsWarnOnSpam(v) }
     fun setLinkWarnings(v: Boolean) = viewModelScope.launch { settings.setSmsWarnOnLinks(v) }
     fun setOtpBanner(v: Boolean) = viewModelScope.launch { settings.setSmsShowOtpBanner(v) }
@@ -89,17 +87,20 @@ fun MessagesSettingsScreen(
 ) {
     val s by vm.state.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Messages settings") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
+    MessagesTheme {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Messages settings") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            }
+    }
+,
     ) { pad ->
         Column(
             Modifier
@@ -224,27 +225,17 @@ fun MessagesSettingsScreen(
                 )
             }
 
-            // ------------------------------------------------------------- media --
+            // ---------------------------------------------------------- media --
             SectionHeader("Attachments")
             KavachCard {
-                SwitchRow(
-                    title = "Download over mobile data",
-                    subtitle = "Fetch picture messages without waiting for Wi-Fi.",
-                    checked = s.smsAutoDownloadMms,
-                    onChange = vm::setAutoDownloadMms,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Download while roaming",
-                    subtitle = "Charges may apply.",
-                    checked = s.smsAutoDownloadRoaming,
-                    // Off and staying off unless asked twice: this is the one
-                    // setting here that can cost the user money without them
-                    // noticing.
-                    onChange = { enabled ->
-                        vm.setAutoDownloadRoaming(enabled)
-                        if (enabled) vm.setAutoDownloadMms(true)
-                    },
+                // The stock app has auto-download settings here. Kavach does not
+                // read MMS at all, so there is nothing to download and no switch
+                // to offer — the same reasoning as the RCS card below.
+                Text(
+                    "Kavach reads SMS, not MMS. Picture messages are not shown here, so " +
+                        "there is nothing to auto-download and no setting for it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

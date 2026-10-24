@@ -290,6 +290,20 @@ class MessagesViewModel @Inject constructor(
     fun emptyBin() = viewModelScope.launch { settings.emptyBin() }
 
     /**
+     * Allow or stop this conversation bubbling.
+     *
+     * Only offered when the bubble setting is "selected" — with "all" it is
+     * already true and with "none" it cannot be turned on, so a control there
+     * would be one that does nothing.
+     */
+    fun toggleBubbled(address: String) = viewModelScope.launch {
+        val now = settings.snapshot.bubbledSmsThreads
+        settings.setThreadBubbled(address, address !in now)
+    }
+
+    fun isBubbled(address: String): Boolean = address in settings.snapshot.bubbledSmsThreads
+
+    /**
      * Mark everything read.
      *
      * Stored as a timestamp rather than by clearing a flag on each message,
@@ -300,6 +314,9 @@ class MessagesViewModel @Inject constructor(
     fun markAllRead() = viewModelScope.launch {
         settings.setMarkedAllReadAt(System.currentTimeMillis())
     }
+
+    /** Whether the list shows Today / Yesterday / Older seams. */
+    fun groupByTime(): Boolean = settings.snapshot.smsGroupByTime
 
     /** What a swipe does right now — "none" disables the gesture entirely. */
     fun currentSwipeAction(): String = settings.snapshot.smsSwipeAction
@@ -403,7 +420,39 @@ class MessagesViewModel @Inject constructor(
     fun send(context: Context, address: String, text: String) {
         if (text.isBlank()) return
         viewModelScope.launch {
-            when (val result = withContext(Dispatchers.IO) { sender.send(address, text) }) {
+            val prefs = settings.snapshot
+            when (
+                val result = withContext(Dispatchers.IO) {
+                    sender.send(
+                        address = address,
+                        text = text,
+                        deliveryReports = prefs.smsDeliveryReports,
+                        autoRetry = prefs.smsAutoRetry,
+                    )
+                }
+            ) {
+                // Queued rather than Sent: the radio has the message, and whether
+                // it accepted it arrives separately. Saying "sent" here would be
+                // claiming something the app does not know yet.
+                is SmsSender.Result.Queued -> {
+                    if (prefs.smsSoundsEnabled) playSendSound(context)
+                    _sent.value = _sent.value + SmsReader.Sms(
+                        id = -System.currentTimeMillis(),
+                        address = address,
+                        body = text,
+                        date = System.currentTimeMillis(),
+                        type = Telephony.Sms.MESSAGE_TYPE_SENT,
+                        read = true,
+                    )
+                    status = if (prefs.smsDeliveryReports) {
+                        "Sending. You will be told when the network accepts it."
+                    } else {
+                        "Sending…"
+                    }
+                    openThread(address)
+                    refresh()
+                }
+
                 is SmsSender.Result.Sent -> {
                     _sent.value = _sent.value + SmsReader.Sms(
                         id = -System.currentTimeMillis(),
@@ -483,12 +532,36 @@ class MessagesViewModel @Inject constructor(
     }
 }
 
+/**
+ * Messaging, in the theme the user chose for it.
+ *
+ * The body is a separate composable so the theme wraps all of it — including the
+ * conversation view, which is a different branch and would otherwise be the one
+ * screen in the app that ignored the setting.
+ */
 @Composable
 fun MessagesScreen(
     onOpenSettings: () -> Unit = {},
     onOpenBlocklist: () -> Unit = {},
     onOpenHelp: () -> Unit = {},
     vm: MessagesViewModel = hiltViewModel(),
+) {
+    MessagesTheme {
+        MessagesScreenContent(
+            onOpenSettings = onOpenSettings,
+            onOpenBlocklist = onOpenBlocklist,
+            onOpenHelp = onOpenHelp,
+            vm = vm,
+        )
+    }
+}
+
+@Composable
+private fun MessagesScreenContent(
+    onOpenSettings: () -> Unit,
+    onOpenBlocklist: () -> Unit,
+    onOpenHelp: () -> Unit,
+    vm: MessagesViewModel,
 ) {
     val context = LocalContext.current
     val visibleThreads by vm.visibleThreads.collectAsState()
@@ -514,6 +587,7 @@ fun MessagesScreen(
     val mailbox by vm.mailbox.collectAsState()
     // Read once for the gesture, so the swipe knows whether it does anything.
     val swipeAction by remember { derivedStateOf { vm.currentSwipeAction() } }
+    val groupByTime by remember { derivedStateOf { vm.groupByTime() } }
 
     val current = open
     if (current == null) {
@@ -677,7 +751,35 @@ fun MessagesScreen(
                     }
 
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(visibleThreads, key = { it.address }) { t ->
+                        // Grouping is a display choice, so it is applied here
+                        // rather than in the query. The threads arrive in one
+                        // order either way; this only decides whether the user
+                        // sees the seams.
+                        //
+                        // Flattened into one list of rows rather than nested
+                        // `items` calls, so the long thread row below is written
+                        // once instead of twice.
+                        items(
+                            threadRows(visibleThreads, groupByTime),
+                            key = { row ->
+                                when (row) {
+                                    is ThreadRow.Header -> "header-${row.label}"
+                                    is ThreadRow.Item -> row.thread.address
+                                }
+                            },
+                        ) { row ->
+                            if (row is ThreadRow.Header) {
+                                Text(
+                                    row.label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(
+                                        start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp,
+                                    ),
+                                )
+                                return@items
+                            }
+                            val t = (row as ThreadRow.Item).thread
                             val result = threadClassified[t.address]
 
                             // Swipe, doing whatever the user chose in settings.
@@ -1081,5 +1183,59 @@ private fun forward(context: Context, body: String) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
         )
+    }
+}
+
+
+/**
+ * Split threads into Today / Yesterday / Older.
+ *
+ * Days are compared by calendar date, not by a 24-hour window: something sent at
+ * 11pm is "Yesterday" at 1am, not "23 hours ago" — which is what a millisecond
+ * difference would call it.
+ */
+private fun bucketByDay(
+    threads: List<SmsReader.Thread>,
+): List<Pair<String, List<SmsReader.Thread>>> {
+    val today = java.util.Calendar.getInstance()
+    val yesterday = (today.clone() as java.util.Calendar).apply {
+        add(java.util.Calendar.DAY_OF_YEAR, -1)
+    }
+
+    fun sameDay(cal: java.util.Calendar, at: Long): Boolean {
+        val other = java.util.Calendar.getInstance().apply { timeInMillis = at }
+        return cal.get(java.util.Calendar.YEAR) == other.get(java.util.Calendar.YEAR) &&
+            cal.get(java.util.Calendar.DAY_OF_YEAR) == other.get(java.util.Calendar.DAY_OF_YEAR)
+    }
+
+    val buckets = linkedMapOf<String, MutableList<SmsReader.Thread>>()
+    threads.forEach { thread ->
+        val label = when {
+            sameDay(today, thread.date) -> "Today"
+            sameDay(yesterday, thread.date) -> "Yesterday"
+            else -> "Older"
+        }
+        buckets.getOrPut(label) { mutableListOf() } += thread
+    }
+    // Fixed order, so an empty bucket never reshuffles the list.
+    return listOf("Today", "Yesterday", "Older")
+        .mapNotNull { label -> buckets[label]?.let { label to it.toList() } }
+}
+
+
+/** A row in the conversation list: a date seam, or a conversation. */
+private sealed interface ThreadRow {
+    data class Header(val label: String) : ThreadRow
+    data class Item(val thread: SmsReader.Thread) : ThreadRow
+}
+
+/** Threads, with date seams when the user asked for them. */
+private fun threadRows(
+    threads: List<SmsReader.Thread>,
+    grouped: Boolean,
+): List<ThreadRow> {
+    if (!grouped) return threads.map { ThreadRow.Item(it) }
+    return bucketByDay(threads).flatMap { (label, bucket) ->
+        listOf(ThreadRow.Header(label)) + bucket.map { ThreadRow.Item(it) }
     }
 }
