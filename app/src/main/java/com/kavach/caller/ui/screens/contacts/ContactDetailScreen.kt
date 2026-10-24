@@ -382,7 +382,9 @@ fun ContactDetailScreen(
 private fun ActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    enabled: Boolean,
+    // Defaulted rather than required: sharing a contact needs nothing to be
+    // available, and forcing a caller to write `enabled = true` says otherwise.
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {

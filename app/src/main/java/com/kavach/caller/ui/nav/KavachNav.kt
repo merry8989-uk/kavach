@@ -68,6 +68,8 @@ import com.kavach.caller.ui.screens.updates.UpdateBanner
 import com.kavach.caller.ui.screens.updates.UpdateViewModel
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.animation.ExitTransition
+import com.kavach.caller.ui.screens.callingcard.CallingCardScreen
+import com.kavach.caller.ui.screens.reminders.RemindersScreen
 
 private data class Tab(
     val route: String,

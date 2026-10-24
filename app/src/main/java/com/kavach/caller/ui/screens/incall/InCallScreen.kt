@@ -38,6 +38,7 @@ import com.kavach.caller.util.PhoneUtils
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import androidx.hilt.navigation.compose.hiltViewModel
 
 private val AnswerGreen = Color(0xFF8FE39B)
 private val AnswerGreenContent = Color(0xFF0B2B12)
