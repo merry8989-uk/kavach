@@ -1,0 +1,41 @@
+{
+  // A GitHub Codespace that runs the Kavach server.
+  //
+  // This is the most literal reading of "run the server on GitHub": open the
+  // repository in a Codespace and the backend is up, on a forwarded URL, without
+  // installing anything. Useful for trying the Android app against a real server,
+  // and for checking a change before deploying it anywhere.
+  //
+  // It is not a production host, and the file says so rather than leaving you to
+  // discover it: a Codespace stops when it goes idle and is deleted after its
+  // retention window. Good for testing, wrong for anything that has to answer.
+  "name": "Kavach server",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
+
+  "features": {
+    // Codespaces gives a Postgres for the life of the codespace.
+    "ghcr.io/devcontainers/features/postgres:1": {}
+  },
+
+  "postCreateCommand": "pip install --user -r backend/requirements.txt && bash .devcontainer/start.sh --prepare-only",
+
+  // 8000 is the API; 5173 is left free for a dashboard later.
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "8000": { "label": "Kavach API", "visibility": "public" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-python.vscode-pylance"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      }
+    }
+  },
+
+  // Not started automatically: a server that is already running when you open the
+  // terminal hides the startup output, and the first thing anyone does with a new
+  // deployment is read it. `bash .devcontainer/start.sh` starts it.
+  "postAttachCommand": "echo '\\n  Run the server:  bash .devcontainer/start.sh\\n  It listens on 8000 and the URL is in the Ports tab.\\n'"
+}

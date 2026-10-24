@@ -1,0 +1,76 @@
+# One-click deploy to Render, straight from this repository.
+#
+# Render reads this file when you point it at the repo, so the whole deployment —
+# web service and database together — is one button rather than a list of things
+# to type. The image it runs is the same one the Server Release workflow publishes
+# to ghcr.io, so what deploys here is what CI tested.
+#
+#   1. Render dashboard → New → Blueprint
+#   2. Pick merry8989-uk/kavach
+#   3. It reads this file and asks for the secrets marked `sync: false`
+#
+# Generate the three secrets with:
+#   python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+#
+# ## What this does not do
+#
+# It does not configure an SMS provider. Without one, sign-in cannot deliver a
+# code — and the server starts anyway, with the endpoints answering 503, because
+# a missing optional provider should not take caller lookup down with it. That is
+# the point of the split between `unsafe_configuration` and
+# `unconfigured_features` in backend/app/config.py.
+#
+# Render's free Postgres expires after 90 days. Fine for trying it; use a paid
+# instance or another host for anything you rely on.
+
+services:
+  - type: web
+    name: kavach-server
+    runtime: image
+    image:
+      url: ghcr.io/merry8989-uk/kavach-server:latest
+    plan: free
+    healthCheckPath: /health
+    # The database has to exist before the service starts, or the first boot
+    # races the migration.
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kavach-db
+          property: connectionString
+      - key: AUTO_CREATE_TABLES
+        value: "false"
+      - key: ALLOW_SHARED_TOKEN
+        value: "false"
+      - key: OTP_DEBUG_RETURN
+        value: "false"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+
+      # Secrets. `sync: false` means Render asks for them rather than inventing
+      # them, because a generated value the app never learns is useless.
+      - key: API_TOKEN
+        sync: false
+      - key: PHONE_PEPPER
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+
+      # Optional. Left unset the server still runs; sign-in answers 503 and the
+      # gap is logged at boot.
+      - key: SMS_PROVIDER
+        sync: false
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_SENDER_ID
+        sync: false
+      - key: MSG91_TEMPLATE_ID
+        sync: false
+
+databases:
+  - name: kavach-db
+    plan: free
+    databaseName: kavach
+    user: kavach

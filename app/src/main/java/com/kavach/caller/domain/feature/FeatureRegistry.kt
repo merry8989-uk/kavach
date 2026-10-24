@@ -52,8 +52,11 @@ class FeatureRegistry @Inject constructor(
                 id = id,
                 enabled = enabled,
                 status = FeatureStatus.UNAVAILABLE,
-                reason = "No Kavach server is configured. Add the server URL in Settings, " +
-                    "or self-host the backend in this repository.",
+                reason = "Needs a Kavach server, and none is configured. The repository " +
+                    "has three ways to get one, all free: a one-click deploy on Render " +
+                    "(render.yaml), a GitHub Codespace (.devcontainer/), or your own machine " +
+                    "(backend/self-host.sh). Then add the URL under Settings, Self-hosted " +
+                    "lookup. See docs/DEPLOY-FREE.md.",
             )
         }
 

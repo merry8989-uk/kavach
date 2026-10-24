@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from . import models  # noqa: F401  (register models with Base.metadata)
 from .config import get_settings
-from .logging import attach_log_shipping, configure_logging, request_logging_middleware
+from .logging import attach_log_shipping, configure_logging, log, request_logging_middleware
 from .db import Base, get_engine
 from .routers import (
     account, ai, app_auth, appeals, auth, businesses, lookup, me, reports, telemetry,
@@ -25,12 +25,25 @@ async def lifespan(app: FastAPI):
 
     # Refuse to serve with development defaults in production. A server that
     # starts with a published secret is worse than one that does not start.
+    #
+    # Only *unsafe* configuration stops the process. A missing optional provider
+    # is a feature that does not work, not a reason to take the whole server down
+    # — see Settings.unconfigured_features, which is where the SMS provider moved
+    # after it was found to be blocking deployments it had nothing to do with.
     if settings.is_production:
-        problems = settings.validate_for_production()
-        if problems:
+        unsafe = settings.unsafe_configuration()
+        if unsafe:
             raise RuntimeError(
                 "Refusing to start in production with an unsafe configuration:\n  - "
-                + "\n  - ".join(problems)
+                + "\n  - ".join(unsafe)
+            )
+
+        for gap in settings.unconfigured_features():
+            log(
+                "infrastructure",
+                "starting with an unconfigured feature",
+                level="warn",
+                problem=gap,
             )
 
     if settings.auto_create_tables:

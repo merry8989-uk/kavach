@@ -72,6 +72,27 @@ One command: generates secrets, writes a mode-600 `.env`, builds the image,
 starts Postgres + Redis + the API, waits until it is healthy, and prints what to
 paste into **Settings → Self-hosted lookup**. Guide: [SELF-HOST.md](SELF-HOST.md).
 
+## Getting a server
+
+Three features — verified profile, community reports, online caller lookup — need
+a server, because they need a shared database. No amount of local work makes them
+function.
+
+All three of these are free, and the guide is
+[docs/DEPLOY-FREE.md](docs/DEPLOY-FREE.md):
+
+| | |
+|---|---|
+| **Render, one click** | `render.yaml` — the web service and database are created together |
+| **GitHub Codespace** | `.devcontainer/` — `bash .devcontainer/start.sh` |
+| **Your own machine** | `bash backend/self-host.sh` |
+
+Then **Settings → Self-hosted lookup** in the app.
+
+Sign-in additionally needs an SMS gateway, which is a paid account. Until one is
+configured the server still runs and the sign-in endpoints answer 503 — a missing
+optional provider does not take caller lookup down with it.
+
 ## Monitoring
 
 The server ships its own logs — latency, error rates, provider failures — to a

@@ -95,12 +95,16 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment.strip().lower() in {"production", "prod"}
 
-    def validate_for_production(self) -> list[str]:
-        """Return the reasons this configuration must not be deployed.
+    def unsafe_configuration(self) -> list[str]:
+        """Reasons this server must not be started in production **at all**.
 
-        Shipping with a documented default secret is worse than not shipping:
-        the values below are in the public repository, so anyone could mint a
-        token or reverse a phone hash. An empty list means it is safe to run.
+        Shipping with a documented default secret is worse than not shipping: the
+        values below are in the public repository, so anyone could mint a token or
+        reverse a phone hash. These are the only reasons that stop the process.
+
+        Kept separate from [unconfigured_features] because the two are different
+        kinds of problem and were treated as one for a long time — see the note
+        there.
         """
         problems: list[str] = []
 
@@ -132,18 +136,46 @@ class Settings(BaseSettings):
                 "APK, so accepting it everywhere makes it public",
             )
 
-        # Without a gateway, nobody can sign in. Better to refuse at boot than to
-        # serve a login endpoint that always returns a code nobody receives.
-        from .sms import is_configured, missing_settings, provider_name
+        return problems
+
+    def unconfigured_features(self) -> list[str]:
+        """Features that will not work, on a server that is safe to run anyway.
+
+        **This is the correction of a real mistake.** A missing SMS provider used
+        to be in the list above, so a server with no gateway refused to start —
+        which meant that caller lookup, spam reputation and business claims, none
+        of which touch SMS, were all taken down by an optional provider nobody had
+        configured yet.
+
+        That is the wrong trade. An unconfigured provider is a feature that does
+        not work; the endpoints for it answer 503, which is what they already do
+        for the AI providers. Taking the whole process down is not safer, it is
+        just less useful — and a deployment that cannot be completed is a
+        deployment that gets abandoned, which is its own kind of unsafe.
+
+        These are logged loudly at boot so the gap is visible rather than
+        discovered later by a user who cannot sign in.
+        """
+        problems: list[str] = []
+
+        from .sms import is_configured, missing_settings
 
         if not is_configured(self):
             absent = ", ".join(missing_settings(self))
             problems.append(
                 "No working SMS provider, so OTP sign-in cannot deliver a code "
-                f"(missing: {absent})",
+                f"(missing: {absent}) — the sign-in endpoints will answer 503",
             )
 
         return problems
+
+    def validate_for_production(self) -> list[str]:
+        """Everything wrong with this configuration, unsafe first.
+
+        Kept as the single entry point so a caller that just wants "is this
+        deployable" does not have to know about the split.
+        """
+        return self.unsafe_configuration() + self.unconfigured_features()
 
     # External providers. When unset the AI endpoints return 503 rather than
     # fabricating a result.
