@@ -83,11 +83,22 @@ class MessagesSettingsViewModel @Inject constructor(
 fun MessagesSettingsScreen(
     onBack: () -> Unit,
     onOpenSpamBlocked: () -> Unit = {},
+) {
+    // The theme wraps the whole screen, so the surface behind the content is
+    // themed too rather than only what is drawn on it.
+    MessagesTheme {
+        MessagesSettingsScreenContent(onBack, onOpenSpamBlocked)
+    }
+}
+
+@Composable
+private fun MessagesSettingsScreenContent(
+    onBack: () -> Unit,
+    onOpenSpamBlocked: () -> Unit = {},
     vm: MessagesSettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.state.collectAsState()
 
-    MessagesTheme {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -98,9 +109,7 @@ fun MessagesSettingsScreen(
                         }
                     },
                 )
-            }
-    }
-,
+            },
     ) { pad ->
         Column(
             Modifier

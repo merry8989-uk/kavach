@@ -31,8 +31,18 @@ import com.kavach.caller.ui.components.SectionHeader
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessagesHelpScreen(onBack: () -> Unit) {
+fun MessagesHelpScreen(
+    onBack: () -> Unit,
+) {
+    // The theme wraps the whole screen, so the surface behind the content is
+    // themed too rather than only what is drawn on it.
     MessagesTheme {
+        MessagesHelpScreenContent(onBack)
+    }
+}
+
+@Composable
+private fun MessagesHelpScreenContent(onBack: () -> Unit) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -43,9 +53,7 @@ fun MessagesHelpScreen(onBack: () -> Unit) {
                         }
                     },
                 )
-            }
-    }
-,
+            },
     ) { pad ->
         Column(
             Modifier
