@@ -59,7 +59,6 @@ class SettingsRepository @Inject constructor(
         val smsAutoRetry = booleanPreferencesKey("sms_auto_retry")
         val smsBubbles = stringPreferencesKey("sms_bubbles")
         val smsSwipeAction = stringPreferencesKey("sms_swipe_action")
-        val smsLinkPreviews = booleanPreferencesKey("sms_link_previews")
         val smsGroupByTime = booleanPreferencesKey("sms_group_by_time")
         val bubbledSmsThreads = stringSetPreferencesKey("bubbled_sms_threads")
         val archivedSmsThreads = stringSetPreferencesKey("archived_sms_threads")
@@ -126,7 +125,6 @@ class SettingsRepository @Inject constructor(
             smsAutoRetry = p[Keys.smsAutoRetry] ?: true,
             smsBubbles = (p[Keys.smsBubbles] ?: "selected").takeIf { it in SMS_BUBBLES } ?: "selected",
             smsSwipeAction = (p[Keys.smsSwipeAction] ?: "archive").takeIf { it in SMS_SWIPE } ?: "archive",
-            smsLinkPreviews = p[Keys.smsLinkPreviews] ?: true,
             smsGroupByTime = p[Keys.smsGroupByTime] ?: true,
             bubbledSmsThreads = p[Keys.bubbledSmsThreads] ?: emptySet(),
             archivedSmsThreads = p[Keys.archivedSmsThreads] ?: emptySet(),
@@ -197,10 +195,6 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setSmsSwipeAction(value: String) = context.dataStore.edit {
         it[Keys.smsSwipeAction] = value.takeIf { v -> v in SMS_SWIPE } ?: "archive"
-    }
-
-    suspend fun setSmsLinkPreviews(enabled: Boolean) = context.dataStore.edit {
-        it[Keys.smsLinkPreviews] = enabled
     }
 
     suspend fun setSmsGroupByTime(enabled: Boolean) = context.dataStore.edit {

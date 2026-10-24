@@ -59,7 +59,6 @@ class MessagesSettingsViewModel @Inject constructor(
     fun setAutoRetry(v: Boolean) = viewModelScope.launch { settings.setSmsAutoRetry(v) }
     fun setBubbles(v: String) = viewModelScope.launch { settings.setSmsBubbles(v) }
     fun setSwipeAction(v: String) = viewModelScope.launch { settings.setSmsSwipeAction(v) }
-    fun setLinkPreviews(v: Boolean) = viewModelScope.launch { settings.setSmsLinkPreviews(v) }
     fun setGroupByTime(v: Boolean) = viewModelScope.launch { settings.setSmsGroupByTime(v) }
     fun setSpamWarnings(v: Boolean) = viewModelScope.launch { settings.setSmsWarnOnSpam(v) }
     fun setLinkWarnings(v: Boolean) = viewModelScope.launch { settings.setSmsWarnOnLinks(v) }

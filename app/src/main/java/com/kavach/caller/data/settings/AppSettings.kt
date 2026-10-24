@@ -160,9 +160,6 @@ data class AppSettings(
     /** archive | delete | none — what a swipe on a conversation does. */
     val smsSwipeAction: String = "archive",
 
-    /** Show a preview card for links in a conversation. */
-    val smsLinkPreviews: Boolean = true,
-
     /** Group the conversation list into Today / Yesterday / Older. */
     val smsGroupByTime: Boolean = true,
 
