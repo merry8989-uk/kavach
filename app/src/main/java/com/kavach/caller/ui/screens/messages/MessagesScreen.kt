@@ -258,8 +258,12 @@ class MessagesViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            settings.snapshot.collect {
-                _boxes.value = Triple(it.archivedSmsThreads, it.binnedSmsThreads, it.smsMarkedAllReadAt)
+            settings.settings.collect { snapshot ->
+                _boxes.value = Triple(
+                    snapshot.archivedSmsThreads,
+                    snapshot.binnedSmsThreads,
+                    snapshot.smsMarkedAllReadAt,
+                )
             }
         }
     }

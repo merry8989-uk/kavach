@@ -47,7 +47,10 @@ class MessagesSettingsViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     init {
-        viewModelScope.launch { settings.snapshot.collect { _state.value = it } }
+        // `settings.settings` is the Flow; `settings.snapshot` is a one-shot read.
+        // The screen needs the Flow, or a toggle would not show as changed until
+        // it was reopened.
+        viewModelScope.launch { settings.settings.collect { _state.value = it } }
     }
 
     fun setTheme(v: String) = viewModelScope.launch { settings.setSmsTheme(v) }
