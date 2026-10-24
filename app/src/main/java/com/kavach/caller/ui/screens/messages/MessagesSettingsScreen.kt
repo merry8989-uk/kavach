@@ -91,6 +91,7 @@ fun MessagesSettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessagesSettingsScreenContent(
     onBack: () -> Unit,

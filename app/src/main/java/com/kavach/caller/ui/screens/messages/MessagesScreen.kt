@@ -1239,3 +1239,18 @@ private fun threadRows(
         listOf(ThreadRow.Header(label)) + bucket.map { ThreadRow.Item(it) }
     }
 }
+
+
+/**
+ * The send sound.
+ *
+ * `FX_KEY_CLICK` is the platform's own acknowledgement tone, so it matches
+ * whatever the phone already sounds like rather than adding a noise of Kavach's
+ * own. Failure is ignored: a missing tone must never break a send.
+ */
+private fun playSendSound(context: Context) {
+    runCatching {
+        val manager = context.getSystemService(android.media.AudioManager::class.java) ?: return
+        manager.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
+    }
+}

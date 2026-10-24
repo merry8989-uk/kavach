@@ -51,10 +51,17 @@ class MessagesThemeViewModel @Inject constructor(
  */
 @Composable
 fun MessagesTheme(
-    content: @Composable () -> Unit,
     vm: MessagesThemeViewModel = hiltViewModel(),
+    // `content` last on purpose: a trailing lambda binds to the final parameter,
+    // and with it first the call `MessagesTheme { ... }` tried to pass a
+    // composable where the view model goes.
+    content: @Composable () -> Unit,
 ) {
-    val (appPack, mode) by vm.state.collectAsState()
+    // Destructured from the state value rather than the delegate — `by` on a
+    // State gives the value, and destructuring a delegate needs an initialiser.
+    val state by vm.state.collectAsState()
+    val appPack = state.first
+    val mode = state.second
     val systemIsDark = isSystemInDarkTheme()
 
     // The pack's own `isLight` decides, rather than a second list of which packs

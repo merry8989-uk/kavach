@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.telephony.SmsManager
-import android.telephony.SubscriptionManager
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -109,11 +108,10 @@ class SmsSender @Inject constructor(
         if (subscriptionId != null && subscriptionId >= 0) {
             return@runCatching SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val subs = context.getSystemService(SubscriptionManager::class.java)
-            val default = subs?.defaultSmsSubscriptionId ?: -1
-            if (default >= 0) return@runCatching SmsManager.getSmsManagerForSubscriptionId(default)
-        }
+        // `getDefaultSmsSubscriptionId` is on SmsManager — the subscription SMS
+        // runs on — not on SubscriptionManager, whose default is about data.
+        val default = SmsManager.getDefaultSmsSubscriptionId()
+        if (default >= 0) return@runCatching SmsManager.getSmsManagerForSubscriptionId(default)
         SmsManager.getDefault()
     }.getOrNull()
 
