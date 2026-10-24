@@ -125,12 +125,15 @@ class CallingCardViewModel @Inject constructor(
         }
     }
 
+    // These are `update*` rather than `set*` on purpose: `var headline by
+    // mutableStateOf(...)` already generates `setHeadline`, and a function with
+    // the same JVM signature is a compile error.
     fun setImage(uri: Uri?) { imageUri = uri?.toString(); saved = false }
     fun clearImage() { imageUri = null; saved = false }
-    fun setHeadline(value: String) { headline = value; saved = false }
-    fun setSubtitle(value: String) { subtitle = value; saved = false }
-    fun setDim(value: Boolean) { dim = value; saved = false }
-    fun setEnabled(value: Boolean) { enabled = value; saved = false }
+    fun updateHeadline(value: String) { headline = value; saved = false }
+    fun updateSubtitle(value: String) { subtitle = value; saved = false }
+    fun updateDim(value: Boolean) { dim = value; saved = false }
+    fun updateEnabled(value: Boolean) { enabled = value; saved = false }
 
     /** The headline shown when the user has not written one. */
     fun defaultHeadline(): String = "Incoming call"
@@ -327,7 +330,7 @@ fun CallingCardScreen(
 
             OutlinedTextField(
                 value = vm.headline,
-                onValueChange = vm::setHeadline,
+                onValueChange = vm::updateHeadline,
                 label = { Text("Line above the name") },
                 placeholder = { Text(vm.defaultHeadline()) },
                 singleLine = true,
@@ -336,7 +339,7 @@ fun CallingCardScreen(
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = vm.subtitle,
-                onValueChange = vm::setSubtitle,
+                onValueChange = vm::updateSubtitle,
                 label = { Text("Line under the name") },
                 placeholder = { Text("Anything you want to see when they call") },
                 singleLine = true,
@@ -349,13 +352,13 @@ fun CallingCardScreen(
                 title = "Darken the image",
                 subtitle = "Keeps the name readable over a bright photo.",
                 checked = vm.dim,
-                onChange = vm::setDim,
+                onChange = vm::updateDim,
             )
             ToggleRow(
                 title = "Use this card",
                 subtitle = "Off keeps it saved but shows the normal call screen.",
                 checked = vm.enabled,
-                onChange = vm::setEnabled,
+                onChange = vm::updateEnabled,
             )
 
             vm.savedMessage?.let { message ->
