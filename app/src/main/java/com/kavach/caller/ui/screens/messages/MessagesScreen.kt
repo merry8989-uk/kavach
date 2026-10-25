@@ -558,6 +558,9 @@ fun MessagesScreen(
     }
 }
 
+// combinedClickable is still experimental in foundation, which is why the
+// opt-in is here as well as on the wrapper.
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun MessagesScreenContent(
     onOpenSettings: () -> Unit,
