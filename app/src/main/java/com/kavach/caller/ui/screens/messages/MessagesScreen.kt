@@ -89,6 +89,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.derivedStateOf
 import kotlin.math.roundToInt
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.size
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -575,6 +577,13 @@ private fun MessagesScreenContent(
 
     var actionTarget by remember { mutableStateOf<SmsReader.Sms?>(null) }
     var confirmThreadDelete by remember { mutableStateOf<String?>(null) }
+    /**
+     * The conversation whose options are open.
+     *
+     * Long-pressing used to jump straight to "delete this thread", which offered
+     * one action and it was the destructive one. This is a menu.
+     */
+    var threadMenuFor by remember { mutableStateOf<String?>(null) }
     var draft by remember(open) { mutableStateOf("") }
 
     val smsPermissionLauncher = rememberLauncherForActivityResult(
@@ -784,24 +793,26 @@ private fun MessagesScreenContent(
 
                             // Swipe, doing whatever the user chose in settings.
                             //
-                            // Its own `pointerInput` rather than folded into the
-                            // tap detector: a gesture detector that watches for
-                            // taps and drags at once has to disambiguate them
-                            // itself, and this way the two are independent — a tap
-                            // opens the thread, a drag moves the row, and neither
-                            // has to know about the other.
+                            // **This used to be three separate gesture handlers
+                            // and it broke tapping.** `clickable` alongside a
+                            // `pointerInput { detectTapGestures(onLongPress) }`
+                            // does not give you "tap and long-press": the tap
+                            // detector consumes the down and up events whether or
+                            // not it has an `onTap`, so `clickable` never fired and
+                            // a conversation could not be opened at all.
+                            //
+                            // `combinedClickable` is the one handler that owns both
+                            // gestures properly. The drag is its own pointerInput
+                            // and does not compete, because
+                            // `detectHorizontalDragGestures` only claims the pointer
+                            // once the touch slop is passed — a plain tap never
+                            // reaches it.
                             var drag by remember(t.address) { mutableStateOf(0f) }
                             val threshold = 120f
 
                             Row(
                                 Modifier.fillMaxWidth()
                                     .offset { IntOffset(drag.roundToInt(), 0) }
-                                    .clickable { vm.openThread(t.address) }
-                                    .pointerInput(t.address) {
-                                        detectTapGestures(
-                                            onLongPress = { confirmThreadDelete = t.address },
-                                        )
-                                    }
                                     .pointerInput(t.address, swipeAction) {
                                         if (swipeAction == "none") return@pointerInput
                                         detectHorizontalDragGestures(
@@ -818,6 +829,12 @@ private fun MessagesScreenContent(
                                             drag = (drag + amount).coerceIn(-threshold * 1.6f, threshold * 1.6f)
                                         }
                                     }
+                                    .combinedClickable(
+                                        onClick = { vm.openThread(t.address) },
+                                        onClickLabel = "Open conversation",
+                                        onLongClick = { threadMenuFor = t.address },
+                                        onLongClickLabel = "Conversation options",
+                                    )
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -910,13 +927,19 @@ private fun MessagesScreenContent(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = if (incoming) Arrangement.Start else Arrangement.End,
                     ) {
+                        // The bubble used to carry a `pointerInput {
+                        // detectTapGestures(onLongPress = ...) }` wrapped around a
+                        // SelectionContainer, which meant the action sheet stole
+                        // the long-press the selection container needed — so the
+                        // sheet offered "Select part of the text" and the app made
+                        // it impossible. The gesture belongs to the selection
+                        // container; the actions are behind the ⋮ beside the
+                        // bubble, which is a thing you can actually press.
+                        Row(verticalAlignment = Alignment.Bottom) {
                         Surface(
                             color = if (incoming) MaterialTheme.colorScheme.surface
                             else MaterialTheme.colorScheme.primary,
                             shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier.pointerInput(m.id) {
-                                detectTapGestures(onLongPress = { actionTarget = m })
-                            },
                         ) {
                             // SelectionContainer is what makes partial copy work:
                             // the system selection handles appear on long-press.
@@ -928,6 +951,21 @@ private fun MessagesScreenContent(
                                     else MaterialTheme.colorScheme.onPrimary,
                                 )
                             }
+                        }
+                        // The actions, on a target you can actually hit. The
+                        // long-press belongs to text selection now, so this is
+                        // where copy, forward and delete live.
+                        IconButton(
+                            onClick = { actionTarget = m },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "Message options",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         }
                     }
                 }
@@ -1001,6 +1039,34 @@ private fun MessagesScreenContent(
             },
             confirmButton = {
                 TextButton(onClick = { actionTarget = null }) { Text(stringResource(R.string.close)) }
+            },
+        )
+    }
+
+    // ---- conversation options ----
+    threadMenuFor?.let { address ->
+        val bubbled = vm.isBubbled(address)
+        AlertDialog(
+            onDismissRequest = { threadMenuFor = null },
+            title = { Text(SenderId.displayName(address)) },
+            text = {
+                Column {
+                    MessageAction("Open") { threadMenuFor = null; vm.openThread(address) }
+                    MessageAction("Archive") { threadMenuFor = null; vm.archive(address) }
+                    if (bubbled) {
+                        MessageAction("Stop bubbling") { threadMenuFor = null; vm.toggleBubbled(address) }
+                    } else {
+                        MessageAction("Allow as a bubble") { threadMenuFor = null; vm.toggleBubbled(address) }
+                    }
+                    MessageAction("Move to bin") { threadMenuFor = null; vm.bin(address) }
+                    MessageAction("Delete from device…") {
+                        threadMenuFor = null
+                        confirmThreadDelete = address
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { threadMenuFor = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
