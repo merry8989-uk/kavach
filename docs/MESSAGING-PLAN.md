@@ -59,21 +59,21 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Feature | Kavach | Notes |
 |---|---|---|
 | Send and receive | ✅ | |
-| Delivery state | ⚠️ | tracked, not shown on the bubble |
+| Delivery state | ✅ | shown under outgoing bubbles, from the tracker |
 | Suggested replies | ✅ | |
 | Copy whole message | ✅ | |
-| **Select part of the text** | 🔧 | now actually works; it was blocked by the bug above |
+| **Select part of the text** | ❌ | **removed in v0.50.0.** See the note below: long-press now starts selection mode, and one gesture cannot do both |
 | Forward | ✅ | |
 | Delete | ⚠️ | from device needs the default-SMS role; otherwise hides |
-| **Reply / quote** | ❌ | |
+| **Reply / quote** | ✅ | the quote is carried in the sent text, not just shown on screen |
 | **Reactions** | ❌ | |
 | **Star** | ❌ | |
 | **Search within the conversation** | ❌ | |
-| **Date separators in the thread** | ❌ | |
+| **Date separators in the thread** | ✅ | by calendar day, so 11pm reads as Yesterday at 1am |
 | **Sender labels in groups** | ❌ | needs groups |
 | **Attachments (images, files)** | ❌ | MMS is not read at all |
 | **Voice notes** | ❌ | |
-| **Multi-select with a contextual bar** | ❌ | this is the pattern the user expected |
+| **Multi-select with a contextual bar** | ✅ | long-press selects, tap adds, the bar copies, forwards and deletes |
 
 ### Composing
 
@@ -125,7 +125,7 @@ Saying this once here so it does not get re-litigated on every screen.
 
 Ordered by what a person hits first, not by what is easiest.
 
-### Phase 1 — make the thread usable (next)
+### Phase 1 — make the thread usable (**done, v0.50.0**)
 
 The complaint was "I cannot select a message". Selection now works, but there is
 still no *selection mode* — the thing every messaging app has where long-press
@@ -137,6 +137,20 @@ picks a message and a bar appears with copy, forward, delete, share.
 - Delivery state shown on the bubble, using what the tracker already records
 
 **Why first:** these are what "a messaging app" means to someone opening one.
+
+#### One decision worth recording
+
+**Partial text selection was removed to make multi-select work.**
+
+`SelectionContainer` needs long-press to start selecting text. Multi-select needs
+long-press to start selecting messages. One gesture, two features, and whichever
+is wired second is dead. Every messaging app resolves this the same way — long-press
+selects the *message*, and partial text selection lives behind an action — so that
+is what happened here.
+
+The old "Select part of the text" menu item was worse than either: it showed a
+sentence telling the user to long-press text, in an app that had taken the
+long-press away from the text. It is now a **Select** action that does the thing.
 
 ### Phase 2 — the list
 

@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -91,6 +90,10 @@ import androidx.compose.runtime.derivedStateOf
 import kotlin.math.roundToInt
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.background
+import androidx.compose.ui.text.style.TextAlign
+import com.kavach.caller.data.system.SmsDeliveryTracker
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -99,7 +102,29 @@ class MessagesViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val replies: ReplySettingsRepository,
     private val blocks: BlockRepository,
+    private val delivery: SmsDeliveryTracker,
 ) : ViewModel() {
+
+    /**
+     * What happened to an outgoing message, in a word.
+     *
+     * Matched on address and body because the tracker is keyed by the reference
+     * the platform hands back, and a locally-stored sent message does not carry
+     * one. That is a real limitation and it is why the label is a best effort
+     * rather than a guarantee — an identical message sent twice would show the
+     * most recent attempt's state, which is the one the user cares about.
+     */
+    fun deliveryLabelFor(address: String, body: String): String? {
+        val record = delivery.recent.value.firstOrNull {
+            it.address == address && it.text == body
+        } ?: return null
+        return when (record.state) {
+            SmsDeliveryTracker.State.QUEUED -> "Sending…"
+            SmsDeliveryTracker.State.SENT -> "Sent"
+            SmsDeliveryTracker.State.DELIVERED -> "Delivered"
+            SmsDeliveryTracker.State.FAILED -> record.reason ?: "Not sent"
+        }
+    }
 
     /** Which category the list is filtered to. */
     enum class Filter { ALL, PERSONAL, OTP, TRANSACTIONAL, PROMOTIONAL, SPAM }
@@ -227,6 +252,9 @@ class MessagesViewModel @Inject constructor(
     }
 
     fun openThread(address: String) {
+        // A selection or a reply belongs to the conversation it was made in.
+        clearSelection()
+        clearReply()
         _open.value = address
         status = null
         viewModelScope.launch {
@@ -254,6 +282,47 @@ class MessagesViewModel @Inject constructor(
 
     fun setFilter(value: Filter) {
         _filter.value = value
+    }
+
+    // ---- selection ----
+    //
+    // Long-press starts it, tap adds to it, and the contextual bar acts on the
+    // set. This is the pattern every messaging app uses, and its absence was the
+    // complaint: there was no way to pick a message at all.
+
+    private val _selected = MutableStateFlow<Set<Long>>(emptySet())
+    val selected = _selected.asStateFlow()
+
+    fun isSelecting(): Boolean = _selected.value.isNotEmpty()
+
+    fun toggleSelected(id: Long) {
+        val current = _selected.value
+        _selected.value = if (id in current) current - id else current + id
+    }
+
+    fun clearSelection() { _selected.value = emptySet() }
+
+    /** The selected messages, in the order they appear. */
+    fun selectedMessages(): List<SmsReader.Sms> {
+        val ids = _selected.value
+        return _messages.value.filter { it.id in ids }
+    }
+
+    // ---- reply ----
+
+    private val _replyTo = MutableStateFlow<SmsReader.Sms?>(null)
+    val replyTo = _replyTo.asStateFlow()
+
+    fun setReplyTo(message: SmsReader.Sms?) { _replyTo.value = message }
+
+    fun clearReply() { _replyTo.value = null }
+
+    /** What a quoted reply looks like in the sent text. */
+    fun quotePrefix(): String {
+        val quoted = _replyTo.value ?: return ""
+        val who = if (quoted.type == Telephony.Sms.MESSAGE_TYPE_INBOX) "them" else "you"
+        val line = quoted.body.take(60).replace("\n", " ")
+        return "> $who: $line\n\n"
     }
 
     fun setMailbox(value: Mailbox) {
@@ -421,13 +490,17 @@ class MessagesViewModel @Inject constructor(
      */
     fun send(context: Context, address: String, text: String) {
         if (text.isBlank()) return
+        // A reply carries what it is replying to, because the quote is only
+        // useful to the person receiving it — keeping it on screen and not in the
+        // message would be decoration.
+        val outgoing = quotePrefix() + text
         viewModelScope.launch {
             val prefs = settings.snapshot
             when (
                 val result = withContext(Dispatchers.IO) {
                     sender.send(
                         address = address,
-                        text = text,
+                        text = outgoing,
                         deliveryReports = prefs.smsDeliveryReports,
                         autoRetry = prefs.smsAutoRetry,
                     )
@@ -441,7 +514,7 @@ class MessagesViewModel @Inject constructor(
                     _sent.value = _sent.value + SmsReader.Sms(
                         id = -System.currentTimeMillis(),
                         address = address,
-                        body = text,
+                        body = outgoing,
                         date = System.currentTimeMillis(),
                         type = Telephony.Sms.MESSAGE_TYPE_SENT,
                         read = true,
@@ -451,6 +524,7 @@ class MessagesViewModel @Inject constructor(
                     } else {
                         "Sending…"
                     }
+                    clearReply()
                     openThread(address)
                     refresh()
                 }
@@ -459,7 +533,7 @@ class MessagesViewModel @Inject constructor(
                     _sent.value = _sent.value + SmsReader.Sms(
                         id = -System.currentTimeMillis(),
                         address = address,
-                        body = text,
+                        body = outgoing,
                         date = System.currentTimeMillis(),
                         type = Telephony.Sms.MESSAGE_TYPE_SENT,
                         read = true,
@@ -600,6 +674,11 @@ private fun MessagesScreenContent(
     // Read once for the gesture, so the swipe knows whether it does anything.
     val swipeAction by remember { derivedStateOf { vm.currentSwipeAction() } }
     val groupByTime by remember { derivedStateOf { vm.groupByTime() } }
+    val selectedIds by vm.selected.collectAsState()
+    val replyTo by vm.replyTo.collectAsState()
+
+    fun deliveryStateFor(m: SmsReader.Sms): String? =
+        vm.deliveryLabelFor(vm.open.value.orEmpty(), m.body)
 
     val current = open
     if (current == null) {
@@ -923,53 +1002,156 @@ private fun MessagesScreenContent(
                 )
             }
 
+            // ---- selection bar ----
+            if (selectedIds.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { vm.clearSelection() }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+                    }
+                    Text(
+                        if (selectedIds.size == 1) "1 selected" else "${selectedIds.size} selected",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = {
+                        copyToClipboard(context, vm.selectedMessages().joinToString("\n") { it.body })
+                        vm.showStatus("Copied.")
+                        vm.clearSelection()
+                    }) { Text("Copy") }
+                    TextButton(onClick = {
+                        forward(context, vm.selectedMessages().joinToString("\n") { it.body })
+                        vm.clearSelection()
+                    }) { Text("Forward") }
+                    TextButton(onClick = {
+                        vm.selectedMessages().forEach { vm.deleteMessage(context, it) }
+                        vm.clearSelection()
+                    }) { Text("Delete") }
+                }
+                HorizontalDivider()
+            }
+
             LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {
-                items(messages, key = { it.id }) { m ->
+                // Flattened so a date separator can sit between days. `items` over
+                // a list of either-a-day-or-a-message keeps the key stable and
+                // means the bubble is written once.
+                items(
+                    threadLines(messages),
+                    key = { line ->
+                        when (line) {
+                            is ThreadLine.Day -> "day-${line.label}"
+                            is ThreadLine.Message -> "msg-${line.sms.id}"
+                        }
+                    },
+                ) { line ->
+                    if (line is ThreadLine.Day) {
+                        Text(
+                            line.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                            textAlign = TextAlign.Center,
+                        )
+                        return@items
+                    }
+
+                    val m = (line as ThreadLine.Message).sms
                     val incoming = m.type == Telephony.Sms.MESSAGE_TYPE_INBOX
+                    val chosen = m.id in selectedIds
+
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = if (incoming) Arrangement.Start else Arrangement.End,
                     ) {
-                        // The bubble used to carry a `pointerInput {
-                        // detectTapGestures(onLongPress = ...) }` wrapped around a
-                        // SelectionContainer, which meant the action sheet stole
-                        // the long-press the selection container needed — so the
-                        // sheet offered "Select part of the text" and the app made
-                        // it impossible. The gesture belongs to the selection
-                        // container; the actions are behind the ⋮ beside the
-                        // bubble, which is a thing you can actually press.
                         Row(verticalAlignment = Alignment.Bottom) {
                         Surface(
-                            color = if (incoming) MaterialTheme.colorScheme.surface
-                            else MaterialTheme.colorScheme.primary,
+                            color = when {
+                                chosen -> MaterialTheme.colorScheme.primaryContainer
+                                incoming -> MaterialTheme.colorScheme.surface
+                                else -> MaterialTheme.colorScheme.primary
+                            },
                             shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.combinedClickable(
+                                // In selection mode a tap adds to the set; out of
+                                // it, a tap does nothing — which is what a tap on a
+                                // bubble does in every messaging app.
+                                onClick = { if (selectedIds.isNotEmpty()) vm.toggleSelected(m.id) },
+                                onLongClick = { vm.toggleSelected(m.id) },
+                                onLongClickLabel = "Select message",
+                            ),
                         ) {
-                            // SelectionContainer is what makes partial copy work:
-                            // the system selection handles appear on long-press.
-                            SelectionContainer {
+                            Column(Modifier.padding(10.dp)) {
                                 Text(
                                     m.body,
-                                    modifier = Modifier.padding(10.dp),
-                                    color = if (incoming) MaterialTheme.colorScheme.onSurface
-                                    else MaterialTheme.colorScheme.onPrimary,
+                                    color = when {
+                                        chosen -> MaterialTheme.colorScheme.onPrimaryContainer
+                                        incoming -> MaterialTheme.colorScheme.onSurface
+                                        else -> MaterialTheme.colorScheme.onPrimary
+                                    },
+                                )
+                                // The state of an outgoing message, from the
+                                // tracker — which already knew and never said.
+                                if (!incoming) {
+                                    val state = deliveryStateFor(m)
+                                    if (state != null) {
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            state,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (selectedIds.isEmpty()) {
+                            IconButton(
+                                onClick = { actionTarget = m },
+                                modifier = Modifier.size(32.dp),
+                            ) {
+                                Icon(
+                                    Icons.Filled.MoreVert,
+                                    contentDescription = "Message options",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
-                        // The actions, on a target you can actually hit. The
-                        // long-press belongs to text selection now, so this is
-                        // where copy, forward and delete live.
-                        IconButton(
-                            onClick = { actionTarget = m },
-                            modifier = Modifier.size(32.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.MoreVert,
-                                contentDescription = "Message options",
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        }
+                    }
+                }
+            }
+
+            // ---- the message being replied to ----
+            replyTo?.let { quoted ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        Modifier.weight(1f)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                             )
-                        }
-                        }
+                            .padding(8.dp),
+                    ) {
+                        Text(
+                            "Replying",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            quoted.body.take(80),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = { vm.clearReply() }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cancel reply")
                     }
                 }
             }
@@ -1026,8 +1208,16 @@ private fun MessagesScreenContent(
                         vm.showStatus("Message copied.")
                         actionTarget = null
                     }
-                    MessageAction("Select part of the text") {
-                        vm.showStatus("Long-press the message text, then drag to select part of it.")
+                    MessageAction("Reply") {
+                        vm.setReplyTo(target)
+                        actionTarget = null
+                    }
+                    MessageAction("Select") {
+                        // Enters selection mode with this message chosen, which is
+                        // what the old "Select part of the text" promised and could
+                        // not deliver: it asked the user to long-press text that
+                        // the app had already taken the long-press away from.
+                        vm.toggleSelected(target.id)
                         actionTarget = null
                     }
                     MessageAction("Forward") {
@@ -1322,4 +1512,46 @@ private fun playSendSound(context: Context) {
         val manager = context.getSystemService(android.media.AudioManager::class.java) ?: return
         manager.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK)
     }
+}
+
+
+/** A row in a conversation: a day separator, or a message. */
+private sealed interface ThreadLine {
+    data class Day(val label: String) : ThreadLine
+    data class Message(val sms: SmsReader.Sms) : ThreadLine
+}
+
+/**
+ * Messages with a day separator between them.
+ *
+ * Compared by calendar date rather than by a 24-hour window, so something sent at
+ * 11pm reads as "Yesterday" at 1am rather than as "23 hours ago".
+ */
+private fun threadLines(messages: List<SmsReader.Sms>): List<ThreadLine> {
+    val out = mutableListOf<ThreadLine>()
+    var lastLabel: String? = null
+    val today = java.util.Calendar.getInstance()
+    val yesterday = (today.clone() as java.util.Calendar).apply {
+        add(java.util.Calendar.DAY_OF_YEAR, -1)
+    }
+
+    messages.forEach { sms ->
+        val at = java.util.Calendar.getInstance().apply { timeInMillis = sms.date }
+        fun sameDay(cal: java.util.Calendar) =
+            cal.get(java.util.Calendar.YEAR) == at.get(java.util.Calendar.YEAR) &&
+                cal.get(java.util.Calendar.DAY_OF_YEAR) == at.get(java.util.Calendar.DAY_OF_YEAR)
+
+        val label = when {
+            sameDay(today) -> "Today"
+            sameDay(yesterday) -> "Yesterday"
+            else -> java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault())
+                .format(java.util.Date(sms.date))
+        }
+        if (label != lastLabel) {
+            out += ThreadLine.Day(label)
+            lastLabel = label
+        }
+        out += ThreadLine.Message(sms)
+    }
+    return out
 }
