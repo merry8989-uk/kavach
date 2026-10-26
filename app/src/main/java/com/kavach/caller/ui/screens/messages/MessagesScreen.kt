@@ -94,6 +94,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.background
 import androidx.compose.ui.text.style.TextAlign
 import com.kavach.caller.data.system.SmsDeliveryTracker
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.NotificationsOff
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -144,7 +146,21 @@ class MessagesViewModel @Inject constructor(
     private val _mailbox = MutableStateFlow(Mailbox.INBOX)
     val mailbox: StateFlow<Mailbox> = _mailbox.asStateFlow()
 
-    private val _boxes = MutableStateFlow(Triple(emptySet<String>(), emptySet<String>(), 0L))
+    /**
+     * Where each conversation lives, and how it behaves.
+     *
+     * One object rather than a growing tuple: adding pin and mute to a `Triple`
+     * would have meant a `Quintuple` and a positional destructure nobody can read.
+     */
+    data class Boxes(
+        val archived: Set<String> = emptySet(),
+        val binned: Set<String> = emptySet(),
+        val pinned: Set<String> = emptySet(),
+        val muted: Set<String> = emptySet(),
+        val markedAllReadAt: Long = 0L,
+    )
+
+    private val _boxes = MutableStateFlow(Boxes())
     val boxes = _boxes.asStateFlow()
 
     private val _query = MutableStateFlow("")
@@ -177,13 +193,13 @@ class MessagesViewModel @Inject constructor(
             val filter = values[2] as Filter
             val query = values[3] as String
             val mailbox = values[4] as Mailbox
-            val (archived, binned, _) = values[5] as Triple<Set<String>, Set<String>, Long>
+            val boxes = values[5] as Boxes
 
             threads.filter { thread ->
                 val inThisBox = when (mailbox) {
-                    Mailbox.INBOX -> thread.address !in archived && thread.address !in binned
-                    Mailbox.ARCHIVED -> thread.address in archived
-                    Mailbox.BIN -> thread.address in binned
+                    Mailbox.INBOX -> thread.address !in boxes.archived && thread.address !in boxes.binned
+                    Mailbox.ARCHIVED -> thread.address in boxes.archived
+                    Mailbox.BIN -> thread.address in boxes.binned
                 }
                 if (!inThisBox) return@filter false
                 val result = classified[thread.address]
@@ -200,6 +216,18 @@ class MessagesViewModel @Inject constructor(
                     thread.snippet.contains(query, ignoreCase = true)
                 matchesFilter && matchesQuery
             }
+                // Pinned first, but only in the inbox: a pin is about what you
+                // want at the top of your messages, not about the archive.
+                .let { list ->
+                    if (mailbox == Mailbox.INBOX) {
+                        list.sortedWith(
+                            compareByDescending<SmsReader.Thread> { it.address in boxes.pinned }
+                                .thenByDescending { it.date },
+                        )
+                    } else {
+                        list
+                    }
+                }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _open = MutableStateFlow<String?>(null)
@@ -335,10 +363,12 @@ class MessagesViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             settings.settings.collect { snapshot ->
-                _boxes.value = Triple(
-                    snapshot.archivedSmsThreads,
-                    snapshot.binnedSmsThreads,
-                    snapshot.smsMarkedAllReadAt,
+                _boxes.value = Boxes(
+                    archived = snapshot.archivedSmsThreads,
+                    binned = snapshot.binnedSmsThreads,
+                    pinned = snapshot.pinnedSmsThreads,
+                    muted = snapshot.mutedSmsThreads,
+                    markedAllReadAt = snapshot.smsMarkedAllReadAt,
                 )
             }
         }
@@ -359,6 +389,43 @@ class MessagesViewModel @Inject constructor(
     fun restore(address: String) = viewModelScope.launch { settings.setThreadBinned(address, false) }
 
     fun emptyBin() = viewModelScope.launch { settings.emptyBin() }
+
+    fun pin(address: String) = viewModelScope.launch {
+        settings.setThreadPinned(address, address !in settings.snapshot.pinnedSmsThreads)
+    }
+
+    fun mute(address: String) = viewModelScope.launch {
+        settings.setThreadMuted(address, address !in settings.snapshot.mutedSmsThreads)
+    }
+
+    fun isPinned(address: String): Boolean = address in settings.snapshot.pinnedSmsThreads
+    fun isMuted(address: String): Boolean = address in settings.snapshot.mutedSmsThreads
+
+    // ---- list multi-select ----
+
+    private val _pickedThreads = MutableStateFlow<Set<String>>(emptySet())
+    val pickedThreads = _pickedThreads.asStateFlow()
+
+    fun togglePicked(address: String) {
+        val current = _pickedThreads.value
+        _pickedThreads.value = if (address in current) current - address else current + address
+    }
+
+    fun clearPicked() { _pickedThreads.value = emptySet() }
+
+    /** Archive or bin several at once, which is the point of picking them. */
+    fun actOnPicked(action: String) = viewModelScope.launch {
+        val picked = _pickedThreads.value
+        picked.forEach { address ->
+            when (action) {
+                "archive" -> { settings.setThreadArchived(address, true); settings.setThreadBinned(address, false) }
+                "bin" -> { settings.setThreadBinned(address, true); settings.setThreadArchived(address, false) }
+                "read" -> Unit
+            }
+        }
+        if (action == "read") settings.setMarkedAllReadAt(System.currentTimeMillis())
+        _pickedThreads.value = emptySet()
+    }
 
     /**
      * Allow or stop this conversation bubbling.
@@ -674,6 +741,10 @@ private fun MessagesScreenContent(
     // Read once for the gesture, so the swipe knows whether it does anything.
     val swipeAction by remember { derivedStateOf { vm.currentSwipeAction() } }
     val groupByTime by remember { derivedStateOf { vm.groupByTime() } }
+    val boxes by vm.boxes.collectAsState()
+    val pinned = boxes.pinned
+    val muted = boxes.muted
+    val picked by vm.pickedThreads.collectAsState()
     val selectedIds by vm.selected.collectAsState()
     val replyTo by vm.replyTo.collectAsState()
 
@@ -832,6 +903,26 @@ private fun MessagesScreenContent(
                         }
                     }
 
+                    if (picked.isNotEmpty()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            IconButton(onClick = { vm.clearPicked() }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+                            }
+                            Text(
+                                if (picked.size == 1) "1 selected" else "${picked.size} selected",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { vm.actOnPicked("read") }) { Text("Read") }
+                            TextButton(onClick = { vm.actOnPicked("archive") }) { Text("Archive") }
+                            TextButton(onClick = { vm.actOnPicked("bin") }) { Text("Bin") }
+                        }
+                        HorizontalDivider()
+                    }
+
                     if (visibleThreads.isEmpty()) {
                         EmptyState(
                             title = "Nothing here",
@@ -912,10 +1003,16 @@ private fun MessagesScreenContent(
                                         }
                                     }
                                     .combinedClickable(
-                                        onClick = { vm.openThread(t.address) },
+                                        // While picking, a tap picks instead of
+                                        // opening — otherwise selecting three
+                                        // conversations would open three.
+                                        onClick = {
+                                            if (picked.isNotEmpty()) vm.togglePicked(t.address)
+                                            else vm.openThread(t.address)
+                                        },
                                         onClickLabel = "Open conversation",
-                                        onLongClick = { threadMenuFor = t.address },
-                                        onLongClickLabel = "Conversation options",
+                                        onLongClick = { vm.togglePicked(t.address) },
+                                        onLongClickLabel = "Select conversation",
                                     )
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -929,6 +1026,24 @@ private fun MessagesScreenContent(
                                             fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onBackground,
                                         )
+                                        // Both are visible because both are states
+                                        // the user set and would otherwise forget.
+                                        if (t.address in pinned) {
+                                            Icon(
+                                                Icons.Filled.PushPin,
+                                                contentDescription = "Pinned",
+                                                modifier = Modifier.size(13.dp),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                        if (t.address in muted) {
+                                            Icon(
+                                                Icons.Filled.NotificationsOff,
+                                                contentDescription = "Muted",
+                                                modifier = Modifier.size(13.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                         result?.let { CategoryBadge(it) }
                                     }
                                     Text(
@@ -1245,6 +1360,14 @@ private fun MessagesScreenContent(
             text = {
                 Column {
                     MessageAction("Open") { threadMenuFor = null; vm.openThread(address) }
+                    MessageAction(if (vm.isPinned(address)) "Unpin" else "Pin to top") {
+                        threadMenuFor = null
+                        vm.pin(address)
+                    }
+                    MessageAction(if (vm.isMuted(address)) "Unmute" else "Mute") {
+                        threadMenuFor = null
+                        vm.mute(address)
+                    }
                     MessageAction("Archive") { threadMenuFor = null; vm.archive(address) }
                     if (bubbled) {
                         MessageAction("Stop bubbling") { threadMenuFor = null; vm.toggleBubbled(address) }

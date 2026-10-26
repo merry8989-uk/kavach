@@ -67,6 +67,11 @@ class MessageNotifier @Inject constructor(
 
         ensureChannel()
         val prefs = settings.snapshot
+
+        // A muted conversation does not notify. It still arrives, still sorts and
+        // still counts as unread — muting is about being interrupted, not about
+        // the message not existing.
+        if (address in prefs.mutedSmsThreads) return
         val name = runCatching { PhoneUtils.pretty(address) }.getOrDefault(address)
 
         val person = Person.Builder()

@@ -61,6 +61,8 @@ class SettingsRepository @Inject constructor(
         val smsSwipeAction = stringPreferencesKey("sms_swipe_action")
         val smsGroupByTime = booleanPreferencesKey("sms_group_by_time")
         val bubbledSmsThreads = stringSetPreferencesKey("bubbled_sms_threads")
+        val pinnedSmsThreads = stringSetPreferencesKey("pinned_sms_threads")
+        val mutedSmsThreads = stringSetPreferencesKey("muted_sms_threads")
         val archivedSmsThreads = stringSetPreferencesKey("archived_sms_threads")
         val binnedSmsThreads = stringSetPreferencesKey("binned_sms_threads")
         val smsMarkedAllReadAt = longPreferencesKey("sms_marked_all_read_at")
@@ -127,6 +129,8 @@ class SettingsRepository @Inject constructor(
             smsSwipeAction = (p[Keys.smsSwipeAction] ?: "archive").takeIf { it in SMS_SWIPE } ?: "archive",
             smsGroupByTime = p[Keys.smsGroupByTime] ?: true,
             bubbledSmsThreads = p[Keys.bubbledSmsThreads] ?: emptySet(),
+            pinnedSmsThreads = p[Keys.pinnedSmsThreads] ?: emptySet(),
+            mutedSmsThreads = p[Keys.mutedSmsThreads] ?: emptySet(),
             archivedSmsThreads = p[Keys.archivedSmsThreads] ?: emptySet(),
             binnedSmsThreads = p[Keys.binnedSmsThreads] ?: emptySet(),
             smsMarkedAllReadAt = p[Keys.smsMarkedAllReadAt] ?: 0L,
@@ -205,6 +209,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setThreadBubbled(address: String, bubbled: Boolean) = context.dataStore.edit { prefs ->
         val current = prefs[Keys.bubbledSmsThreads] ?: emptySet()
         prefs[Keys.bubbledSmsThreads] = if (bubbled) current + address else current - address
+    }
+
+    suspend fun setThreadPinned(address: String, pinned: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.pinnedSmsThreads] ?: emptySet()
+        prefs[Keys.pinnedSmsThreads] = if (pinned) current + address else current - address
+    }
+
+    suspend fun setThreadMuted(address: String, muted: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.mutedSmsThreads] ?: emptySet()
+        prefs[Keys.mutedSmsThreads] = if (muted) current + address else current - address
     }
 
     /** Archive a conversation, or take it out of the archive. */

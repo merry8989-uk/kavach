@@ -172,6 +172,24 @@ data class AppSettings(
      */
     val bubbledSmsThreads: Set<String> = emptySet(),
 
+    /**
+     * Conversations pinned to the top of the list.
+     *
+     * A set of addresses rather than a per-thread row, because Kavach does not
+     * own the message store — the system provider does. Anything we "set" on a
+     * conversation has to live in our own settings or it disappears.
+     */
+    val pinnedSmsThreads: Set<String> = emptySet(),
+
+    /**
+     * Conversations the user muted.
+     *
+     * Muted means no notification. It does not mean hidden: a muted conversation
+     * still arrives, still sorts, and still counts as unread, because a mute the
+     * user cannot see is a mute they will forget they set.
+     */
+    val mutedSmsThreads: Set<String> = emptySet(),
+
     /** Conversations the user archived. */
     val archivedSmsThreads: Set<String> = emptySet(),
 

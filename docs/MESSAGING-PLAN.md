@@ -49,10 +49,10 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Mark all as read | ✅ | stored as a timestamp, because reading is the system's business |
 | Group by day | ✅ | Today / Yesterday / Older |
 | Swipe actions | ✅ | archive / bin / nothing |
-| **Unread badge** | ⚠️ | count exists, no badge |
-| **Pin a conversation** | ❌ | |
-| **Mute a conversation** | ❌ | |
-| **Multi-select** | ❌ | |
+| **Unread badge** | ✅ | count on each conversation |
+| **Pin a conversation** | ✅ | pinned sort to the top of the inbox only |
+| **Mute a conversation** | ✅ | stops the notification; still arrives, still counts unread |
+| **Multi-select** | ✅ | long-press picks, the bar archives, bins or marks read |
 
 ### Inside a conversation
 
@@ -152,11 +152,17 @@ The old "Select part of the text" menu item was worse than either: it showed a
 sentence telling the user to long-press text, in an app that had taken the
 long-press away from the text. It is now a **Select** action that does the thing.
 
-### Phase 2 — the list
+### Phase 2 — the list (**done, v0.51.0**)
 
-- Unread badge
-- Pin and mute per conversation
-- Multi-select in the list (archive or bin several at once)
+- ✅ Unread badge
+- ✅ Pin and mute per conversation
+- ✅ Multi-select in the list (archive, bin or mark read several at once)
+
+Pinning sorts a conversation to the top **of the inbox only** — a pin is about
+what you want at the top of your messages, not about the archive. Muting stops
+the notification and nothing else: the conversation still arrives, still sorts,
+and still counts as unread, because a mute the user cannot see is a mute they will
+forget they set.
 
 ### Phase 3 — attachments
 
