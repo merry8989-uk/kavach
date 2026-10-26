@@ -200,6 +200,15 @@ data class AppSettings(
      */
     val starredSmsIds: Set<String> = emptySet(),
 
+    /**
+     * Conversations the user silenced.
+     *
+     * Different from muted: muted means no notification at all, silent means the
+     * notification arrives without a sound. Two settings because they are two
+     * intentions — "do not interrupt me" and "tell me, quietly".
+     */
+    val silentSmsThreads: Set<String> = emptySet(),
+
     /** Conversations the user archived. */
     val archivedSmsThreads: Set<String> = emptySet(),
 

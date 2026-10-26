@@ -100,6 +100,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Share
 import androidx.core.content.FileProvider
 import java.io.File
+import androidx.compose.foundation.text.selection.SelectionContainer
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -161,6 +162,7 @@ class MessagesViewModel @Inject constructor(
         val binned: Set<String> = emptySet(),
         val pinned: Set<String> = emptySet(),
         val muted: Set<String> = emptySet(),
+        val silent: Set<String> = emptySet(),
         val markedAllReadAt: Long = 0L,
     )
 
@@ -334,6 +336,9 @@ class MessagesViewModel @Inject constructor(
 
     fun clearSelection() { _selected.value = emptySet() }
 
+    // Text-selection mode is UI state, so it is cleared by the screen when the
+    // thread changes rather than stored.
+
     /** The selected messages, in the order they appear. */
     fun selectedMessages(): List<SmsReader.Sms> {
         val ids = _selected.value
@@ -372,6 +377,7 @@ class MessagesViewModel @Inject constructor(
                     binned = snapshot.binnedSmsThreads,
                     pinned = snapshot.pinnedSmsThreads,
                     muted = snapshot.mutedSmsThreads,
+                    silent = snapshot.silentSmsThreads,
                     markedAllReadAt = snapshot.smsMarkedAllReadAt,
                 )
             }
@@ -455,6 +461,10 @@ class MessagesViewModel @Inject constructor(
             "¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
         if (ch in basic) return true
         return ch in "^{}\\[~]|€"
+    }
+
+    fun silence(address: String) = viewModelScope.launch {
+        settings.setThreadSilent(address, address !in settings.snapshot.silentSmsThreads)
     }
 
     fun isPinned(address: String): Boolean = address in settings.snapshot.pinnedSmsThreads
@@ -801,6 +811,13 @@ private fun MessagesScreenContent(
     val swipeAction by remember { derivedStateOf { vm.currentSwipeAction() } }
     val groupByTime by remember { derivedStateOf { vm.groupByTime() } }
     var showThreadSearch by remember { mutableStateOf(false) }
+    /**
+     * The one message whose text is selectable right now.
+     *
+     * Null means no bubble is in text-selection mode, which is the normal state —
+     * long-press then belongs to multi-select.
+     */
+    var textSelectFor by remember { mutableStateOf<Long?>(null) }
     val threadQuery by vm.threadQuery.collectAsState()
     val boxes by vm.boxes.collectAsState()
     val pinned = boxes.pinned
@@ -1201,6 +1218,28 @@ private fun MessagesScreenContent(
                 )
             }
 
+            // ---- text-selection mode ----
+            //
+            // Shown because the mode changes what a long-press does. A mode the
+            // user cannot see is a mode they get stuck in and blame the app for.
+            if (textSelectFor != null) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { textSelectFor = null }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Leave text selection")
+                    }
+                    Text(
+                        "Long-press the text to select part of it",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                HorizontalDivider()
+            }
+
             // ---- selection bar ----
             if (selectedIds.isNotEmpty()) {
                 Row(
@@ -1288,14 +1327,34 @@ private fun MessagesScreenContent(
                             ),
                         ) {
                             Column(Modifier.padding(10.dp)) {
-                                Text(
-                                    m.body,
-                                    color = when {
-                                        chosen -> MaterialTheme.colorScheme.onPrimaryContainer
-                                        incoming -> MaterialTheme.colorScheme.onSurface
-                                        else -> MaterialTheme.colorScheme.onPrimary
-                                    },
-                                )
+                                // **Partial copy, restored.**
+                                //
+                                // v0.50.0 removed this to make multi-select work:
+                                // SelectionContainer needs long-press to select
+                                // text and multi-select needs it to select the
+                                // message, and one gesture cannot do both. Dropping
+                                // it silently also dropped something that was asked
+                                // for from the start — "copy the whole message or a
+                                // part of it from the middle".
+                                //
+                                // So it is a mode rather than a gesture. Choosing
+                                // "Select text" puts this one bubble into a
+                                // SelectionContainer; every other bubble keeps the
+                                // long-press that multi-select uses. The two
+                                // features stop competing because they no longer
+                                // happen at the same time.
+                                val bodyColor = when {
+                                    chosen -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    incoming -> MaterialTheme.colorScheme.onSurface
+                                    else -> MaterialTheme.colorScheme.onPrimary
+                                }
+                                if (textSelectFor == m.id) {
+                                    SelectionContainer {
+                                        Text(m.body, color = bodyColor)
+                                    }
+                                } else {
+                                    Text(m.body, color = bodyColor)
+                                }
                                 // The state of an outgoing message, from the
                                 // tracker — which already knew and never said.
                                 if (vm.isStarred(m.id)) {
@@ -1448,6 +1507,14 @@ private fun MessagesScreenContent(
                         vm.setReplyTo(target)
                         actionTarget = null
                     }
+                    MessageAction("Select text") {
+                        // Enters text-selection mode for this bubble. The system
+                        // handles appear on long-press, and the selection can be
+                        // copied with the usual handles — which is what "copy a
+                        // part from the middle" means.
+                        textSelectFor = target.id
+                        actionTarget = null
+                    }
                     MessageAction("Select") {
                         // Enters selection mode with this message chosen, which is
                         // what the old "Select part of the text" promised and could
@@ -1488,6 +1555,12 @@ private fun MessagesScreenContent(
                     MessageAction(if (vm.isMuted(address)) "Unmute" else "Mute") {
                         threadMenuFor = null
                         vm.mute(address)
+                    }
+                    MessageAction(
+                        if (address in boxes.silent) "Turn sound back on" else "Silence",
+                    ) {
+                        threadMenuFor = null
+                        vm.silence(address)
                     }
                     MessageAction("Archive") { threadMenuFor = null; vm.archive(address) }
                     if (bubbled) {

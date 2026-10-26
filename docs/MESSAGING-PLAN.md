@@ -62,7 +62,7 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Delivery state | ✅ | shown under outgoing bubbles, from the tracker |
 | Suggested replies | ✅ | |
 | Copy whole message | ✅ | |
-| **Select part of the text** | ❌ | **removed in v0.50.0.** See the note below: long-press now starts selection mode, and one gesture cannot do both |
+| **Select part of the text** | ✅ | restored in v0.53.0 as a **mode**, not a gesture — see below |
 | Forward | ✅ | |
 | Delete | ⚠️ | from device needs the default-SMS role; otherwise hides |
 | **Reply / quote** | ✅ | the quote is carried in the sent text, not just shown on screen |
@@ -93,8 +93,8 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Notify on new message | ⚠️ | only when Kavach is the default SMS app, on purpose |
 | Bubbles | ✅ | all / selected / none |
 | **Quick reply from the notification** | ✅ | RemoteInput; sends without opening the app |
-| **Mark as read from the notification** | ❌ | |
-| **Per-conversation sound** | ❌ | |
+| **Mark as read from the notification** | ✅ | records the moment; the badge honours it |
+| **Per-conversation sound** | ✅ | a separate channel, because the channel owns the sound |
 
 ### Data
 
@@ -138,9 +138,27 @@ picks a message and a bar appears with copy, forward, delete, share.
 
 **Why first:** these are what "a messaging app" means to someone opening one.
 
-#### One decision worth recording
+#### The decision that had to be revisited
 
-**Partial text selection was removed to make multi-select work.**
+**Partial text selection was removed in v0.50.0 to make multi-select work, and
+that was wrong.**
+
+It was dropped because one gesture cannot do two things: `SelectionContainer`
+needs long-press to start selecting text, and multi-select needs long-press to
+select a message. Removing one was a defensible way to resolve that. It was still
+wrong, because **partial copy was asked for from the start** — "copy the whole
+message or a part of it from the middle" — and quietly dropping a requirement is
+not a design decision, it is a regression with a comment on it.
+
+The resolution in v0.53.0 is a **mode rather than a gesture**. Choosing "Select
+text" from the action sheet puts *that one bubble* into a `SelectionContainer`;
+every other bubble keeps the long-press that multi-select uses. The two features
+stop competing because they no longer happen at the same moment.
+
+The mode is shown as a bar with a way out, because a mode the user cannot see is a
+mode they get stuck in and blame the app for.
+
+<details><summary>The original note, kept for the record</summary>
 
 `SelectionContainer` needs long-press to start selecting text. Multi-select needs
 long-press to start selecting messages. One gesture, two features, and whichever
@@ -150,7 +168,9 @@ is what happened here.
 
 The old "Select part of the text" menu item was worse than either: it showed a
 sentence telling the user to long-press text, in an app that had taken the
-long-press away from the text. It is now a **Select** action that does the thing.
+long-press away from the text.
+
+</details>
 
 ### Phase 2 — the list (**done, v0.51.0**)
 

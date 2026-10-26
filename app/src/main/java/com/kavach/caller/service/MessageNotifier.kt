@@ -80,7 +80,15 @@ class MessageNotifier @Inject constructor(
             .setKey(address)
             .build()
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+        // A silent conversation gets the silent channel; the sound belongs to the
+        // channel on Android 8 and up, so setSilent alone would do nothing.
+        val silent = address in prefs.silentSmsThreads
+        if (silent) ensureSilentChannel()
+
+        val builder = NotificationCompat.Builder(
+            context,
+            if (silent) CHANNEL_SILENT else CHANNEL_MESSAGES,
+        )
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(name)
             .setContentText(body)
@@ -119,6 +127,32 @@ class MessageNotifier @Inject constructor(
             )
         }
 
+        // Mark read, from the notification.
+        //
+        // Kavach cannot write "read" to the provider unless it is the default SMS
+        // app, so this records the moment instead and the badge honours it — the
+        // same mechanism the list's "mark all as read" already uses. Saying
+        // nothing and hoping the user opens the app is worse.
+        runCatching {
+            val readIntent = Intent(context, MessageReplyReceiver::class.java).apply {
+                action = MessageReplyReceiver.ACTION_MARK_READ
+                putExtra(EXTRA_REPLY_ADDRESS, address)
+            }
+            val readPending = PendingIntent.getBroadcast(
+                context,
+                address.hashCode() + 2,
+                readIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    R.drawable.ic_launcher_monochrome,
+                    "Mark read",
+                    readPending,
+                ).build(),
+            )
+        }
+
         // Bubbles. The setting decides whether this conversation is allowed to
         // float; the metadata below is only what makes it possible.
         when (prefs.smsBubbles) {
@@ -135,10 +169,20 @@ class MessageNotifier @Inject constructor(
             else -> Unit
         }
 
+        // Per-conversation sound. A silent conversation gets its own channel,
+        // because on Android 8 and up the sound belongs to the channel and not to
+        // the notification — setting it on the builder would do nothing.
         // Per-conversation, so a reply in one thread does not replace another.
         runCatching {
             NotificationManagerCompat.from(context)
                 .notify(address.hashCode(), builder.build())
+        }
+    }
+
+    /** Clear a conversation's notification. Used by "mark read". */
+    fun dismiss(address: String) {
+        runCatching {
+            NotificationManagerCompat.from(context).cancel(address.hashCode())
         }
     }
 
@@ -178,6 +222,30 @@ class MessageNotifier @Inject constructor(
         )
     }.getOrThrow()
 
+    /**
+     * A silent channel, created once.
+     *
+     * Android 8 made the channel own the sound. A notification cannot override it,
+     * so a per-conversation "no sound" needs a per-conversation channel — one is
+     * enough, because silence is the only per-conversation audio setting offered.
+     */
+    private fun ensureSilentChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(CHANNEL_SILENT) != null) return
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_SILENT,
+                "Messages (silent)",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Conversations you silenced"
+                setSound(null, null)
+                enableVibration(false)
+            },
+        )
+    }
+
     private fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -196,6 +264,7 @@ class MessageNotifier @Inject constructor(
 
     companion object {
         const val CHANNEL_MESSAGES = "kavach_messages"
+        const val CHANNEL_SILENT = "kavach_messages_silent"
         const val EXTRA_OPEN_ADDRESS = "kavach.open_address"
         const val EXTRA_REPLY_ADDRESS = "kavach.reply_address"
         const val KEY_QUICK_REPLY = "kavach.quick_reply"

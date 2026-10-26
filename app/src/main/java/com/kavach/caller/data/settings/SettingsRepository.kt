@@ -64,6 +64,7 @@ class SettingsRepository @Inject constructor(
         val starredSmsIds = stringSetPreferencesKey("starred_sms_ids")
         val pinnedSmsThreads = stringSetPreferencesKey("pinned_sms_threads")
         val mutedSmsThreads = stringSetPreferencesKey("muted_sms_threads")
+        val silentSmsThreads = stringSetPreferencesKey("silent_sms_threads")
         val archivedSmsThreads = stringSetPreferencesKey("archived_sms_threads")
         val binnedSmsThreads = stringSetPreferencesKey("binned_sms_threads")
         val smsMarkedAllReadAt = longPreferencesKey("sms_marked_all_read_at")
@@ -133,6 +134,7 @@ class SettingsRepository @Inject constructor(
             starredSmsIds = p[Keys.starredSmsIds] ?: emptySet(),
             pinnedSmsThreads = p[Keys.pinnedSmsThreads] ?: emptySet(),
             mutedSmsThreads = p[Keys.mutedSmsThreads] ?: emptySet(),
+            silentSmsThreads = p[Keys.silentSmsThreads] ?: emptySet(),
             archivedSmsThreads = p[Keys.archivedSmsThreads] ?: emptySet(),
             binnedSmsThreads = p[Keys.binnedSmsThreads] ?: emptySet(),
             smsMarkedAllReadAt = p[Keys.smsMarkedAllReadAt] ?: 0L,
@@ -226,6 +228,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setThreadMuted(address: String, muted: Boolean) = context.dataStore.edit { prefs ->
         val current = prefs[Keys.mutedSmsThreads] ?: emptySet()
         prefs[Keys.mutedSmsThreads] = if (muted) current + address else current - address
+    }
+
+    suspend fun setThreadSilent(address: String, silent: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.silentSmsThreads] ?: emptySet()
+        prefs[Keys.silentSmsThreads] = if (silent) current + address else current - address
     }
 
     /** Archive a conversation, or take it out of the archive. */

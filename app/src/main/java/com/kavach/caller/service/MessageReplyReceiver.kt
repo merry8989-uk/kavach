@@ -4,7 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
+import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.data.system.SmsSender
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -26,8 +31,28 @@ class MessageReplyReceiver : BroadcastReceiver() {
 
     @Inject lateinit var notifier: MessageNotifier
 
+    @Inject lateinit var settings: SettingsRepository
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onReceive(context: Context, intent: Intent) {
         val address = intent.getStringExtra(MessageNotifier.EXTRA_REPLY_ADDRESS) ?: return
+
+        if (intent.action == ACTION_MARK_READ) {
+            // Kavach cannot write "read" to the provider unless it is the default
+            // SMS app, so it records the moment and the badge honours it — the
+            // same mechanism the list's "mark all as read" uses.
+            val pendingRead = goAsync()
+            scope.launch {
+                try {
+                    settings.setMarkedAllReadAt(System.currentTimeMillis())
+                    notifier.dismiss(address)
+                } finally {
+                    pendingRead.finish()
+                }
+            }
+            return
+        }
         val text = RemoteInput.getResultsFromIntent(intent)
             ?.getCharSequence(MessageNotifier.KEY_QUICK_REPLY)
             ?.toString()
@@ -48,5 +73,9 @@ class MessageReplyReceiver : BroadcastReceiver() {
         } finally {
             pending.finish()
         }
+    }
+
+    companion object {
+        const val ACTION_MARK_READ = "kavach.sms.MARK_READ"
     }
 }
