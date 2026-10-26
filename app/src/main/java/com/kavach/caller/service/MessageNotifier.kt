@@ -17,6 +17,7 @@ import com.kavach.caller.util.PhoneUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.core.app.RemoteInput
 
 /**
  * Notifications for incoming messages, with bubbles.
@@ -90,6 +91,33 @@ class MessageNotifier @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)
             .setContentIntent(openThreadIntent(address))
+
+        // Quick reply, straight from the notification.
+        //
+        // A RemoteInput rather than opening the app: the reason people reply from
+        // a notification is that they do not want to leave what they are doing,
+        // and an action that opens Kavach is not that.
+        runCatching {
+            val remoteInput = RemoteInput.Builder(KEY_QUICK_REPLY)
+                .setLabel("Reply")
+                .build()
+            val replyIntent = Intent(context, MessageReplyReceiver::class.java).apply {
+                putExtra(EXTRA_REPLY_ADDRESS, address)
+            }
+            val replyPending = PendingIntent.getBroadcast(
+                context,
+                address.hashCode() + 1,
+                replyIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            )
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    R.drawable.ic_launcher_monochrome,
+                    "Reply",
+                    replyPending,
+                ).addRemoteInput(remoteInput).build(),
+            )
+        }
 
         // Bubbles. The setting decides whether this conversation is allowed to
         // float; the metadata below is only what makes it possible.
@@ -169,5 +197,7 @@ class MessageNotifier @Inject constructor(
     companion object {
         const val CHANNEL_MESSAGES = "kavach_messages"
         const val EXTRA_OPEN_ADDRESS = "kavach.open_address"
+        const val EXTRA_REPLY_ADDRESS = "kavach.reply_address"
+        const val KEY_QUICK_REPLY = "kavach.quick_reply"
     }
 }

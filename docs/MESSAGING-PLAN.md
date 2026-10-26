@@ -67,8 +67,8 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Delete | ⚠️ | from device needs the default-SMS role; otherwise hides |
 | **Reply / quote** | ✅ | the quote is carried in the sent text, not just shown on screen |
 | **Reactions** | ❌ | |
-| **Star** | ❌ | |
-| **Search within the conversation** | ❌ | |
+| **Star** | ✅ | marked on the bubble; stored in Kavach, not the provider |
+| **Search within the conversation** | ✅ | filters messages, not conversations |
 | **Date separators in the thread** | ✅ | by calendar day, so 11pm reads as Yesterday at 1am |
 | **Sender labels in groups** | ❌ | needs groups |
 | **Attachments (images, files)** | ❌ | MMS is not read at all |
@@ -82,7 +82,7 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Draft saved per conversation | ✅ | |
 | SIM choice | ⚠️ | honoured in the sender, not offered in the UI |
 | **Scheduled send** | ❌ | |
-| **Character / part counter** | ❌ | |
+| **Character / part counter** | ✅ | GSM-7 vs UCS-2, so the limit is right |
 | **Group send** | ❌ | |
 | **Attachments** | ❌ | |
 
@@ -92,7 +92,7 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 |---|---|---|
 | Notify on new message | ⚠️ | only when Kavach is the default SMS app, on purpose |
 | Bubbles | ✅ | all / selected / none |
-| **Quick reply from the notification** | ❌ | |
+| **Quick reply from the notification** | ✅ | RemoteInput; sends without opening the app |
 | **Mark as read from the notification** | ❌ | |
 | **Per-conversation sound** | ❌ | |
 
@@ -101,7 +101,7 @@ Grouped by where the user meets it, with a note on whether Kavach can do it.
 | Feature | Kavach | Notes |
 |---|---|---|
 | **Backup and restore** | ❌ | |
-| **Export a conversation** | ❌ | |
+| **Export a conversation** | ✅ | a plain transcript, through the share sheet |
 | **Search across all messages** | ⚠️ | list search only, not message bodies |
 
 ---
@@ -164,28 +164,36 @@ the notification and nothing else: the conversation still arrives, still sorts,
 and still counts as unread, because a mute the user cannot see is a mute they will
 forget they set.
 
-### Phase 3 — attachments
+### Phase 3 — attachments (**dropped**)
 
-The largest piece, and the one that needs a real decision: **MMS**. Kavach does
-not read MMS at all today. Reading it means parsing `content://mms` parts,
-handling the download when the carrier sends a link rather than the content, and
-storing the parts. It is a subsystem, not a setting.
+Not being built. MMS is a subsystem — parsing `content://mms` parts, handling the
+case where the carrier sends a link rather than the content, storing the parts —
+and it is out of scope by decision, not by omission.
 
-Until it exists, no attachment feature can honestly be offered — which is why the
-auto-download switches were removed rather than left dead.
+This is why the auto-download settings were removed in v0.48.0 rather than left
+as dead switches: there is nothing to download.
 
-### Phase 4 — the smaller things
+### Phase 4 — the smaller things (**done, v0.52.0**)
 
-- Search inside a conversation
-- Star
-- Character and part counter
-- Export a conversation
-- Quick reply from the notification
+- ✅ Search inside a conversation
+- ✅ Star
+- ✅ Character and part counter
+- ✅ Export a conversation
+- ✅ Quick reply from the notification
+
+The counter is the one worth a note. The limit is not one number: a GSM-7 message
+fits 160 characters in one part and 153 in each part after that, because the
+concatenation header eats seven. **One character outside GSM-7 — an emoji, a
+Devanagari letter, a curly quote — switches the whole message to UCS-2**, where
+the numbers are 70 and 67. Telling someone "160 left" and then charging them for
+two messages is exactly what that setting exists to prevent.
 
 ### Not planned
 
 Reactions and scheduled send are worth doing and are not in a phase yet, because
 both need the compose path reworked first.
+
+MMS and attachments are **not planned at all** — dropped by decision.
 
 ---
 

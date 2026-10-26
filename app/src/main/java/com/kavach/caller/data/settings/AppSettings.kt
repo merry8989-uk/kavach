@@ -190,6 +190,16 @@ data class AppSettings(
      */
     val mutedSmsThreads: Set<String> = emptySet(),
 
+    /**
+     * Messages the user starred.
+     *
+     * Message ids as strings, because DataStore holds string sets and the ids are
+     * longs. Stored here rather than in the message provider: Kavach does not own
+     * the store, so anything it "sets" on a message has to live in its own
+     * settings or it vanishes on the next sync.
+     */
+    val starredSmsIds: Set<String> = emptySet(),
+
     /** Conversations the user archived. */
     val archivedSmsThreads: Set<String> = emptySet(),
 

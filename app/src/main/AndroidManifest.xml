@@ -244,6 +244,11 @@
           The two SMS acknowledgements. Not exported: only the platform sends
           these, and the intents are addressed to this app explicitly.
         -->
+        <!-- A reply typed into the notification. -->
+        <receiver
+            android:name=".service.MessageReplyReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".data.system.SmsDeliveryReceiver"
             android:exported="false">

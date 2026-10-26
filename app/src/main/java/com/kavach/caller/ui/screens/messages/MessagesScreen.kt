@@ -96,6 +96,10 @@ import androidx.compose.ui.text.style.TextAlign
 import com.kavach.caller.data.system.SmsDeliveryTracker
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Share
+import androidx.core.content.FileProvider
+import java.io.File
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -396,6 +400,61 @@ class MessagesViewModel @Inject constructor(
 
     fun mute(address: String) = viewModelScope.launch {
         settings.setThreadMuted(address, address !in settings.snapshot.mutedSmsThreads)
+    }
+
+    // ---- thread search, star, and the part counter ----
+
+    private val _threadQuery = MutableStateFlow("")
+    val threadQuery = _threadQuery.asStateFlow()
+
+    fun setThreadQuery(value: String) { _threadQuery.value = value }
+
+    fun star(id: Long) = viewModelScope.launch {
+        val current = settings.snapshot.starredSmsIds
+        settings.setMessageStarred(id, id.toString() !in current)
+    }
+
+    fun isStarred(id: Long): Boolean = id.toString() in settings.snapshot.starredSmsIds
+
+    fun starredIds(): Set<String> = settings.snapshot.starredSmsIds
+
+    /**
+     * How many SMS parts [text] becomes, and why.
+     *
+     * The limit is not one number. A message that is pure GSM-7 fits 160
+     * characters in one part and 153 in each part after that, because the
+     * concatenation header eats seven. A single character outside GSM-7 — an
+     * emoji, a Devanagari letter, a curly quote — switches the whole message to
+     * UCS-2, where the numbers are 70 and 67. Telling someone "160 left" and then
+     * charging them for two messages is the kind of thing this exists to avoid.
+     */
+    fun partInfo(text: String): PartInfo {
+        if (text.isEmpty()) return PartInfo(0, 0, 1, false)
+        val unicode = text.any { !isGsm7(it) }
+        val single = if (unicode) 70 else 160
+        val multi = if (unicode) 67 else 153
+        val length = text.length
+        val parts = if (length <= single) 1 else (length + multi - 1) / multi
+        val used = if (parts == 1) length else length - (parts - 1) * multi
+        val left = if (parts == 1) single - length else multi - used
+        return PartInfo(length, left, parts, unicode)
+    }
+
+    data class PartInfo(
+        val length: Int,
+        val left: Int,
+        val parts: Int,
+        /** True when the message is UCS-2, which is why the limits are lower. */
+        val unicode: Boolean,
+    )
+
+    private fun isGsm7(ch: Char): Boolean {
+        // The GSM 03.38 basic set, plus the extension characters that cost two
+        // septets. Anything outside switches the message to UCS-2.
+        val basic = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?" +
+            "¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
+        if (ch in basic) return true
+        return ch in "^{}\\[~]|€"
     }
 
     fun isPinned(address: String): Boolean = address in settings.snapshot.pinnedSmsThreads
@@ -741,6 +800,8 @@ private fun MessagesScreenContent(
     // Read once for the gesture, so the swipe knows whether it does anything.
     val swipeAction by remember { derivedStateOf { vm.currentSwipeAction() } }
     val groupByTime by remember { derivedStateOf { vm.groupByTime() } }
+    var showThreadSearch by remember { mutableStateOf(false) }
+    val threadQuery by vm.threadQuery.collectAsState()
     val boxes by vm.boxes.collectAsState()
     val pinned = boxes.pinned
     val muted = boxes.muted
@@ -1084,8 +1145,31 @@ private fun MessagesScreenContent(
                 IconButton(onClick = { vm.closeThread() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-                Text(PhoneUtils.pretty(current), fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground)
+                Text(
+                    PhoneUtils.pretty(current),
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { showThreadSearch = !showThreadSearch; vm.setThreadQuery("") }) {
+                    Icon(
+                        if (showThreadSearch) Icons.Filled.Close else Icons.Filled.Search,
+                        contentDescription = if (showThreadSearch) "Close search" else "Search this conversation",
+                    )
+                }
+                IconButton(onClick = { exportConversation(context, current, messages) }) {
+                    Icon(Icons.Filled.Share, contentDescription = "Export conversation")
+                }
+            }
+
+            if (showThreadSearch) {
+                OutlinedTextField(
+                    value = threadQuery,
+                    onValueChange = { vm.setThreadQuery(it) },
+                    placeholder = { Text("Search this conversation") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                )
             }
 
             // The whole-thread verdict, when there is one.
@@ -1153,7 +1237,13 @@ private fun MessagesScreenContent(
                 // a list of either-a-day-or-a-message keeps the key stable and
                 // means the bubble is written once.
                 items(
-                    threadLines(messages),
+                    threadLines(
+                        // A search inside a conversation filters the messages, not
+                        // the conversations — and it keeps the date separators
+                        // honest, because they are computed after the filter.
+                        if (threadQuery.isBlank()) messages
+                        else messages.filter { it.body.contains(threadQuery, ignoreCase = true) },
+                    ),
                     key = { line ->
                         when (line) {
                             is ThreadLine.Day -> "day-${line.label}"
@@ -1208,6 +1298,15 @@ private fun MessagesScreenContent(
                                 )
                                 // The state of an outgoing message, from the
                                 // tracker — which already knew and never said.
+                                if (vm.isStarred(m.id)) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Icon(
+                                        Icons.Filled.Star,
+                                        contentDescription = "Starred",
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
                                 if (!incoming) {
                                     val state = deliveryStateFor(m)
                                     if (state != null) {
@@ -1302,6 +1401,24 @@ private fun MessagesScreenContent(
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                 }
             }
+
+            // The counter, when it is worth showing. Silent until the message is
+            // long enough to be more than one part, because a permanent "160 left"
+            // under every short message is noise.
+            val info = vm.partInfo(draft)
+            if (info.parts > 1 || info.left <= 20) {
+                Text(
+                    buildString {
+                        append("${info.length} characters")
+                        if (info.parts > 1) append(" · ${info.parts} messages")
+                        if (info.unicode) append(" · Unicode, so the limit is lower")
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (info.parts > 1) MaterialTheme.colorScheme.tertiary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
+                )
+            }
         }
     }
 
@@ -1321,6 +1438,10 @@ private fun MessagesScreenContent(
                     MessageAction("Copy whole message") {
                         copyToClipboard(context, target.body)
                         vm.showStatus("Message copied.")
+                        actionTarget = null
+                    }
+                    MessageAction(if (vm.isStarred(target.id)) "Remove star" else "Star") {
+                        vm.star(target.id)
                         actionTarget = null
                     }
                     MessageAction("Reply") {
@@ -1677,4 +1798,51 @@ private fun threadLines(messages: List<SmsReader.Sms>): List<ThreadLine> {
         out += ThreadLine.Message(sms)
     }
     return out
+}
+
+
+/**
+ * Export a conversation as a text file, through the system share sheet.
+ *
+ * A plain transcript rather than a database dump, because the reason to export a
+ * conversation is to read it or send it to someone — and a format only Kavach can
+ * open would defeat both. The file goes to the app's cache, and the share sheet
+ * decides where it ends up; Kavach never learns that.
+ */
+private fun exportConversation(
+    context: Context,
+    address: String,
+    messages: List<SmsReader.Sms>,
+) {
+    if (messages.isEmpty()) return
+    runCatching {
+        val who = SenderId.displayName(address).ifBlank { PhoneUtils.pretty(address) }
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US)
+            .format(java.util.Date())
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val safe = who.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().ifBlank { "conversation" }
+        val file = File(dir, "$safe-$stamp.txt")
+
+        val format = java.text.SimpleDateFormat("d MMM yyyy, h:mm a", java.util.Locale.getDefault())
+        file.bufferedWriter().use { out ->
+            out.appendLine("Conversation with $who")
+            out.appendLine("Exported ${format.format(java.util.Date())}")
+            out.appendLine()
+            messages.forEach { sms ->
+                val from = if (sms.type == Telephony.Sms.MESSAGE_TYPE_INBOX) who else "You"
+                out.appendLine("[${format.format(java.util.Date(sms.date))}] $from")
+                out.appendLine(sms.body)
+                out.appendLine()
+            }
+        }
+
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "Conversation with $who")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Export conversation"))
+    }
 }

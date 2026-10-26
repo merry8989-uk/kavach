@@ -61,6 +61,7 @@ class SettingsRepository @Inject constructor(
         val smsSwipeAction = stringPreferencesKey("sms_swipe_action")
         val smsGroupByTime = booleanPreferencesKey("sms_group_by_time")
         val bubbledSmsThreads = stringSetPreferencesKey("bubbled_sms_threads")
+        val starredSmsIds = stringSetPreferencesKey("starred_sms_ids")
         val pinnedSmsThreads = stringSetPreferencesKey("pinned_sms_threads")
         val mutedSmsThreads = stringSetPreferencesKey("muted_sms_threads")
         val archivedSmsThreads = stringSetPreferencesKey("archived_sms_threads")
@@ -129,6 +130,7 @@ class SettingsRepository @Inject constructor(
             smsSwipeAction = (p[Keys.smsSwipeAction] ?: "archive").takeIf { it in SMS_SWIPE } ?: "archive",
             smsGroupByTime = p[Keys.smsGroupByTime] ?: true,
             bubbledSmsThreads = p[Keys.bubbledSmsThreads] ?: emptySet(),
+            starredSmsIds = p[Keys.starredSmsIds] ?: emptySet(),
             pinnedSmsThreads = p[Keys.pinnedSmsThreads] ?: emptySet(),
             mutedSmsThreads = p[Keys.mutedSmsThreads] ?: emptySet(),
             archivedSmsThreads = p[Keys.archivedSmsThreads] ?: emptySet(),
@@ -209,6 +211,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setThreadBubbled(address: String, bubbled: Boolean) = context.dataStore.edit { prefs ->
         val current = prefs[Keys.bubbledSmsThreads] ?: emptySet()
         prefs[Keys.bubbledSmsThreads] = if (bubbled) current + address else current - address
+    }
+
+    suspend fun setMessageStarred(id: Long, starred: Boolean) = context.dataStore.edit { prefs ->
+        val current = prefs[Keys.starredSmsIds] ?: emptySet()
+        prefs[Keys.starredSmsIds] = if (starred) current + id.toString() else current - id.toString()
     }
 
     suspend fun setThreadPinned(address: String, pinned: Boolean) = context.dataStore.edit { prefs ->
