@@ -15,6 +15,7 @@ import javax.inject.Inject
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import com.kavach.caller.domain.DefaultRoleNudge
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -43,6 +44,21 @@ class SettingsViewModel @Inject constructor(
 
     var serverTesting by mutableStateOf(false)
         private set
+
+    /**
+     * The user chose "later".
+     *
+     * Schedules the next ask two days out and **does nothing else** — no nag on
+     * the way out of the screen, because they just answered.
+     */
+    fun setDefaultLater() = viewModelScope.launch {
+        repo.setDefaultNudgeAt(DefaultRoleNudge.nextAskAt(System.currentTimeMillis()))
+    }
+
+    /** They granted it, so there is nothing left to remind them about. */
+    fun clearDefaultNudge() = viewModelScope.launch {
+        repo.setDefaultNudgeAt(0L)
+    }
 
     fun setServerUrl(value: String) = viewModelScope.launch { repo.setBackendBaseUrl(value) }
 

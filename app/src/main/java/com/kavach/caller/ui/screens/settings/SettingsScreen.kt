@@ -28,6 +28,13 @@ import androidx.compose.runtime.setValue
 import com.kavach.caller.ui.components.KavachCard
 import androidx.compose.material3.Slider
 import kotlin.math.roundToInt
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import com.kavach.caller.domain.DefaultAppStatus
+import com.kavach.caller.domain.DefaultRoleNudge
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 
 /** Theme pack keys must match [com.kavach.caller.ui.theme.ThemePack] names. */
 private val themePacks = listOf("AURORA", "CARBON", "DAYLIGHT", "NEON_NOIR", "DYNAMIC")
@@ -67,6 +74,11 @@ fun SettingsScreen(
         Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(16.dp))
+
+        // **First, because it is the only setting here that changes what the app
+        // is rather than how it behaves.** Hidden entirely once the roles are
+        // held — a row saying "you already did this" wastes a tap.
+        DefaultAppSection(vm)
 
         SectionHeader("Modules")
         OutlinedButton(onClick = onOpenFeatures, modifier = Modifier.fillMaxWidth()) {
@@ -483,5 +495,94 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     ) {
         Text(label, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground)
         Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+
+/**
+ * "Set as default", shown only while it is not.
+ *
+ * The rules live in [com.kavach.caller.domain.DefaultRoleNudge]; this is the
+ * screen half. Two buttons rather than one, because "later" is a real answer and
+ * a single button turns it into "not now, and be asked again on every open".
+ */
+@Composable
+private fun DefaultAppSection(vm: SettingsViewModel) {
+    val context = LocalContext.current
+    // Recomputed when the screen is revisited, which is when it can have changed.
+    var isDefault by remember { mutableStateOf(DefaultAppStatus.isDefault(context)) }
+    var launcherFor by remember { mutableStateOf<String?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        // The result tells us nothing useful - the user may have granted the role
+        // and cancelled the sheet - so the roles are re-read rather than trusted.
+        isDefault = DefaultAppStatus.isDefault(context)
+    }
+
+    LaunchedEffect(launcherFor) {
+        val role = launcherFor ?: return@LaunchedEffect
+        DefaultAppStatus.requestIntent(context, role)?.let { launcher.launch(it) }
+        launcherFor = null
+    }
+
+    // Becoming the default cancels any scheduled reminder.
+    LaunchedEffect(isDefault) {
+        if (isDefault) vm.clearDefaultNudge()
+    }
+
+    if (!DefaultRoleNudge.shouldShowRow(isDefault)) return
+
+    SectionHeader("Default app")
+    KavachCard {
+        Text(
+            "Kavach is not your default dialer yet.",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Until it is, the in-call screen, caller identification and call " +
+                "recording cannot work — Android only gives those to the default app.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+
+        val missing = DefaultAppStatus.missing(context)
+        missing.forEach { role ->
+            Text(
+                "Still needed: ${role.label}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Row {
+            Button(
+                onClick = {
+                    // Ask for the first missing role; the next open asks for the
+                    // next one. Asking for two at once is two system sheets in a
+                    // row, which people abandon.
+                    launcherFor = missing.firstOrNull()?.id
+                },
+                modifier = Modifier.weight(1f),
+            ) { Text("Set as default") }
+
+            Spacer(Modifier.width(10.dp))
+
+            OutlinedButton(
+                onClick = { vm.setDefaultLater() },
+                modifier = Modifier.weight(1f),
+            ) { Text("Later") }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Choosing Later asks again in two days.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

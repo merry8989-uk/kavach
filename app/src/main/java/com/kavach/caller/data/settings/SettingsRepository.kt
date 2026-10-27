@@ -83,6 +83,7 @@ class SettingsRepository @Inject constructor(
         val accountDisplayName = stringPreferencesKey("account_display_name")
         val accountPublishName = booleanPreferencesKey("account_publish_name")
         val offlineOnly = booleanPreferencesKey("offline_only")
+        val defaultNudgeAt = longPreferencesKey("default_nudge_at")
         val dataSaver = booleanPreferencesKey("data_saver")
         val suggestedReplies = stringPreferencesKey("suggested_replies")
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
@@ -154,6 +155,7 @@ class SettingsRepository @Inject constructor(
             accountDisplayName = p[Keys.accountDisplayName] ?: "",
             accountPublishName = p[Keys.accountPublishName] ?: false,
             offlineOnly = p[Keys.offlineOnly] ?: false,
+            defaultNudgeAt = p[Keys.defaultNudgeAt] ?: 0L,
             dataSaver = p[Keys.dataSaver] ?: false,
             suggestedReplies = p[Keys.suggestedReplies] ?: "",
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
@@ -281,6 +283,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setOnboardingDone(value: Boolean) = context.dataStore.edit { it[Keys.onboardingDone] = value }
     suspend fun setDiagnosticsEnabled(value: Boolean) = context.dataStore.edit { it[Keys.diagnosticsEnabled] = value }
     suspend fun setBackendBaseUrl(value: String) = context.dataStore.edit { it[Keys.backendBaseUrl] = value.trim() }
+
+    /** Schedule the next "set as default" reminder. Zero cancels it. */
+    suspend fun setDefaultNudgeAt(value: Long) = context.dataStore.edit { it[Keys.defaultNudgeAt] = value }
 
     suspend fun setOfflineOnly(value: Boolean) = context.dataStore.edit { it[Keys.offlineOnly] = value }
     suspend fun setSuggestedReplies(json: String) = context.dataStore.edit { it[Keys.suggestedReplies] = json }

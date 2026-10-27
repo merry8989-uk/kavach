@@ -53,5 +53,15 @@ object WorkerScheduler {
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<CacheCleanupWorker>(1, TimeUnit.DAYS).build(),
         )
+
+        // The "set as default" reminder. Daily, but the worker itself decides
+        // whether it is time — WorkManager's periodic intervals drift, and a
+        // daily check against a timestamp gives the right answer even when the
+        // check is late. The worker posts nothing unless the user said "later".
+        manager.enqueueUniquePeriodicWork(
+            DefaultNudgeWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<DefaultNudgeWorker>(1, TimeUnit.DAYS).build(),
+        )
     }
 }

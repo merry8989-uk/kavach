@@ -101,6 +101,15 @@ data class AppSettings(
      *  - data saver stops the background sync and the launch-time update check.
      */
     val offlineOnly: Boolean = false,
+
+    /**
+     * When to next ask the user to make Kavach the default dialer.
+     *
+     * Zero means "do not ask": either they already set it, or they have never
+     * been asked and setup will handle it. Set to now + 2 days when they choose
+     * "Later". See [com.kavach.caller.domain.DefaultRoleNudge] for the rules.
+     */
+    val defaultNudgeAt: Long = 0L,
     val dataSaver: Boolean = false,
 
     /** Suggested replies, stored as a JSON array so order is preserved. */
