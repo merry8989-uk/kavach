@@ -24,7 +24,10 @@ Deno.test('both implementations list the same report categories', async () => {
   const lib = await readLib();
   const supabase = await readSupabase();
 
-  const libCats = [...lib.matchAll(/'([a-z]+)',?\s*(?=\n|\])/g)].map((m) => m[1]);
+  // The list is space-separated across two lines, so scrape the block between the
+  // brackets rather than expecting one entry per line.
+  const libBlock = lib.split('export const CATEGORIES = [')[1].split('];')[0];
+  const libCats = [...libBlock.matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
   const block = supabase.split('const CATEGORIES = [')[1].split('];')[0];
   const supCats = [...block.matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
 
@@ -33,10 +36,10 @@ Deno.test('both implementations list the same report categories', async () => {
     assertEquals(supCats.includes(c), true, `supabase is missing category ${c}`);
   }
   assertEquals(supCats.length, canonical.length, 'supabase has extra categories');
-  // libCats is a loose scrape; only assert the canonical set is present in it.
   for (const c of canonical) {
     assertEquals(libCats.includes(c), true, `worker is missing category ${c}`);
   }
+  assertEquals(libCats.length, canonical.length, 'worker has extra categories');
 });
 
 Deno.test('both publish the same provenance', async () => {

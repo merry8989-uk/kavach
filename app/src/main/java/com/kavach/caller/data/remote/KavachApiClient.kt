@@ -254,17 +254,16 @@ class KavachApiClient @Inject constructor(
      *
      */
     private fun newRequest(url: String, userToken: String? = null): Request.Builder {
+        // Every request carries the install's own pseudonym, `KV-XXX-XXX`,
+        // generated on this device and derived from nothing about the person.
+        //
+        // The server needs it to count reports per install. It used to hash the
+        // shared token instead, which is the same on every device - so every
+        // reporter looked identical and a crowd's reports collapsed into one row.
         val builder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
-            // The install's own pseudonym, `KV-XXX-XXX`, generated on this device
-            // and derived from nothing about the person.
-            //
-            // Sent on every request because the server needs it to count reports
-            // per install. It used to hash the shared token instead, which is the
-            // same on every device — so every reporter looked identical and a
-            // crowd's reports collapsed into one row.
-            builder.header(INSTALL_HEADER, session.userCode)
+            .header(INSTALL_HEADER, session.userCode)
         // The install's own token wins. The bootstrap token is what the user
         // pastes in, and it identifies the *app* — every copy of Kavach has it.
         // Anything that needs to tell installs apart has to use the issued one.
