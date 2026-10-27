@@ -54,7 +54,7 @@ class DefaultNudgeWorker(
             return Result.success()
         }
 
-        runCatching { notify() }
+        runCatching { postNotification() }
 
         // Schedule the next window now rather than after the user acts: a
         // notification that is ignored should still not reappear tomorrow.
@@ -62,7 +62,9 @@ class DefaultNudgeWorker(
         return Result.success()
     }
 
-    private fun notify() {
+    // Not `notify`: WorkManager's Worker already has a method with that JVM
+    // signature, and Kotlin reports the clash as an accidental override.
+    private fun postNotification() {
         val context = applicationContext
         ensureChannel(context)
 
