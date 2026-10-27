@@ -17,6 +17,7 @@ import com.kavach.caller.R
 import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.domain.DefaultAppStatus
 import com.kavach.caller.domain.DefaultRoleNudge
+import kotlinx.coroutines.flow.first
 
 /**
  * The "set Kavach as default" reminder.
