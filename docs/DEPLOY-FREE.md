@@ -32,7 +32,13 @@ own kind of unsafe. Fixed in `backend/app/config.py`; the behaviour is pinned by
 
 ---
 
-## Option 1 — Render, one click (recommended)
+## Option 0 — already running (Supabase Edge Function)
+
+Two of the three features are live on a Supabase Edge Function. See
+`edge-supabase/README.md` for the URL and what was verified. This is what the app
+should point at today.
+
+## Option 1 — Render, one click
 
 `render.yaml` is in the repository root. Render reads it and creates the web
 service and the database together.
