@@ -21,6 +21,26 @@ class Settings(BaseSettings):
     # Bearer token for the API. MUST be overridden in production.
     api_token: str = "dev-token"
 
+    # Trust `X-Forwarded-For` when counting registrations.
+    #
+    # **Off by default, because the header is client-supplied.** With it trusted,
+    # anyone can send a different value on each request and the per-source
+    # registration limit stops existing. Turn it on only behind a reverse proxy
+    # that overwrites the header.
+    trust_forwarded_for: bool = False
+
+    # Server-only credential for administrative operations.
+    #
+    # **A separate secret from `api_token`, and that separation is the point.**
+    # The audit found the moderation queue and the telemetry purge both accepting
+    # `api_token` - the same value that ships in the APK as the bootstrap token.
+    # Anyone who extracted it from an install could read the moderation queue and
+    # approve or reject decisions about other people's phone numbers.
+    #
+    # This token never leaves the server. It is not in the app and not in a client
+    # build.
+    admin_token: str = ""
+
     # Development escape hatch: accept the shared token on every endpoint, which
     # is what the pre-registration contract did. Never on in production — the
     # production guard refuses it.
@@ -113,6 +133,22 @@ class Settings(BaseSettings):
         elif len(self.api_token) < 24:
             problems.append("API_TOKEN is shorter than 24 characters")
 
+        # **Administrative operations need their own credential.**
+        if not self.admin_token:
+            problems.append(
+                "ADMIN_TOKEN is not set — moderation and telemetry purge would have "
+                "no credential that is not also in the app",
+            )
+        elif len(self.admin_token) < 24:
+            problems.append("ADMIN_TOKEN is shorter than 24 characters")
+        elif self.admin_token == self.api_token:
+            # The exact mistake the audit found: one secret doing both jobs.
+            problems.append(
+                "ADMIN_TOKEN must differ from API_TOKEN — API_TOKEN ships in the APK, "
+                "so using it for admin operations hands the moderation queue to anyone "
+                "who extracts it from an install",
+            )
+
         if self.phone_pepper in {"", "dev-pepper-change-me"}:
             problems.append("PHONE_PEPPER is still the development default — phone hashes would be reversible")
         elif len(self.phone_pepper) < 16:
@@ -120,6 +156,10 @@ class Settings(BaseSettings):
 
         if self.jwt_secret in {"", "dev-jwt-secret-change-me"}:
             problems.append("JWT_SECRET is still the development default — anyone could mint user tokens")
+        elif len(self.jwt_secret) < 32:
+            # A short HMAC key is a brute-forceable one, and the audit found no
+            # minimum here at all.
+            problems.append("JWT_SECRET is shorter than 32 characters")
 
         if self.auto_create_tables:
             problems.append("AUTO_CREATE_TABLES must be false in production; run Alembic instead")

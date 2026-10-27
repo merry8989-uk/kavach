@@ -14,6 +14,9 @@ from app.models import ModerationItem, Number, SpamScore
 from app.hashing import phone_hash
 
 BOOTSTRAP = {"Authorization": "Bearer test-token"}
+# The moderation queue is an operator's business, so it takes the admin token.
+# It used to accept the bootstrap token - which ships in the APK.
+ADMIN = {"Authorization": "Bearer test-admin-token"}
 
 
 def _install_token(client, install_id="install-abcdefgh") -> str:
@@ -143,7 +146,7 @@ def test_the_operator_can_read_the_queue(client):
         headers=_app_headers(client),
     )
 
-    response = client.get("/v1/admin/moderation", headers=BOOTSTRAP)
+    response = client.get("/v1/admin/moderation", headers=ADMIN)
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["pending_total"] >= 1
@@ -157,7 +160,7 @@ def test_the_queue_shows_a_digest_not_the_number(client):
         json={"number": "+919876500104"},
         headers=_app_headers(client),
     )
-    body = client.get("/v1/admin/moderation", headers=BOOTSTRAP).json()
+    body = client.get("/v1/admin/moderation", headers=ADMIN).json()
     for item in body["items"]:
         if item["number"] is not None:
             assert len(item["number"]) <= 12
@@ -177,7 +180,7 @@ def test_the_queue_is_oldest_first(client, db):
         )
     db.commit()
 
-    items = client.get("/v1/admin/moderation", headers=BOOTSTRAP).json()["items"]
+    items = client.get("/v1/admin/moderation", headers=ADMIN).json()["items"]
     ages = [item["age_seconds"] for item in items]
     assert ages == sorted(ages, reverse=True), "oldest should come first"
 
@@ -197,7 +200,7 @@ def test_approving_an_appeal_clears_the_score(client, db):
     response = client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "approved", "note": "verified as the owner"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert response.status_code == 200, response.text
     assert "cleared" in response.json()["detail"]
@@ -220,7 +223,7 @@ def test_rejecting_an_appeal_leaves_the_score_alone(client, db):
     response = client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "rejected", "note": "reports are consistent"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert response.status_code == 200
     assert "keeps its score" in response.json()["detail"]
@@ -238,7 +241,7 @@ def test_a_decision_is_recorded_with_a_note(client, db):
     client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "approved", "note": "checked against the DLT register"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
 
     item = db.query(ModerationItem).filter(ModerationItem.id == appeal["appeal_id"]).one()
@@ -256,14 +259,14 @@ def test_deciding_twice_is_refused(client):
     first = client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "approved"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert first.status_code == 200
 
     second = client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "rejected"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert second.status_code == 409
 
@@ -277,7 +280,7 @@ def test_an_unknown_decision_is_refused(client):
     response = client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "maybe"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert response.status_code == 422
 
@@ -286,7 +289,7 @@ def test_an_unknown_item_is_a_404(client):
     response = client.post(
         "/v1/admin/moderation/999999",
         json={"decision": "approved"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert response.status_code == 404
 
@@ -312,7 +315,7 @@ def test_an_approved_appeal_closes_other_pending_flags(client, db):
     client.post(
         f"/v1/admin/moderation/{appeal['appeal_id']}",
         json={"decision": "approved"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
 
     remaining = (

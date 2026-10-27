@@ -177,8 +177,25 @@ Deno.serve(async (req: Request) => {
   // Liveness is open. The app's "Test connection" asks before it has been told
   // whether its token is right, and a health check that needs the credential
   // cannot answer the question it is asked.
+  //
+  // **Both paths, because the app asks for `/health/ready`.**
+  //
+  // This function used to answer only `/health`, and `endsWith('/health')` does
+  // not match `/health/ready` — so the app's Test connection got a 404 against a
+  // server that was working perfectly, and reported "something answered at that
+  // address, but it is not a Kavach server". A health check that lies about a
+  // healthy server is worse than no health check.
   if (url.pathname.endsWith('/health')) {
     return json({ status: 'ok', service: 'kavach-supabase' });
+  }
+  if (url.pathname.endsWith('/health/ready')) {
+    // Readiness means the database is actually reachable, which is what the
+    // FastAPI backend means by it too. A container that answers liveness but
+    // cannot reach Postgres should not be reported ready.
+    const { error } = await db.from('kavach_config').select('key').limit(1);
+    return error
+      ? json({ status: 'degraded', database: 'unreachable', detail: error.message }, 503)
+      : json({ status: 'ready', database: 'ok', service: 'kavach-supabase' });
   }
 
   // Constant-time bearer check.
@@ -262,9 +279,34 @@ Deno.serve(async (req: Request) => {
     const note = typeof body?.note === 'string' ? body.note.slice(0, 500) : null;
 
     const digest = await hashValue(number, PHONE_PEPPER);
-    // The reporter is identified by their token, hashed — never by the number
-    // being reported.
-    const reporter = await hashValue(header, PHONE_PEPPER);
+
+    // **The reporter must be per install, not the shared token.**
+    //
+    // This used to hash the Authorization header — which is the *same* APP_TOKEN
+    // for every client. So every reporter produced an identical hash, and because
+    // reports upsert on (number_hash, reporter_hash), the second person's report
+    // silently *replaced* the first instead of adding to it. A crowd of fifty
+    // looked like one person, and the score never moved past 8.
+    //
+    // The app sends its own per-install pseudonym, `KV-XXX-XXX`, generated on the
+    // device and derived from nothing about the person. That is what identifies a
+    // reporter.
+    const install = (req.headers.get('x-kavach-install') ?? '').trim();
+    if (!install) {
+      // Refused rather than collapsed into one bucket. Accepting the request and
+      // counting it as a duplicate is the bug this replaced, and it is worse than
+      // a clear error because nobody ever finds out.
+      return json(
+        {
+          error: 'missing X-Kavach-Install header',
+          detail:
+            'Reports are counted per install. Without it every report from every ' +
+            'device would collapse into one, and a crowd would look like one person.',
+        },
+        422,
+      );
+    }
+    const reporter = await hashValue(install, PHONE_PEPPER);
 
     await db.from('kavach_numbers').upsert(
       { number_hash: digest, country: 'IN' },

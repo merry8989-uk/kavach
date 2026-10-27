@@ -34,6 +34,7 @@ class KavachApiClient @Inject constructor(
     private val settings: SettingsRepository,
     private val diagnostics: DiagnosticsRepository,
     private val secrets: com.kavach.caller.data.secure.SecretStore,
+    private val session: com.kavach.caller.data.diagnostics.SessionContext,
 ) {
     private val http: OkHttpClient = okHttp.newBuilder()
         .callTimeout(LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -67,6 +68,47 @@ class KavachApiClient @Inject constructor(
      * Returns a sentence for the user, never a bare boolean — "it did not work"
      * is not a diagnosable message.
      */
+    /**
+     * Exchange the bootstrap token for one belonging to this install.
+     *
+     * The audit found the client never called this: it saved the bootstrap token
+     * and sent it on every request, while the backend's lookup and report
+     * endpoints expect a per-install token. Against a real deployment that is a
+     * 403 the user cannot diagnose.
+     *
+     * Returns the message to show, or null when there is nothing to say.
+     */
+    suspend fun register(base: String, bootstrapToken: String): String? {
+        return runCatching {
+            val payload = json.encodeToString(
+                AppRegisterRequestDto.serializer(),
+                AppRegisterRequestDto(installId = session.userCode),
+            )
+            val request = Request.Builder()
+                .url("$base/v1/app/register")
+                .header("Accept", "application/json")
+                .header(INSTALL_HEADER, session.userCode)
+                .header("Authorization", "Bearer $bootstrapToken")
+                .post(payload.toRequestBody(jsonMedia))
+                .build()
+
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    // Not fatal: the server may be one that does not issue tokens
+                    // (the Supabase function accepts the shared token). Say what
+                    // happened and carry on.
+                    return@use "Registered not supported here (HTTP ${response.code}); using the token as given."
+                }
+                val body = response.body?.string().orEmpty()
+                val dto = json.decodeFromString(AppRegisterResponseDto.serializer(), body)
+                secrets.put(SecretStore.INSTALL_TOKEN, dto.token)
+                "Registered this install. Requests will use its own token."
+            }
+        }.getOrElse { error ->
+            "Could not register this install: ${error.javaClass.simpleName}."
+        }
+    }
+
     suspend fun testConnection(url: String, token: String): String {
         val base = url.trim().trimEnd('/')
         // The rule lives in ServerUrlPolicy so it can be tested; see
@@ -83,8 +125,14 @@ class KavachApiClient @Inject constructor(
                 .build()
             http.newCall(request).execute().use { response ->
                 when {
-                    response.isSuccessful ->
-                        "Connected. The server is up and can reach its database."
+                    response.isSuccessful -> {
+                        // Registering here rather than lazily before the first
+                        // call: this is the moment the user is watching, and a
+                        // failure is something they can act on.
+                        val note = register(base, token)
+                        "Connected. The server is up and can reach its database." +
+                            (note?.let { "\n$it" } ?: "")
+                    }
                     response.code == 401 || response.code == 403 ->
                         "The server answered, but refused the token. Check the API token."
                     response.code == 404 ->
@@ -209,7 +257,19 @@ class KavachApiClient @Inject constructor(
         val builder = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
+            // The install's own pseudonym, `KV-XXX-XXX`, generated on this device
+            // and derived from nothing about the person.
+            //
+            // Sent on every request because the server needs it to count reports
+            // per install. It used to hash the shared token instead, which is the
+            // same on every device — so every reporter looked identical and a
+            // crowd's reports collapsed into one row.
+            builder.header(INSTALL_HEADER, session.userCode)
+        // The install's own token wins. The bootstrap token is what the user
+        // pastes in, and it identifies the *app* — every copy of Kavach has it.
+        // Anything that needs to tell installs apart has to use the issued one.
         val bearer = userToken?.takeIf { it.isNotBlank() }
+            ?: secrets.get(SecretStore.INSTALL_TOKEN)?.takeIf { it.isNotBlank() }
             ?: secrets.get(SecretStore.SERVER_TOKEN)?.takeIf { it.isNotBlank() }
         bearer?.let { builder.header("Authorization", "Bearer $it") }
         return builder
@@ -390,3 +450,7 @@ class KavachApiClient @Inject constructor(
         const val LOOKUP_TIMEOUT_SECONDS = 4L
     }
 }
+
+
+/** The header that carries this install's pseudonym. Kept in one place. */
+private const val INSTALL_HEADER = "X-Kavach-Install"

@@ -136,6 +136,7 @@ def server():
             "DATABASE_URL": "sqlite:///./test-boot.db",
             "AUTO_CREATE_TABLES": "true",
             "API_TOKEN": "test-token-for-boot-checks-only",
+            "ADMIN_TOKEN": "test-admin-token-for-boot-checks-only",
         },
     ) as running:
         yield running
@@ -186,6 +187,7 @@ def test_production_refuses_to_start_on_development_secrets():
     problems = Settings(
         environment="production",
         api_token="dev-token",
+        admin_token="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         phone_pepper="dev-pepper-change-me",
         jwt_secret="dev-jwt-secret-change-me",
         database_url="sqlite:///./x.db",
@@ -205,6 +207,7 @@ def test_a_proper_production_configuration_is_accepted():
     problems = Settings(
         environment="production",
         api_token="a" * 40,
+        admin_token="e" * 40,
         phone_pepper="b" * 32,
         jwt_secret="c" * 40,
         database_url="postgresql://user:pass@db:5432/kavach",
@@ -229,6 +232,7 @@ def test_a_missing_sms_provider_does_not_stop_the_server():
     settings = Settings(
         environment="production",
         api_token="a" * 40,
+        admin_token="e" * 40,
         phone_pepper="b" * 32,
         jwt_secret="c" * 40,
         database_url="postgresql://user:pass@db:5432/kavach",
@@ -249,6 +253,7 @@ def test_unsafe_configuration_still_stops_the_boot():
     settings = Settings(
         environment="production",
         api_token="dev-token",
+        admin_token="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         phone_pepper="dev-pepper-change-me",
         jwt_secret="dev-jwt-secret-change-me",
         database_url="postgresql://user:pass@db:5432/kavach",
@@ -287,6 +292,9 @@ def test_the_server_boots_in_production_without_an_sms_provider():
         {
             "ENVIRONMENT": "production",
             "API_TOKEN": "a" * 40,
+            # Administrative operations need their own credential. Deliberately a
+            # different value from API_TOKEN: that separation is the audit fix.
+            "ADMIN_TOKEN": "d" * 40,
             "PHONE_PEPPER": "b" * 32,
             "JWT_SECRET": "c" * 40,
             "DATABASE_URL": "postgresql+psycopg://user:pass@127.0.0.1:59999/kavach",

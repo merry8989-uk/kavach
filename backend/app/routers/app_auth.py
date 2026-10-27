@@ -31,14 +31,24 @@ router = APIRouter(tags=["app"])
 REGISTRATIONS_PER_HOUR_PER_SOURCE = 5
 
 
-def _source_hash(request: Request) -> str:
+def _source_hash(request: Request, settings: Settings) -> str:
     """A hashed source, used only to spot bulk registration.
 
     Hashed rather than stored raw, because an IP is personal data and this is
     only ever used to count.
+
+    **`X-Forwarded-For` is client-supplied and is ignored unless the deployment
+    says it is behind a proxy that overwrites it.** Trusting it unconditionally
+    meant anyone could send a different value per request and the per-source
+    registration limit stopped existing — a rate limit that the limited party
+    controls is not a rate limit.
     """
-    forwarded = request.headers.get("x-forwarded-for", "")
-    source = forwarded.split(",")[0].strip() or (request.client.host if request.client else "")
+    source = ""
+    if settings.trust_forwarded_for:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        source = forwarded.split(",")[0].strip()
+    if not source:
+        source = request.client.host if request.client else ""
     return hashlib.sha256(source.encode()).hexdigest()
 
 
@@ -63,7 +73,7 @@ def register(
 ) -> AppRegisterResponse:
     """Exchange the bootstrap token for a token belonging to this install."""
     now = int(time.time())
-    source = _source_hash(request)
+    source = _source_hash(request, get_settings())
 
     recent = (
         db.query(AppInstall)

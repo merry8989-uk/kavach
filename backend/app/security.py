@@ -48,6 +48,39 @@ def require_token(
     return token
 
 
+def require_admin_token(
+    authorization: str | None = Header(default=None),
+    settings: Settings = Depends(get_settings),
+) -> str:
+    """A server-only credential, for operations that are not a user's to make.
+
+    Separate from both other tokens on purpose:
+
+    - `api_token` is the bootstrap token **and it ships in the APK**. Anyone who
+      extracts it must not be able to read the moderation queue or purge records.
+    - a per-install token identifies one phone. An install is not an operator.
+
+    Refuses rather than falling back. A fallback here would quietly restore the
+    exact hole the audit found.
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+
+    if not settings.admin_token:
+        # Misconfiguration, not a bad request. Said plainly so an operator fixes
+        # the deployment rather than hunting a client bug.
+        raise HTTPException(
+            status_code=503,
+            detail="this server has no ADMIN_TOKEN configured, so administrative "
+                   "operations are disabled",
+        )
+
+    if not secrets.compare_digest(token, settings.admin_token):
+        raise HTTPException(status_code=403, detail="this operation needs the admin token")
+    return token
+
+
 def require_app_token(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),

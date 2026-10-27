@@ -14,6 +14,9 @@ def _settings(**overrides) -> Settings:
         environment="production",
         database_url="postgresql+psycopg://kavach:x@db:5432/kavach",
         api_token="a" * 48,
+        # Administrative operations need their own credential, and it must not be
+        # the token that ships in the APK.
+        admin_token="d" * 48,
         phone_pepper="b" * 32,
         jwt_secret="c" * 48,
         auto_create_tables=False,
@@ -64,6 +67,7 @@ def test_each_unsafe_value_is_caught(overrides, expected):
 def test_every_problem_is_reported_not_just_the_first():
     problems = _settings(
         api_token="dev-token",
+        admin_token="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         phone_pepper="dev-pepper-change-me",
         jwt_secret="dev-jwt-secret-change-me",
         auto_create_tables=True,

@@ -17,7 +17,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..models import TelemetryEvent
 from ..schemas import TelemetryAck, TelemetryBatch
-from ..security import rate_limit, require_app_token
+from ..security import rate_limit, require_admin_token, require_app_token
 
 router = APIRouter(tags=["telemetry"])
 
@@ -82,9 +82,16 @@ def ingest(
 def purge(
     keep_days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
-    _token: str = Depends(require_app_token),
+    _operator: str = Depends(require_admin_token),
 ) -> dict:
-    """Enforce the retention policy on stored telemetry."""
+    """Enforce the retention policy on stored telemetry.
+
+    **Admin-only, and that is a fix rather than a preference.** This used
+    `require_app_token`, which is ordinary install authentication — so any valid
+    install could call it with `keep_days=1` and delete every diagnostic record
+    older than a day. A maintenance job is not a user action, and an install is
+    not an operator.
+    """
     cutoff = int(time.time()) - keep_days * 24 * 60 * 60
     deleted = (
         db.query(TelemetryEvent)

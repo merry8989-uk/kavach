@@ -135,7 +135,13 @@ def test_purge_removes_old_rows(client, db):
     row.received_at = int(time.time()) - 40 * 24 * 60 * 60
     db.commit()
 
-    response = client.post("/v1/admin/telemetry/purge?keep_days=30")
+    # Purging is an operator's action, not an install's. It used to accept the
+    # ordinary app token, so any valid install could delete a day's worth of
+    # records with keep_days=1.
+    response = client.post(
+        "/v1/admin/telemetry/purge?keep_days=30",
+        headers={"Authorization": "Bearer test-admin-token"},
+    )
     assert response.json()["deleted"] == 1
 
 
@@ -156,3 +162,36 @@ def test_the_server_schema_matches_the_documented_event_names():
         "perf_sample", "db_query", "analytics_event", "trace_step",
     }
     assert set(telemetry_schema.CATALOGUE) == expected
+
+
+def test_an_install_token_cannot_purge(client, db):
+    """The audit's finding, as a test.
+
+    `require_app_token` is ordinary install authentication. A maintenance job is
+    not a user action, and an install is not an operator.
+    """
+    client.post(
+        "/v1/telemetry/events",
+        json={
+            "user_code": "KV-4F9-K2Q",
+            "events": [
+                {
+                    "event_name": "app_open",
+                    "severity": "info",
+                    "category": "activity",
+                    "timestamp": "2026-10-01T10:00:00Z",
+                }
+            ],
+        },
+        headers={"Authorization": "Bearer test-token"},
+    )
+    db.commit()
+
+    # The bootstrap token, which ships in the APK, must not open this.
+    response = client.post(
+        "/v1/admin/telemetry/purge?keep_days=1",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert response.status_code in (401, 403), (
+        "the bootstrap token must not be able to purge telemetry"
+    )

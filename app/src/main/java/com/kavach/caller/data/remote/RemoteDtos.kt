@@ -180,3 +180,18 @@ data class BusinessClaimResponseDto(
     @SerialName("claim_id") val claimId: Int? = null,
     val detail: String = "",
 )
+
+
+/** What an install tells the server about itself. */
+@Serializable
+data class AppRegisterRequestDto(
+    val installId: String,
+)
+
+/** The install's own token. Shown once, then only its hash is kept. */
+@Serializable
+data class AppRegisterResponseDto(
+    val token: String,
+    val installId: String = "",
+    val expiresIn: Long? = null,
+)

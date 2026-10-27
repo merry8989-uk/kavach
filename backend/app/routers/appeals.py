@@ -29,7 +29,7 @@ from ..schemas import (
     ModerationItemView,
     ModerationQueueResponse,
 )
-from ..security import actor_hash, bearer_token, rate_limit, require_app_token, require_token
+from ..security import actor_hash, bearer_token, rate_limit, require_admin_token, require_app_token
 from ..services import moderation
 from ..services.names import upsert_number_by_hash
 from ..hashing import phone_hash
@@ -82,7 +82,7 @@ def _require_operator(token: str = Depends(bearer_token)) -> str:
 @router.get("/v1/admin/moderation", response_model=ModerationQueueResponse)
 def list_moderation(
     db: Session = Depends(get_db),
-    _operator: str = Depends(require_token),
+    _operator: str = Depends(require_admin_token),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> ModerationQueueResponse:
@@ -128,7 +128,7 @@ def decide_moderation(
     item_id: int,
     payload: ModerationDecisionBody,
     db: Session = Depends(get_db),
-    _operator: str = Depends(require_token),
+    _operator: str = Depends(require_admin_token),
 ) -> ModerationDecisionResponse:
     """Resolve an item, and make the resolution mean something.
 

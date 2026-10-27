@@ -1,0 +1,35 @@
+name: Edge server (Supabase)
+
+# The audit found no automated coverage for edge-supabase/. The Android CI passing
+# was never evidence that this API works, and it was treated as if it were.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "edge-supabase/**"
+      - ".github/workflows/edge-supabase.yml"
+  pull_request:
+    paths:
+      - "edge-supabase/**"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Type-checks the function. A Deno project with no tsconfig and no build
+      # step can hide a type error until the moment it is deployed.
+      - name: Type check
+        run: deno check edge-supabase/index.ts
+
+      # The two server implementations must not drift apart. The audit's point was
+      # that three backends quietly disagreeing is worse than one.
+      - name: Contract tests against the Cloudflare worker
+        run: deno test --allow-read edge-supabase/contract.test.ts

@@ -10,6 +10,10 @@ os.environ.setdefault("ALLOW_SHARED_TOKEN", "true")
 # Must be set before the app package is imported.
 os.environ["AUTO_CREATE_TABLES"] = "false"
 os.environ["API_TOKEN"] = "test-token"
+# Administrative operations need their own credential, and the tests need one to
+# use. Deliberately different from API_TOKEN: the whole point of the fix is that
+# these are not the same secret.
+os.environ["ADMIN_TOKEN"] = "test-admin-token"
 os.environ["RATE_LIMIT_PER_MINUTE"] = "1000"
 # Deterministic pepper so hashes are stable within a test run, and no production
 # default is ever exercised.

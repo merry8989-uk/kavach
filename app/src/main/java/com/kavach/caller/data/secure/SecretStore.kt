@@ -112,6 +112,16 @@ class SecretStore @Inject constructor(
          */
         const val SERVER_TOKEN = "kavach_server_token"
 
+        /**
+         * This install's own token, issued by the server.
+         *
+         * Distinct from [SERVER_TOKEN], which holds the bootstrap token the user
+         * pastes in. The bootstrap token ships in the APK, so it identifies the
+         * *app*, not the install; the server needs the latter to count reports
+         * per device and to cut off one install without touching anyone else.
+         */
+        const val INSTALL_TOKEN = "kavach_install_token"
+
         private const val KEYSTORE = "AndroidKeyStore"
         private const val ALIAS = "kavach_secret_store"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"

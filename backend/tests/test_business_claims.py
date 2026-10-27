@@ -15,6 +15,7 @@ from app.hashing import phone_hash
 from app.models import Business, ModerationItem, NameEntry, Number
 
 BOOTSTRAP = {"Authorization": "Bearer test-token"}
+ADMIN = {"Authorization": "Bearer test-admin-token"}
 
 
 def _install(client, install_id="install-claim-1") -> str:
@@ -95,7 +96,7 @@ def test_claiming_twice_does_not_duplicate(client, db):
 def test_the_queue_shows_what_is_being_claimed(client):
     client.post("/v1/businesses/claim", json=CLAIM, headers=_headers(client))
 
-    items = client.get("/v1/admin/moderation", headers=BOOTSTRAP).json()["items"]
+    items = client.get("/v1/admin/moderation", headers=ADMIN).json()["items"]
     claim = next(i for i in items if i["reason"] == "business_claim")
     # A moderator has to see the name they are about to publish, not a note
     # about it.
@@ -124,7 +125,7 @@ def _file_and_approve(client, db) -> int:
     r = client.post(
         f"/v1/admin/moderation/{claim['claim_id']}",
         json={"decision": "approved", "note": "checked the register entry"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert r.status_code == 200, r.text
     return claim["claim_id"]
@@ -171,7 +172,7 @@ def test_rejecting_leaves_the_listing_unverified(client, db):
     r = client.post(
         f"/v1/admin/moderation/{claim['claim_id']}",
         json={"decision": "rejected", "note": "the register entry names a different number"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
     assert r.status_code == 200
 
@@ -195,7 +196,7 @@ def test_a_claim_with_no_name_publishes_nothing(client, db):
     client.post(
         f"/v1/admin/moderation/{claim['claim_id']}",
         json={"decision": "approved"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
 
     assert db.query(Business).filter(Business.verified.is_(True)).count() == 0
@@ -226,7 +227,7 @@ def test_a_business_name_outranks_a_community_suggestion(client, db):
     client.post(
         f"/v1/admin/moderation/{claim['claim_id']}",
         json={"decision": "approved"},
-        headers=BOOTSTRAP,
+        headers=ADMIN,
     )
 
     from app.services import names
