@@ -11,7 +11,6 @@ import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.EntryPointAccessors
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.work.WorkerParameters
 import com.kavach.caller.MainActivity
 import com.kavach.caller.R
 import com.kavach.caller.data.settings.SettingsRepository
