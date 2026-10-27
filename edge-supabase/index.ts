@@ -148,21 +148,27 @@ Deno.serve(async (req: Request) => {
 
   const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  // **Secrets: environment first, then a locked-down table.**
+  // **Secrets: environment first, then Supabase Vault.**
   //
-  // The proper home for these is Supabase's own Edge Function secrets
-  // (Dashboard → Edge Functions → Secrets), and that is what the environment
-  // branch reads. It could not be set from the tooling that deployed this, so the
-  // values also live in `kavach_config`, which has RLS on and no policies — the
-  // service role reads it, nothing else can.
+  // These used to live in a plain table, `kavach_config`, in the same database as
+  // the number hashes. That defeated the hashing: anyone who dumped the database
+  // got the hashes *and* the pepper, so every hash could be verified or reversed.
+  // The "numbers are never stored" claim was true of the table and false of the
+  // dump.
   //
-  // The order matters: move them to real secrets later and this keeps working
-  // with no code change, because the environment is checked first.
+  // Vault encrypts at rest under a key Supabase manages outside the data, so a
+  // dump of the vault table is ciphertext. `kavach_secret` is a
+  // security-definer function granted to service_role only, so the function can
+  // read a secret without the vault schema being exposed to PostgREST.
+  //
+  // The environment is still checked first: moving to real Edge Function secrets
+  // in the dashboard later needs no code change.
   async function config(key: string): Promise<string> {
     const fromEnv = Deno.env.get(key);
     if (fromEnv) return fromEnv;
-    const { data } = await db.from('kavach_config').select('value').eq('key', key).maybeSingle();
-    return data?.value ?? '';
+    const { data, error } = await db.rpc('kavach_secret', { p_key: `KAVACH_${key}` });
+    if (error) return '';
+    return (data as string | null) ?? '';
   }
 
   const APP_TOKEN = await config('APP_TOKEN');
@@ -192,7 +198,7 @@ Deno.serve(async (req: Request) => {
     // Readiness means the database is actually reachable, which is what the
     // FastAPI backend means by it too. A container that answers liveness but
     // cannot reach Postgres should not be reported ready.
-    const { error } = await db.from('kavach_config').select('key').limit(1);
+    const { error } = await db.from('kavach_scores').select('number_hash').limit(1);
     return error
       ? json({ status: 'degraded', database: 'unreachable', detail: error.message }, 503)
       : json({ status: 'ready', database: 'ok', service: 'kavach-supabase' });

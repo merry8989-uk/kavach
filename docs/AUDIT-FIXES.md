@@ -90,6 +90,7 @@ database round trip so "ready" means what it means in the FastAPI backend.
 
 | Finding | Status |
 |---|---|
+| The pepper sat in the same database as the hashes | **Fixed.** Moved to Supabase Vault; `kavach_config` dropped. A database dump now contains ciphertext, so the hashes cannot be verified or reversed from it |
 | Raw phone numbers in legacy FastAPI models | **Not fixed.** Real, and the claim "numbers are never stored" is not universally true of this repo — only of the newer hashed model and the two edge implementations |
 | Retention promise vs actual cleanup | **Not fixed** |
 | Export claim with no export endpoint | **Not fixed** |

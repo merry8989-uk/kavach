@@ -47,15 +47,25 @@ Every row keys on an HMAC-SHA256 of the E.164 number under `PHONE_PEPPER`. The r
 number is never written and never logged. This database cannot be turned back into
 a list of people's phone numbers without that secret.
 
-## Secrets
+## Secrets — Supabase Vault
 
-The proper home is Supabase's own Edge Function secrets
-(**Dashboard → Edge Functions → Secrets**). The tooling that deployed this could
-not set them, so the values also live in `kavach_config`, which has RLS on and no
-policies — the service role reads it, nothing else can.
+**They were in a plain table, and that defeated the hashing.**
 
-The function checks the **environment first**, then the table. Move them to real
-secrets later and nothing needs changing.
+`kavach_config` sat in the same database as the number hashes. Anyone who dumped
+the database got the hashes *and* the pepper, so every hash could be verified or
+reversed. "Numbers are never stored" was true of the table and false of the dump.
+
+They are in **Supabase Vault** now. Vault encrypts at rest under a key Supabase
+manages outside the data, so a dump of `vault.secrets` is ciphertext — the stored
+value is 129 characters of ciphertext for a 64-character token, and the plaintext
+is in no table at all. `kavach_config` has been dropped.
+
+The function reads a secret through `public.kavach_secret(key)`, a
+`security definer` function granted to `service_role` only, so the vault schema is
+never exposed to PostgREST.
+
+The **environment is still checked first**, so moving to real Edge Function
+secrets in the dashboard later needs no code change.
 
 ## What still will not work
 
