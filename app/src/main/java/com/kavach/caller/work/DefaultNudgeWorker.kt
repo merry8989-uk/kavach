@@ -8,16 +8,15 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.hilt.work.HiltWorker
+import androidx.hilt.work.EntryPointAccessors
 import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
 import androidx.work.WorkerParameters
 import com.kavach.caller.MainActivity
 import com.kavach.caller.R
 import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.domain.DefaultAppStatus
 import com.kavach.caller.domain.DefaultRoleNudge
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 
 /**
  * The "set Kavach as default" reminder.
@@ -30,14 +29,21 @@ import dagger.assisted.AssistedInject
  * **It never asks twice for the same window.** Posting sets the next timestamp,
  * so a worker that runs late, or twice, cannot produce two notifications.
  */
-@HiltWorker
-class DefaultNudgeWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted params: WorkerParameters,
-    private val settings: SettingsRepository,
-) : CoroutineWorker(context, params) {
+// A plain worker that pulls its dependency from an entry point, matching the
+// other workers here. The project does not depend on `hilt-work`, so `@HiltWorker`
+// does not resolve — and adding a dependency to use a different pattern from the
+// two workers beside it would be the wrong trade.
+class DefaultNudgeWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        val settings = EntryPointAccessors.fromApplication(
+            applicationContext,
+            WorkerEntryPoint::class.java,
+        ).settings()
+
         val snapshot = settings.settings.first()
         val isDefault = DefaultAppStatus.isDefault(applicationContext)
         val now = System.currentTimeMillis()

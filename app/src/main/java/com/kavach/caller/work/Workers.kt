@@ -22,6 +22,8 @@ interface WorkerEntryPoint {
     fun callLogRepository(): CallLogRepository
 
     fun diagnostics(): com.kavach.caller.data.diagnostics.DiagnosticsRepository
+
+    fun settings(): com.kavach.caller.data.settings.SettingsRepository
 }
 
 /**
