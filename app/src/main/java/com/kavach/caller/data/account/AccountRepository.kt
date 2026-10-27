@@ -29,11 +29,37 @@ class AccountRepository @Inject constructor(
 
     private val token: String get() = settings.snapshot.accountToken
 
-    /** Step 1. Returns the request id, and the code too in local dev builds. */
+    /**
+     * Step 1. Returns the request id, and the code too in local dev builds.
+     *
+     * **Each failure says what actually happened.** This used to report "No
+     * Kavach server is configured" for every one of them, including a server that
+     * was configured and reachable — which sends the user to fix a setting that
+     * was already right.
+     */
     suspend fun requestOtp(phone: String): Result<OtpChallenge> = runCatching {
-        val response = api.requestOtp(phone)
-            ?: error("No Kavach server is configured.")
-        OtpChallenge(requestId = response.request_id, debugCode = response.debug_code)
+        when (val result = api.requestOtp(phone)) {
+            is KavachApiClient.OtpResult.Sent ->
+                OtpChallenge(
+                    requestId = result.response.request_id,
+                    debugCode = result.response.debug_code,
+                )
+            KavachApiClient.OtpResult.NoServer -> error(
+                "No server is set. Add its URL under Settings, Self-hosted lookup.",
+            )
+            KavachApiClient.OtpResult.NotSupported -> error(
+                "This server does not offer sign-in. Verifying a number needs an SMS " +
+                    "gateway on the server, and the one you are pointing at has none.",
+            )
+            KavachApiClient.OtpResult.NoGateway -> error(
+                "The server is reachable but has no SMS gateway configured, so it " +
+                    "cannot send a code. This is a server setting, not something to " +
+                    "fix on the phone.",
+            )
+            is KavachApiClient.OtpResult.Failed -> error(
+                "The server answered HTTP ${result.code}.",
+            )
+        }
     }
 
     /** Step 2. Stores the JWT so later calls can act on this user's record. */

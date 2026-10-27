@@ -203,6 +203,19 @@ fun AccountScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // **Said before they type, not after they fail.**
+                    //
+                    // Sending a code needs an SMS gateway on the server, and none
+                    // is configured anywhere today. Letting someone enter their
+                    // number and then telling them is worse than saying it first.
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "This needs a server with an SMS gateway. If yours has none, " +
+                            "the code cannot be sent — that is a server setting, not " +
+                            "something to fix on this phone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    )
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
                         value = vm.phone,

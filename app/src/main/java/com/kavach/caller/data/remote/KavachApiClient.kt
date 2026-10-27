@@ -297,14 +297,61 @@ class KavachApiClient @Inject constructor(
     // ---------------- consent-based account (plan sections 4.1, 4.5) ----------------
 
     /** Step 1 of sign-in. Returns null when no server is configured. */
-    suspend fun requestOtp(phone: String): OtpRequestResponseDto? {
-        val url = baseUrl() ?: return null
-        return post(
-            "$url/v1/auth/otp/request",
-            OtpRequestBodyDto(phone = phone),
-            OtpRequestBodyDto.serializer(),
-            OtpRequestResponseDto.serializer(),
-        )
+    /**
+     * What happened when we asked for a code.
+     *
+     * A nullable return could not tell these apart, and the screen said "No
+     * Kavach server is configured" for **every** one of them — including a server
+     * that was configured and working. A message that names the wrong problem
+     * sends the user to fix the wrong thing.
+     */
+    sealed interface OtpResult {
+        data class Sent(val response: OtpRequestResponseDto) : OtpResult
+        /** No URL set, or offline-only is on. */
+        data object NoServer : OtpResult
+        /** The server answered 404: it has no sign-in endpoints at all. */
+        data object NotSupported : OtpResult
+        /** The server answered 503: it has no SMS gateway, so it cannot send. */
+        data object NoGateway : OtpResult
+        /** Anything else, with the code, so it can be reported accurately. */
+        data class Failed(val code: Int) : OtpResult
+    }
+
+    suspend fun requestOtp(phone: String): OtpResult {
+        val url = baseUrl() ?: return OtpResult.NoServer
+        val request = newRequest("$url/v1/auth/otp/request")
+            .post(
+                json.encodeToString(OtpRequestBodyDto.serializer(), OtpRequestBodyDto(phone = phone))
+                    .toRequestBody(jsonMedia),
+            )
+            .build()
+
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                http.newCall(request).execute().use { response ->
+                    val started = System.currentTimeMillis()
+                    diagnostics.apiRequest(
+                        endpoint = request.url.encodedPath,
+                        method = request.method,
+                        statusCode = response.code,
+                        latencyMs = started,
+                    )
+                    when {
+                        response.isSuccessful -> {
+                            val body = response.body?.string().orEmpty()
+                            OtpResult.Sent(
+                                json.decodeFromString(OtpRequestResponseDto.serializer(), body),
+                            )
+                        }
+                        // 404 means the path does not exist: this server does not
+                        // offer sign-in. 503 means it does, but has no gateway.
+                        response.code == 404 -> OtpResult.NotSupported
+                        response.code == 503 -> OtpResult.NoGateway
+                        else -> OtpResult.Failed(response.code)
+                    }
+                }
+            }.getOrElse { OtpResult.Failed(-1) }
+        }
     }
 
     /** Step 2. The returned token authenticates every `/v1/me` call. */
