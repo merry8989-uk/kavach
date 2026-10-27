@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.hilt.work.EntryPointAccessors
+import dagger.hilt.android.EntryPointAccessors
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.WorkerParameters
