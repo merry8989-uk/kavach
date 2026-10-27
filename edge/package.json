@@ -1,0 +1,19 @@
+{
+  "name": "kavach-edge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kavach edge server — caller lookup and community reports on Cloudflare Workers + D1.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/",
+    "test:unit": "node --test test/lib.test.js",
+    "test:integration": "node --test test/integration.test.js",
+    "check": "node --check src/index.js && node --check src/lib.js",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "miniflare": "^4.20260426.0",
+    "wrangler": "^4.0.0"
+  }
+}

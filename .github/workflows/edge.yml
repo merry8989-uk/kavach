@@ -1,0 +1,56 @@
+name: Edge server
+
+# The Cloudflare Worker that gives the app its caller lookup and community
+# reports. Tests only — deployment is `wrangler deploy` from a developer's
+# machine, because a server that redeploys itself on every push is a server whose
+# behaviour changes without anyone deciding to.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "edge/**"
+      - ".github/workflows/edge.yml"
+  pull_request:
+    paths:
+      - "edge/**"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: edge
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dev dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      # Boots workerd with a real D1 and dispatches requests through the Worker.
+      # This is the half a unit test cannot cover: that the route is spelled
+      # right, the binding matches, and D1 accepts the SQL.
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: The entry module exports only a handler
+        # A Worker's named exports are entry points; exporting a constant from
+        # index.js makes workerd refuse to start. Node does not care, so this is
+        # checked statically rather than waiting for the integration test.
+        run: |
+          if grep -qE '^export\s+(?!default)' src/index.js; then
+            echo "::error::src/index.js has named exports; move them to lib.js"
+            exit 1
+          fi
+          echo "index.js exports only the default handler"

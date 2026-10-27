@@ -1,0 +1,27 @@
+# Kavach edge server — Cloudflare Worker + D1.
+#
+#   npx wrangler d1 create kavach-edge            # once, paste the id below
+#   npx wrangler d1 execute kavach-edge --remote --file=schema.sql
+#   npx wrangler secret put APP_TOKEN             # the token the app sends
+#   npx wrangler secret put PHONE_PEPPER          # makes the stored hashes irreversible
+#   npx wrangler deploy
+#
+# See README.md. The app points at the printed URL under
+# Settings → Self-hosted lookup.
+
+name = "kavach-edge"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kavach-edge"
+# Replace with the id `wrangler d1 create` prints.
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+[observability]
+enabled = true
+
+# No cron. Nothing here is periodic: scores are recomputed when a report arrives,
+# and there is no retention sweep because the only growing table is `reports`,
+# which is bounded by the number of distinct reporters per number.
