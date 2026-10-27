@@ -17,6 +17,8 @@ import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.domain.DefaultAppStatus
 import com.kavach.caller.domain.DefaultRoleNudge
 import kotlinx.coroutines.flow.first
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
 
 /**
  * The "set Kavach as default" reminder.
@@ -96,12 +98,20 @@ class DefaultNudgeWorker(
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        // The permission is checked here rather than assumed: on Android 13+ a
-        // notification without it throws, and a worker that crashes is worse than
-        // one that stays quiet.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            NotificationManagerCompat.from(context).areNotificationsEnabled()
-        ) {
+        // **Inline at the call site, not behind a helper.**
+        //
+        // Lint's MissingPermission check cannot see through a wrapper, so it
+        // fails the build on the `notify` below unless the check is right here.
+        // The permission is genuinely required on Android 13+ and a notification
+        // without it throws — a worker that crashes is worse than one that stays
+        // quiet.
+        val allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (allowed) {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
         }
     }
