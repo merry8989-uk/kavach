@@ -1,6 +1,7 @@
 package com.kavach.caller
 
 import com.kavach.caller.domain.VCardReader
+import com.kavach.caller.domain.toVCard
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
