@@ -507,6 +507,8 @@ fun SettingsScreen(
         Text(stringResource(R.string.feature_requests_feedback_osintgram_io),
             color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(32.dp))
+
+        ExploreMoreAppsSection()
     }
 }
 
