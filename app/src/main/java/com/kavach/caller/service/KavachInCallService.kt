@@ -79,9 +79,17 @@ class KavachInCallService : InCallService() {
             scope.launch {
                 runCatching {
                     val isContact = contacts.nameFor(handle) != null
-                    val connected = call.details?.let {
-                        it.creationTimeMillis > 0 && call.state == Call.STATE_DISCONNECTED
-                    } ?: false
+                    // `creationTimeMillis` is API 26 and the app supports 24, so
+                    // the check is guarded rather than assumed. Below 26 the prompt
+                    // is skipped: asking about a call we cannot confirm connected
+                    // would mean asking about missed calls too.
+                    val connected = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        call.details?.let {
+                            it.creationTimeMillis > 0 && call.state == Call.STATE_DISCONNECTED
+                        } ?: false
+                    } else {
+                        false
+                    }
                     if (!isContact && connected) {
                         settings.setPendingSpamPrompt("$handle|${System.currentTimeMillis()}")
                     }
