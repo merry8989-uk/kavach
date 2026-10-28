@@ -1,5 +1,12 @@
 # Kavach — Implementation Status
 
+> **This document is out of date.** It is as of v0.30.0; the app is at v0.56.0 and
+> the test counts here are roughly half the real ones.
+>
+> For the current gap between the plans and the code, read
+> [`docs/PLAN-AUDIT.md`](PLAN-AUDIT.md). It was checked against the source rather
+> than against this file.
+
 **As of release v0.30.0.**
 
 Status vocabulary: **NOT_STARTED · IN_PROGRESS · IMPLEMENTED · VERIFIED · BLOCKED · EXCLUDED**

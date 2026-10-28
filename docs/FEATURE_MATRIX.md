@@ -1,6 +1,12 @@
 # Kavach — Feature Matrix
 
 Status: **NOT_STARTED · IN_PROGRESS · IMPLEMENTED · VERIFIED · BLOCKED**
+
+> **Ten rows below are wrong.** They say `NOT_STARTED` for features that are
+> implemented — smart replies, auto-reply, spam SMS filtering, encrypted storage,
+> storage quota, motion, Hindi localisation, WorkManager, diagnostics and
+> data-saver. See [`PLAN-AUDIT.md`](PLAN-AUDIT.md) for the list with file paths.
+> The matrix is kept for the parts it still gets right; the audit is what to trust.
 `IMPLEMENTED` = code exists and compiles in CI. `VERIFIED` = exercised on a real
 device/emulator. **No feature is VERIFIED** — the build environment has no Android
 SDK, emulator or device. See `IMPLEMENTATION_STATUS.md`.
