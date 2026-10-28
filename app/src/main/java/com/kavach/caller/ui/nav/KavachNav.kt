@@ -287,7 +287,6 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenRecordings = { nav.navigate("recordings") },
                         onOpenBlocklist = { nav.navigate("block") },
                         onOpenFeatures = { nav.navigate("features") },
-                        onOpenCommunity = { nav.navigate("community") },
                         onAddContact = { nav.navigate("contacts?new=true") },
                         onOpenReminders = { nav.navigate("reminders") },
                     )

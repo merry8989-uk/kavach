@@ -1,7 +1,7 @@
 package com.kavach.caller.work
 
 import android.content.Context
-import androidx.hilt.work.EntryPointAccessors
+import dagger.hilt.android.EntryPointAccessors
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -140,6 +140,11 @@ class ScheduledSendWorker(
             // may be granted by morning, and silently losing the message is worse
             // than trying again.
             is com.kavach.caller.data.system.SmsSender.Result.Failed -> Result.retry()
+
+            // `else` rather than an exhaustive list, because a variant added to
+            // SmsSender.Result later should not fail this build — and retrying is
+            // the safe answer for an outcome the worker does not recognise.
+            else -> Result.retry()
         }
     }
 }
