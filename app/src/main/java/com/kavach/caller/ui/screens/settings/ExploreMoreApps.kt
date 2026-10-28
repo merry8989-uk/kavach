@@ -2,6 +2,7 @@ package com.kavach.caller.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,44 +41,44 @@ object ExploreApps {
         ExploreApp(
             name = "Chronos",
             tagline = "Exact alarms with holiday skipping, world clock, timer presets, lap stopwatch",
-            url = "https://merry8989-uk.github.io/chronos-clock/",
-            action = "Open",
+            url = "https://github.com/merry8989-uk/chronos-clock/releases/latest/download/app-release.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Universal AI Calculator",
             tagline = "Standard, scientific, unit converter, programmer, date tools + 47 calculators",
-            url = "https://merry8989-uk.github.io/universal-ai-calculator/",
-            action = "Open",
+            url = "https://github.com/merry8989-uk/universal-ai-calculator/releases/latest/download/app-release.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "ProGallery",
             tagline = "Full-featured gallery: MediaStore indexing, duplicate detection, photo/video editing",
-            url = "https://github.com/merry8989-uk/pro-gallery-android",
-            action = "View repo",
+            url = "https://github.com/merry8989-uk/pro-gallery-android/releases/download/v1.60.0/pro-gallery-debug.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Low Distraction Launcher",
             tagline = "Minimal text-only launcher, no icons, no feeds, no internet access",
-            url = "https://merry8989-uk.github.io/lowdistraction-launcher/",
-            action = "Open",
+            url = "https://github.com/merry8989-uk/lowdistraction-launcher/releases/download/v1.39/lowdistraction-v1.39.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "FloatScript",
             tagline = "Transparent floating teleprompter for Android",
-            url = "https://github.com/merry8989-uk/floatscript",
-            action = "View repo",
+            url = "https://github.com/merry8989-uk/floatscript/releases/download/v1.3.0/FloatScript-v1.3.0.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Camara",
             tagline = "Camera + editor: filters, stickers, beauty tools, teleprompter, image & video editing",
-            url = "https://merry8989-uk.github.io/camara-app/",
-            action = "Open",
+            url = "https://github.com/merry8989-uk/camara-app/releases/download/1.11.0/camara-1.11.0.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Powerbase",
             tagline = "Self-hosted diagnostics client: dashboards, log explorer, crash groups, devices, alerts",
-            url = "https://merry8989-uk.github.io/powerbase-app/",
-            action = "Open",
+            url = "https://github.com/merry8989-uk/powerbase-app/releases/latest/download/app-release.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Local AI Keyboard",
@@ -88,7 +89,7 @@ object ExploreApps {
         ExploreApp(
             name = "Arrow Puzzle Advanced",
             tagline = "12,000 guaranteed-solvable arrow puzzles (6,000 Classic + 6,000 Escape)",
-            url = "https://raw.githubusercontent.com/merry8989-uk/arrow-puzzle-advanced/main/dist/ArrowPuzzleAdvanced-5.11.apk",
+            url = "https://github.com/merry8989-uk/arrow-puzzle-advanced/releases/download/v5.11/ArrowPuzzleAdvanced-5.11.apk",
             action = "Download APK",
         ),
         ExploreApp(
@@ -100,8 +101,8 @@ object ExploreApps {
         ExploreApp(
             name = "PDF Toolkit",
             tagline = "Merge, split, rotate, watermark, convert, protect PDFs in the browser. No uploads",
-            url = "https://merry8989-uk.github.io/pdf-toolkit/",
-            action = "Open",
+            url = "https://github.com/merry8989-uk/pdf-toolkit/releases/latest/download/pdf-toolkit-1.1.0.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Doc Viewer & Editor",
@@ -142,8 +143,8 @@ object ExploreApps {
         ExploreApp(
             name = "USB Screen Mirror",
             tagline = "Low-latency Android-to-Windows USB mirroring, scrcpy wrapper with GUI",
-            url = "https://github.com/merry8989-uk/usb-screen-mirror",
-            action = "View repo",
+            url = "https://github.com/merry8989-uk/usb-screen-mirror/releases/latest/download/PhoneMirrorServer.apk",
+            action = "Download APK",
         ),
         ExploreApp(
             name = "Sangam",
