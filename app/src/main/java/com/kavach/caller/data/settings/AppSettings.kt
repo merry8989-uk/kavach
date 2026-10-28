@@ -110,6 +110,20 @@ data class AppSettings(
      * "Later". See [com.kavach.caller.domain.DefaultRoleNudge] for the rules.
      */
     val defaultNudgeAt: Long = 0L,
+
+    /**
+     * Quiet hours. Off by default: silencing calls is a change to how the phone
+     * behaves that nobody should discover by missing a call.
+     */
+    val quietHoursEnabled: Boolean = false,
+    val quietHoursStartHour: Int = 22,
+    val quietHoursStartMinute: Int = 0,
+    val quietHoursEndHour: Int = 7,
+    val quietHoursEndMinute: Int = 0,
+    /** Empty means every day. */
+    val quietHoursDays: Set<Int> = emptySet(),
+    /** RING, SILENCE or REJECT. Silence is the default — it still lets the call through. */
+    val quietHoursAction: String = "SILENCE",
     val dataSaver: Boolean = false,
 
     /** Suggested replies, stored as a JSON array so order is preserved. */

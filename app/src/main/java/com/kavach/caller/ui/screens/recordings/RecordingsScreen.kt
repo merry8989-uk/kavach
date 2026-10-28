@@ -39,12 +39,16 @@ import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
+import com.kavach.caller.recording.OnDeviceTranscriber
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.compose.material.icons.filled.Subject
 
 @HiltViewModel
 class RecordingsViewModel @Inject constructor(
     private val store: RecordingStore,
     private val capability: RecordingCapability,
     private val settings: SettingsRepository,
+    @ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
     private val _items = MutableStateFlow<List<RecordingEntity>>(emptyList())
@@ -88,6 +92,43 @@ class RecordingsViewModel @Inject constructor(
         settings.setRecordingConsent(false)
         message = "Recording turned off. Existing recordings are still here for you to review."
         refresh()
+    }
+
+    /**
+     * Transcribe a recording **on this phone**.
+     *
+     * The old path went to a cloud provider that is not configured, so it always
+     * failed. This one uses Android's own recogniser: free, offline, and no audio
+     * leaves the device — which matters more here than anywhere else in the app.
+     */
+    var transcripts by mutableStateOf<Map<Long, String>>(emptyMap())
+        private set
+    var transcribing by mutableStateOf<Long?>(null)
+        private set
+
+    fun transcribe(entity: RecordingEntity) = viewModelScope.launch {
+        transcribing = entity.id
+        val file = store.playbackFile(entity)
+        if (file == null) {
+            message = "That recording could not be opened."
+            transcribing = null
+            return@launch
+        }
+
+        when (val result = OnDeviceTranscriber(context).transcribe(file)) {
+            is OnDeviceTranscriber.Result.Transcribed -> {
+                transcripts = transcripts + (entity.id to result.text)
+                message = if (result.oneSided) {
+                    "Transcribed. This recording captured one side of the call, so the " +
+                        "transcript is what was said on this phone, not the other person."
+                } else {
+                    "Transcribed."
+                }
+            }
+            is OnDeviceTranscriber.Result.Unavailable -> message = result.reason
+            OnDeviceTranscriber.Result.Empty -> message = "No speech was recognised in that recording."
+        }
+        transcribing = null
     }
 
     fun delete(entity: RecordingEntity) = viewModelScope.launch {
@@ -346,9 +387,30 @@ fun RecordingsScreen(
                                     },
                                 )
                             }
+                            IconButton(
+                                onClick = { vm.transcribe(recording) },
+                                enabled = vm.transcribing != recording.id,
+                            ) {
+                                Icon(
+                                    Icons.Filled.Subject,
+                                    contentDescription = "Transcribe on this phone",
+                                )
+                            }
                             IconButton(onClick = { vm.delete(recording) }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete")
                             }
+                        }
+
+                        // The transcript, when there is one. Shown in full rather
+                        // than behind a tap: reading it is the whole reason someone
+                        // pressed transcribe.
+                        vm.transcripts[recording.id]?.let { text ->
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                         }
                     }
                 }

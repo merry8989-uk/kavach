@@ -84,6 +84,13 @@ class SettingsRepository @Inject constructor(
         val accountPublishName = booleanPreferencesKey("account_publish_name")
         val offlineOnly = booleanPreferencesKey("offline_only")
         val defaultNudgeAt = longPreferencesKey("default_nudge_at")
+        val quietHoursEnabled = booleanPreferencesKey("quiet_hours_enabled")
+        val quietHoursStartHour = intPreferencesKey("quiet_hours_start_hour")
+        val quietHoursStartMinute = intPreferencesKey("quiet_hours_start_minute")
+        val quietHoursEndHour = intPreferencesKey("quiet_hours_end_hour")
+        val quietHoursEndMinute = intPreferencesKey("quiet_hours_end_minute")
+        val quietHoursDays = stringSetPreferencesKey("quiet_hours_days")
+        val quietHoursAction = stringPreferencesKey("quiet_hours_action")
         val dataSaver = booleanPreferencesKey("data_saver")
         val suggestedReplies = stringPreferencesKey("suggested_replies")
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
@@ -156,6 +163,13 @@ class SettingsRepository @Inject constructor(
             accountPublishName = p[Keys.accountPublishName] ?: false,
             offlineOnly = p[Keys.offlineOnly] ?: false,
             defaultNudgeAt = p[Keys.defaultNudgeAt] ?: 0L,
+            quietHoursEnabled = p[Keys.quietHoursEnabled] ?: false,
+            quietHoursStartHour = p[Keys.quietHoursStartHour] ?: 22,
+            quietHoursStartMinute = p[Keys.quietHoursStartMinute] ?: 0,
+            quietHoursEndHour = p[Keys.quietHoursEndHour] ?: 7,
+            quietHoursEndMinute = p[Keys.quietHoursEndMinute] ?: 0,
+            quietHoursDays = p[Keys.quietHoursDays]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet(),
+            quietHoursAction = p[Keys.quietHoursAction] ?: "SILENCE",
             dataSaver = p[Keys.dataSaver] ?: false,
             suggestedReplies = p[Keys.suggestedReplies] ?: "",
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
@@ -285,6 +299,26 @@ class SettingsRepository @Inject constructor(
     suspend fun setBackendBaseUrl(value: String) = context.dataStore.edit { it[Keys.backendBaseUrl] = value.trim() }
 
     /** Schedule the next "set as default" reminder. Zero cancels it. */
+    suspend fun setQuietHours(enabled: Boolean) = context.dataStore.edit { it[Keys.quietHoursEnabled] = enabled }
+
+    suspend fun setQuietHoursStart(hour: Int, minute: Int) = context.dataStore.edit {
+        it[Keys.quietHoursStartHour] = hour.coerceIn(0, 23)
+        it[Keys.quietHoursStartMinute] = minute.coerceIn(0, 59)
+    }
+
+    suspend fun setQuietHoursEnd(hour: Int, minute: Int) = context.dataStore.edit {
+        it[Keys.quietHoursEndHour] = hour.coerceIn(0, 23)
+        it[Keys.quietHoursEndMinute] = minute.coerceIn(0, 59)
+    }
+
+    suspend fun setQuietHoursDays(days: Set<Int>) = context.dataStore.edit {
+        it[Keys.quietHoursDays] = days.map { d -> d.toString() }.toSet()
+    }
+
+    suspend fun setQuietHoursAction(action: String) = context.dataStore.edit {
+        it[Keys.quietHoursAction] = action
+    }
+
     suspend fun setDefaultNudgeAt(value: Long) = context.dataStore.edit { it[Keys.defaultNudgeAt] = value }
 
     suspend fun setOfflineOnly(value: Boolean) = context.dataStore.edit { it[Keys.offlineOnly] = value }

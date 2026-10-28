@@ -6,6 +6,7 @@ import javax.inject.Inject
 import com.kavach.caller.data.local.entity.BlockAction
 import com.kavach.caller.data.settings.SettingsRepository
 import com.kavach.caller.domain.ScorePolicy
+import com.kavach.caller.domain.QuietHours
 
 /**
  * Decide what to do with an incoming call.
@@ -38,6 +39,50 @@ class DecideCallActionUseCase @Inject constructor(
         if (byRule.rule != null) return byRule
 
         val snapshot = settings.snapshot
+
+        // **Quiet hours, before the score.**
+        //
+        // Checked after the explicit rules — a rule the user wrote is a stronger
+        // statement than a schedule — and before the score, because "it is 3am" is
+        // a better reason to stay quiet than "somebody reported this number".
+        //
+        // Favourites, repeat callers and emergency numbers are exempted inside
+        // QuietHours.decide, so a night-time emergency still rings.
+        if (snapshot.quietHoursEnabled) {
+            val window = QuietHours.Window(
+                startHour = snapshot.quietHoursStartHour,
+                startMinute = snapshot.quietHoursStartMinute,
+                endHour = snapshot.quietHoursEndHour,
+                endMinute = snapshot.quietHoursEndMinute,
+                days = snapshot.quietHoursDays,
+            )
+            val action = QuietHours.decide(
+                window = window,
+                now = java.util.Calendar.getInstance(),
+                number = number.orEmpty(),
+                isFavourite = number != null && runCatching {
+                    contactRepository.findByNumber(number)?.isFavourite == true
+                }.getOrDefault(false),
+                isRepeat = false,
+                action = when (snapshot.quietHoursAction.uppercase()) {
+                    "REJECT" -> QuietHours.Action.REJECT
+                    "RING" -> QuietHours.Action.RING
+                    else -> QuietHours.Action.SILENCE
+                },
+            )
+            if (action != QuietHours.Action.RING) {
+                return BlockRepository.Decision(
+                    action = when (action) {
+                        QuietHours.Action.REJECT -> BlockAction.BLOCK
+                        else -> BlockAction.SILENCE
+                    },
+                    // Null rule, like the score path: the log can tell a schedule
+                    // from a rule the user wrote.
+                    rule = null,
+                )
+            }
+        }
+
         if (snapshot.autoBlockScore <= 0) return byRule
 
         // Only now, and only for a real number: an unknown lookup should not
