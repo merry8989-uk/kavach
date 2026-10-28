@@ -95,6 +95,8 @@ class SpamPromptViewModel @Inject constructor(
         }
     }
 
+    fun clearResult() { result = null }
+
     fun dismiss() = viewModelScope.launch {
         settings.setPendingSpamPrompt("")
         pending = null
@@ -106,6 +108,7 @@ private val CATEGORIES = listOf(
     "survey", "robocall", "silence", "other",
 )
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SpamPromptDialog(vm: SpamPromptViewModel = hiltViewModel()) {
     var chosen by remember { mutableStateOf<String?>(null) }
@@ -154,11 +157,11 @@ fun SpamPromptDialog(vm: SpamPromptViewModel = hiltViewModel()) {
 
     vm.result?.let { message ->
         AlertDialog(
-            onDismissRequest = { vm.dismiss(); vm.result = null },
+            onDismissRequest = { vm.dismiss(); vm.clearResult() },
             title = { Text("Report") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { vm.result = null }) { Text("OK") }
+                TextButton(onClick = { vm.clearResult() }) { Text("OK") }
             },
         )
     }
