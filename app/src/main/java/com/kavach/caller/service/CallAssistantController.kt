@@ -10,6 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.kavach.caller.util.holds
+import android.media.AudioDeviceInfo
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 /**
  * Thin wrapper over the platform call controls the assistant needs: answer,
@@ -68,6 +71,74 @@ class CallAssistantController @Inject constructor(
             @Suppress("DEPRECATION")
             audio.isSpeakerphoneOn = on
         }
+    }
+
+    /**
+     * The audio devices this call could be routed to.
+     *
+     * **A Bluetooth headset that is connected is not automatically used.** Android
+     * picks a route and sometimes picks the earpiece while a paired headset sits
+     * there; the user then holds the phone to their ear and wonders why the
+     * headset is silent. Listing the devices lets them choose.
+     *
+     * Needs `BLUETOOTH_CONNECT` on Android 12+, which is why this returns an empty
+     * list rather than throwing when the permission is missing.
+     */
+    fun communicationDevices(): List<Pair<String, String>> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return emptyList()
+        if (ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return emptyList()
+        }
+        return runCatching {
+            val audio = context.getSystemService(AudioManager::class.java) ?: return emptyList()
+            audio.availableCommunicationDevices.map { it.id.toString() to deviceLabel(it) }
+        }.getOrDefault(emptyList())
+    }
+
+    /** Route call audio to one device, by the id from [communicationDevices]. */
+    fun routeTo(deviceId: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+        if (ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+        return runCatching {
+            val audio = context.getSystemService(AudioManager::class.java) ?: return false
+            val target = audio.availableCommunicationDevices.firstOrNull {
+                it.id.toString() == deviceId
+            } ?: return false
+            audio.setCommunicationDevice(target)
+        }.getOrDefault(false)
+    }
+
+    /** Hand the route back to Android. */
+    fun clearRouting() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        runCatching {
+            context.getSystemService(AudioManager::class.java)?.clearCommunicationDevice()
+        }
+    }
+
+    private fun deviceLabel(device: AudioDeviceInfo): String = when (device.type) {
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_BLE_HEADSET,
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+        -> device.productName?.toString()?.ifEmpty { null } ?: "Bluetooth"
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Earpiece"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Speaker"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+        -> "Wired headset"
+        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB headset"
+        AudioDeviceInfo.TYPE_HEARING_AID -> "Hearing aid"
+        else -> device.productName?.toString()?.ifEmpty { null } ?: "Audio device"
     }
 
     fun setInCommunication() {

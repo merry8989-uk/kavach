@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import com.kavach.caller.domain.DefaultRoleNudge
+import com.kavach.caller.data.backup.BackupManager
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -28,6 +29,7 @@ class SettingsViewModel @Inject constructor(
     val session: com.kavach.caller.data.diagnostics.SessionContext,
     private val secrets: com.kavach.caller.data.secure.SecretStore,
     private val api: com.kavach.caller.data.remote.KavachApiClient,
+    private val backupManager: com.kavach.caller.data.backup.BackupManager,
 ) : ViewModel() {
 
     // ---------------------------------------------------- self-hosted lookup --
@@ -58,6 +60,34 @@ class SettingsViewModel @Inject constructor(
     /** They granted it, so there is nothing left to remind them about. */
     fun clearDefaultNudge() = viewModelScope.launch {
         repo.setDefaultNudgeAt(0L)
+    }
+
+    // ------------------------------------------------------------- backup --
+
+    var backupMessage by mutableStateOf<String?>(null)
+        private set
+
+    fun dismissBackupMessage() { backupMessage = null }
+
+    fun backup(uri: android.net.Uri, passphrase: String) = viewModelScope.launch {
+        backupMessage = null
+        backupManager.writeTo(uri, passphrase)
+            .onSuccess { count -> backupMessage = "Backed up $count items, encrypted." }
+            .onFailure { backupMessage = "Backup failed: ${it.message ?: it.javaClass.simpleName}" }
+    }
+
+    fun restore(uri: android.net.Uri, passphrase: String) = viewModelScope.launch {
+        backupMessage = null
+        backupMessage = when (val result = backupManager.restoreFrom(uri, passphrase)) {
+            is BackupManager.Restore.Ok ->
+                "Restored ${result.contacts} contacts and ${result.rules} rules. " +
+                    "Existing data was kept."
+            BackupManager.Restore.WrongPassphrase ->
+                "That passphrase did not open the backup."
+            BackupManager.Restore.NotABackup ->
+                "That file is not a Kavach backup."
+            is BackupManager.Restore.Failed -> result.reason
+        }
     }
 
     fun setServerUrl(value: String) = viewModelScope.launch { repo.setBackendBaseUrl(value) }

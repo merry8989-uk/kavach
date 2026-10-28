@@ -124,6 +124,15 @@ data class AppSettings(
     val quietHoursDays: Set<Int> = emptySet(),
     /** RING, SILENCE or REJECT. Silence is the default — it still lets the call through. */
     val quietHoursAction: String = "SILENCE",
+
+    /**
+     * A finished call we should ask about, as "number|whenMillis".
+     *
+     * Empty when there is nothing to ask. Set when a call ends with a number that
+     * is not a saved contact and has not been reported already — the moment the
+     * user still remembers who called.
+     */
+    val pendingSpamPrompt: String = "",
     val dataSaver: Boolean = false,
 
     /** Suggested replies, stored as a JSON array so order is preserved. */

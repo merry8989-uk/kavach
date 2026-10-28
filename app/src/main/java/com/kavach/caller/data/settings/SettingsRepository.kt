@@ -91,6 +91,7 @@ class SettingsRepository @Inject constructor(
         val quietHoursEndMinute = intPreferencesKey("quiet_hours_end_minute")
         val quietHoursDays = stringSetPreferencesKey("quiet_hours_days")
         val quietHoursAction = stringPreferencesKey("quiet_hours_action")
+        val pendingSpamPrompt = stringPreferencesKey("pending_spam_prompt")
         val dataSaver = booleanPreferencesKey("data_saver")
         val suggestedReplies = stringPreferencesKey("suggested_replies")
         val autoReplyEnabled = booleanPreferencesKey("auto_reply_enabled")
@@ -170,6 +171,7 @@ class SettingsRepository @Inject constructor(
             quietHoursEndMinute = p[Keys.quietHoursEndMinute] ?: 0,
             quietHoursDays = p[Keys.quietHoursDays]?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet(),
             quietHoursAction = p[Keys.quietHoursAction] ?: "SILENCE",
+            pendingSpamPrompt = p[Keys.pendingSpamPrompt] ?: "",
             dataSaver = p[Keys.dataSaver] ?: false,
             suggestedReplies = p[Keys.suggestedReplies] ?: "",
             autoReplyEnabled = p[Keys.autoReplyEnabled] ?: false,
@@ -299,6 +301,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setBackendBaseUrl(value: String) = context.dataStore.edit { it[Keys.backendBaseUrl] = value.trim() }
 
     /** Schedule the next "set as default" reminder. Zero cancels it. */
+    /** Record a call worth asking about, or clear it with an empty string. */
+    suspend fun setPendingSpamPrompt(value: String) = context.dataStore.edit {
+        it[Keys.pendingSpamPrompt] = value
+    }
+
     suspend fun setQuietHours(enabled: Boolean) = context.dataStore.edit { it[Keys.quietHoursEnabled] = enabled }
 
     suspend fun setQuietHoursStart(hour: Int, minute: Int) = context.dataStore.edit {

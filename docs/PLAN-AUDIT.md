@@ -58,9 +58,9 @@ gateway. Needs a paid MSG91 or Twilio account. Nothing can be built around it.
 | **F2.8 Import** | vCard **export** exists (`domain/VCard.kt`, share sheet). **Import does not** — no reader at all |
 | **F4.4 Import/export of block rules** | **Done** — `domain/BlockRuleCodec.kt`, 13 tests |
 | **F5.6 Schedule / DND windows** | **Done** — `domain/QuietHours.kt`, 18 tests |
-| **F5.7 Post-call spam prompt** | Not started — no code |
-| **F7.5 Bluetooth routing** | Not started |
-| **F12.4 Encrypted backup and restore** | Not started |
+| **F5.7 Post-call spam prompt** | **Done** — set when a call ends, shown on the next open |
+| **F7.5 Bluetooth routing** | **Was already done** — `KavachInCallService.routeBluetooth()` calls `setAudioRoute(ROUTE_BLUETOOTH)`. My first pass said "not started" because I grepped for `setCommunicationDevice` and it uses the Telecom API instead. It is now honest about failure too, which it was not |
+| **F12.4 Encrypted backup and restore** | **Done** — AES-GCM under a passphrase, 10 tests |
 | **F10.5 Dialogue policy** | Not started — see `docs/AI-AGENT-PLAN.md` for why the first decision is not code |
 | **F10.6 Auto-SMS to caller** | Not started |
 | **F10.8 Synthetic-voice reply** | Not started |

@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
                 // the app and can act on it. It fires only when the rules say so —
                 // see DefaultRoleNudge — and never for someone who already set it.
                 DefaultRolePrompt(vm)
+                // "Was that call spam?" for a call that ended since the last open.
+                com.kavach.caller.ui.screens.community.SpamPromptDialog()
             }
         }
     }

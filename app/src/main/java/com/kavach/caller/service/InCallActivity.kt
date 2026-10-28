@@ -58,7 +58,15 @@ class InCallActivity : ComponentActivity() {
                     onDtmf = { tone -> KavachInCallService.playDtmf(tone) },
                     onDtmfStop = { KavachInCallService.stopDtmf() },
                     onHold = { hold -> KavachInCallService.holdCurrent(hold) },
-                    onBluetooth = { KavachInCallService.routeBluetooth() },
+                    onBluetooth = {
+                        if (!KavachInCallService.routeBluetooth()) {
+                            android.widget.Toast.makeText(
+                                this,
+                                "No Bluetooth device is connected to this call.",
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
                     onRecord = { number -> CallRecorderService.start(this, number) },
                 )
             }

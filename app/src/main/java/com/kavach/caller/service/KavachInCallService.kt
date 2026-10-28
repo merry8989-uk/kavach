@@ -37,6 +37,7 @@ class KavachInCallService : InCallService() {
     @Inject lateinit var sessionManager: CallSessionManager
     @Inject lateinit var callNotifications: CallNotificationManager
     @Inject lateinit var contacts: ContactRepository
+    @Inject lateinit var settings: com.kavach.caller.data.settings.SettingsRepository
     /** Resolves a number to a name, a source and a risk score. */
     @Inject lateinit var identifyCaller: com.kavach.caller.domain.usecase.IdentifyCallerUseCase
 
@@ -66,6 +67,27 @@ class KavachInCallService : InCallService() {
         super.onCallRemoved(call)
         runCatching { call.unregisterCallback(callCallback) }
         calls.remove(call)
+
+        // **Ask about this call while it is still fresh.**
+        //
+        // Only for a number that is not a saved contact — asking "was that spam?"
+        // about your own mother is how people turn prompts off — and only for a
+        // call that actually connected, since a missed call tells you nothing
+        // about who was on the line.
+        val handle = call.details?.handle?.schemeSpecificPart
+        if (!handle.isNullOrBlank()) {
+            scope.launch {
+                runCatching {
+                    val isContact = contacts.nameFor(handle) != null
+                    val connected = call.details?.let {
+                        it.creationTimeMillis > 0 && call.state == Call.STATE_DISCONNECTED
+                    } ?: false
+                    if (!isContact && connected) {
+                        settings.setPendingSpamPrompt("$handle|${System.currentTimeMillis()}")
+                    }
+                }
+            }
+        }
         if (calls.none { it.state != Call.STATE_DISCONNECTED }) {
             sessionManager.clear()
             callNotifications.clear()
@@ -232,8 +254,25 @@ class KavachInCallService : InCallService() {
         }
 
         /** Route call audio to a connected Bluetooth device. */
-        fun routeBluetooth() {
-            runCatching { instance?.setAudioRoute(CallAudioState.ROUTE_BLUETOOTH) }
-        }
+        /**
+         * Move call audio to Bluetooth.
+         *
+         * **Returns whether it worked.** This used to be a fire-and-forget
+         * `runCatching`, so with no headset connected the user tapped Bluetooth,
+         * nothing happened, and the app said nothing — which reads as a broken
+         * button rather than "there is nothing to route to".
+         */
+        fun routeBluetooth(): Boolean = runCatching {
+            val service = instance ?: return false
+            service.setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
+            // The route is applied asynchronously, so success here means "asked",
+            // not "confirmed" — the caller reports it as asked rather than done.
+            true
+        }.getOrDefault(false)
+
+        /** Whether a Bluetooth route is currently in use. */
+        fun isOnBluetooth(): Boolean = runCatching {
+            instance?.callAudioState?.route == CallAudioState.ROUTE_BLUETOOTH
+        }.getOrDefault(false)
     }
 }

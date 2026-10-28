@@ -388,6 +388,83 @@ fun SettingsScreen(
             Text(stringResource(R.string.my_number_consent))
         }
         Spacer(Modifier.height(8.dp))
+        SectionHeader("Backup")
+        KavachCard {
+            Text(
+                "Backs up your block rules, Kavach's own contact fields and your " +
+                    "settings. Not call history, not recordings, not the server token.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "The file is encrypted with a passphrase you choose. It is not " +
+                    "stored anywhere — if you lose it, the backup cannot be opened.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+
+            var passphrase by remember { mutableStateOf("") }
+            var mode by remember { mutableStateOf<String?>(null) }
+            val context = LocalContext.current
+
+            val saveLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.CreateDocument("application/octet-stream"),
+            ) { uri -> if (uri != null) vm.backup(uri, passphrase) }
+
+            val openLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument(),
+            ) { uri -> if (uri != null) vm.restore(uri, passphrase) }
+
+            Row {
+                OutlinedButton(
+                    onClick = { mode = "backup" },
+                    modifier = Modifier.weight(1f),
+                ) { Text("Back up") }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = { mode = "restore" },
+                    modifier = Modifier.weight(1f),
+                ) { Text("Restore") }
+            }
+
+            if (mode != null) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = passphrase,
+                    onValueChange = { passphrase = it },
+                    label = { Text("Passphrase") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        if (passphrase.isNotBlank()) {
+                            if (mode == "backup") {
+                                saveLauncher.launch("kavach-backup.kvbk")
+                            } else {
+                                openLauncher.launch(arrayOf("*/*"))
+                            }
+                            mode = null
+                        }
+                    },
+                    enabled = passphrase.isNotBlank(),
+                ) { Text(if (mode == "backup") "Choose where to save" else "Choose the file") }
+            }
+
+            vm.backupMessage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+
         OutlinedButton(onClick = onOpenCommunity, modifier = Modifier.fillMaxWidth()) {
             Text("Community reports on my callers")
         }
