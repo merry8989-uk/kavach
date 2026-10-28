@@ -117,18 +117,21 @@ fun BlocklistScreen(
             }
             // Export and import, side by side. A block list takes a while to
             // build and is the sort of thing people want on a new phone.
+            // `context` has to be in scope before the launcher's lambda closes
+            // over it.
+            val context = LocalContext.current
             val importLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.OpenDocument(),
             ) { uri ->
-                uri ?: return@rememberLauncherForActivityResult
-                val text = runCatching {
-                    context.contentResolver.openInputStream(uri)?.use {
-                        it.readBytes().toString(Charsets.UTF_8)
-                    }
-                }.getOrNull()
-                if (text == null) vm.showImportError() else vm.import(text)
+                if (uri != null) {
+                    val text = runCatching {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            stream.readBytes().toString(Charsets.UTF_8)
+                        }
+                    }.getOrNull()
+                    if (text == null) vm.showImportError() else vm.import(text)
+                }
             }
-            val context = LocalContext.current
 
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 OutlinedButton(
