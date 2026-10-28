@@ -40,12 +40,18 @@ import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 import com.kavach.caller.R
 import com.kavach.caller.ui.permissions.PermissionNotice
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
     private val repo: ContactRepository,
     private val saveContact: SaveContactUseCase,
     private val syncContacts: SyncContactsUseCase,
+    @ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
     val contacts = repo.observeAll()
@@ -64,6 +70,58 @@ class ContactsViewModel @Inject constructor(
         errorMessage = null
         runCatching { syncContacts() }
             .onFailure { errorMessage = "Could not import contacts: ${it.message}" }
+    }
+
+    /**
+     * Import contacts from a .vcf file the user picked.
+     *
+     * Goes through [saveContact] rather than writing rows directly, so an
+     * imported number is validated by the same rule as one typed in. A file full
+     * of malformed numbers should not be the way into the database.
+     *
+     * **Reports what it did.** "Imported 12, skipped 2" is useful; a silent
+     * success on a file of 300 that produced 12 is not.
+     */
+    fun importVCard(uri: android.net.Uri) = viewModelScope.launch {
+        errorMessage = null
+        val outcome = runCatching {
+            val text = context.contentResolver.openInputStream(uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            } ?: error("The file could not be opened.")
+
+            val cards = com.kavach.caller.domain.VCardReader.parse(text)
+            if (cards.isEmpty()) {
+                errorMessage = "That file had no contacts Kavach could read."
+                return@launch
+            }
+
+            var saved = 0
+            var skipped = 0
+            for (card in cards) {
+                val draft = ContactDraft(
+                    name = card.displayName,
+                    numbers = card.numbers
+                        .map { (number, label) -> PhoneNumber(label, number) }
+                        .ifEmpty { listOf(PhoneNumber("Mobile", "")) },
+                    company = card.company.orEmpty(),
+                    jobTitle = card.jobTitle.orEmpty(),
+                    notes = card.notes.orEmpty(),
+                )
+                when (saveContact(draft)) {
+                    is SaveContactUseCase.Result.Saved -> saved += 1
+                    else -> skipped += 1
+                }
+            }
+
+            errorMessage = if (skipped == 0) {
+                "Imported $saved ${if (saved == 1) "contact" else "contacts"}."
+            } else {
+                "Imported $saved, skipped $skipped that had no usable name or number."
+            }
+        }
+        outcome.onFailure {
+            errorMessage = "Could not read that file: ${it.message ?: it.javaClass.simpleName}"
+        }
     }
 
     fun save(draft: ContactDraft) = viewModelScope.launch {
@@ -203,10 +261,34 @@ fun ContactsScreen(
                 onValueChange = { vm.query = it },
                 label = { Text(stringResource(R.string.search_name_company_tag)) },
                 leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp),
                 singleLine = true,
                 shape = MaterialTheme.shapes.large,
             )
+
+            // Import sits beside search rather than buried in a menu: a .vcf on
+            // the phone is the only way to move contacts between apps, and a
+            // feature nobody finds is the same as one that does not exist.
+            val importLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument(),
+            ) { uri -> uri?.let { vm.importVCard(it) } }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        // Some file managers do not label .vcf, so the type list
+                        // includes the generic one as a fallback.
+                        importLauncher.launch(arrayOf("text/x-vcard", "text/vcard", "*/*"))
+                    },
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(6.dp))
+                    Text("Import .vcf")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
 
             if (all.isNotEmpty()) {
                 Row(

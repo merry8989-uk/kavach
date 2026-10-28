@@ -24,6 +24,9 @@ interface WorkerEntryPoint {
     fun diagnostics(): com.kavach.caller.data.diagnostics.DiagnosticsRepository
 
     fun settings(): com.kavach.caller.data.settings.SettingsRepository
+
+    /** The same sender a message typed now uses. */
+    fun smsSender(): com.kavach.caller.data.system.SmsSender
 }
 
 /**

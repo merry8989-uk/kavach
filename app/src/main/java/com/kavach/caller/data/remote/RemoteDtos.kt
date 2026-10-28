@@ -195,3 +195,25 @@ data class AppRegisterResponseDto(
     val installId: String = "",
     val expiresIn: Long? = null,
 )
+
+
+/** One number's community standing. */
+@Serializable
+data class BatchScoreRequestDto(
+    val numbers: List<String>,
+)
+
+@Serializable
+data class ScoreResultDto(
+    val number: String,
+    val spamRisk: Int = 0,
+    val reports: Int = 0,
+    /** False when nobody has ever reported it, which is not the same as clean. */
+    val known: Boolean = false,
+)
+
+@Serializable
+data class BatchScoreResponseDto(
+    val results: List<ScoreResultDto> = emptyList(),
+    val detail: String? = null,
+)

@@ -109,6 +109,27 @@ class KavachApiClient @Inject constructor(
         }
     }
 
+    /**
+     * Ask the server what the community knows about a page of numbers.
+     *
+     * **The server cannot rank numbers by itself and never will** — every row is a
+     * hash, so it does not know any number. This is the other direction: the app
+     * sends numbers it already has, and gets scores back. Nothing new is disclosed.
+     *
+     * Returns null when there is no server, so the caller can say so rather than
+     * showing an empty list that looks like "no spam found".
+     */
+    suspend fun batchScores(numbers: List<String>): List<ScoreResultDto>? {
+        val url = baseUrl() ?: return null
+        if (numbers.isEmpty()) return emptyList()
+        return post(
+            "$url/v1/scores",
+            BatchScoreRequestDto(numbers.take(100)),
+            BatchScoreRequestDto.serializer(),
+            BatchScoreResponseDto.serializer(),
+        )?.results
+    }
+
     suspend fun testConnection(url: String, token: String): String {
         val base = url.trim().trimEnd('/')
         // The rule lives in ServerUrlPolicy so it can be tested; see

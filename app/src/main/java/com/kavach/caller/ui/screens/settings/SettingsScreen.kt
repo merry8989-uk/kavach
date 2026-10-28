@@ -64,6 +64,7 @@ fun SettingsScreen(
     onOpenAccount: () -> Unit = {},
     onOpenReplies: () -> Unit = {},
     onOpenPolicy: () -> Unit = {},
+    onOpenCommunity: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val s by vm.settings.collectAsState()
@@ -385,6 +386,10 @@ fun SettingsScreen(
         SectionHeader("Your identity")
         OutlinedButton(onClick = onOpenAccount, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.my_number_consent))
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onOpenCommunity, modifier = Modifier.fillMaxWidth()) {
+            Text("Community reports on my callers")
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onOpenPolicy, modifier = Modifier.fillMaxWidth()) {

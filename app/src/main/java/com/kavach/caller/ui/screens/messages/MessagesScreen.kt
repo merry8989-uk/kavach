@@ -101,6 +101,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.core.content.FileProvider
 import java.io.File
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.filled.Schedule
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
@@ -685,6 +686,41 @@ class MessagesViewModel @Inject constructor(
     }
 
     /**
+     * Queue the draft to be sent at [atMillis].
+     *
+     * Goes through [com.kavach.caller.work.ScheduledSend], which holds it in
+     * WorkManager so it survives the app being killed and the phone rebooting —
+     * the two things a message "sent in three hours" has to survive.
+     */
+    fun scheduleSend(context: Context, address: String, text: String, atMillis: Long) {
+        if (text.isBlank()) return
+        val outgoing = quotePrefix() + text
+        val prefs = settings.snapshot
+        com.kavach.caller.work.ScheduledSend.schedule(
+            context = context,
+            address = address,
+            text = outgoing,
+            atMillis = atMillis,
+            deliveryReports = prefs.smsDeliveryReports,
+            autoRetry = prefs.smsAutoRetry,
+        )
+        status = "Scheduled for " + java.text.SimpleDateFormat(
+            "h:mm a, d MMM",
+            java.util.Locale.getDefault(),
+        ).format(java.util.Date(atMillis))
+        clearReply()
+    }
+
+    /** Scheduled messages still waiting for [address]. */
+    fun pendingSends(context: Context, address: String) =
+        com.kavach.caller.work.ScheduledSend.pending(context, address)
+
+    fun cancelScheduled(context: Context, id: java.util.UUID) {
+        com.kavach.caller.work.ScheduledSend.cancel(context, id)
+        status = "Scheduled message cancelled."
+    }
+
+    /**
      * Delete a message.
      *
      * Android only lets the **default SMS app** delete from the SMS provider, so
@@ -798,6 +834,7 @@ private fun MessagesScreenContent(
      */
     var threadMenuFor by remember { mutableStateOf<String?>(null) }
     var draft by remember(open) { mutableStateOf("") }
+    var showSchedule by remember { mutableStateOf(false) }
 
     val smsPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -1456,8 +1493,88 @@ private fun MessagesScreenContent(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text(stringResource(R.string.message)) },
                 )
+                // Schedule, beside send. A separate button rather than a
+                // long-press on send: a hidden gesture for a feature people look
+                // for is a feature nobody finds.
+                IconButton(
+                    onClick = { if (draft.isNotBlank()) showSchedule = true },
+                    enabled = draft.isNotBlank(),
+                ) {
+                    Icon(Icons.Filled.Schedule, contentDescription = "Send later")
+                }
                 IconButton(onClick = { vm.send(context, current, draft); draft = "" }) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                }
+            }
+
+            // ---- send later ----
+            if (showSchedule) {
+                val now = System.currentTimeMillis()
+                // Presets rather than a date-and-time picker: scheduling a text is
+                // almost always "in a bit" or "in the morning", and a full picker
+                // for those is three taps where one will do.
+                val options = listOf(
+                    "In 30 minutes" to now + 30 * 60_000L,
+                    "In 1 hour" to now + 60 * 60_000L,
+                    "In 3 hours" to now + 3 * 60 * 60_000L,
+                    "Tomorrow at 9am" to tomorrowAtNine(),
+                )
+                AlertDialog(
+                    onDismissRequest = { showSchedule = false },
+                    title = { Text("Send later") },
+                    text = {
+                        Column {
+                            Text(
+                                "The message is held by Android, so it still goes " +
+                                    "if Kavach is closed or the phone restarts.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            options.forEach { (label, at) ->
+                                TextButton(
+                                    onClick = {
+                                        vm.scheduleSend(context, current, draft, at)
+                                        draft = ""
+                                        showSchedule = false
+                                    },
+                                ) { Text(label) }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showSchedule = false }) { Text("Cancel") }
+                    },
+                )
+            }
+
+            // ---- already scheduled ----
+            val scheduled = vm.pendingSends(context, current)
+            if (scheduled.isNotEmpty()) {
+                Text(
+                    scheduled.size.let {
+                        if (it == 1) "1 message scheduled" else "$it messages scheduled"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                // The body cannot be read back from WorkManager, so this offers the
+                // time and a cancel rather than pretending to preview the text.
+                scheduled.forEach { info ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Waiting to send",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { vm.cancelScheduled(context, info.id) }) {
+                            Text("Cancel")
+                        }
+                    }
                 }
             }
 
@@ -1918,4 +2035,16 @@ private fun exportConversation(
         }
         context.startActivity(Intent.createChooser(intent, "Export conversation"))
     }
+}
+
+
+/** Tomorrow at 09:00 local time, for the "send in the morning" preset. */
+private fun tomorrowAtNine(): Long {
+    val cal = java.util.Calendar.getInstance()
+    cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 9)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
 }

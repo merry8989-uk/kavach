@@ -287,6 +287,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenRecordings = { nav.navigate("recordings") },
                         onOpenBlocklist = { nav.navigate("block") },
                         onOpenFeatures = { nav.navigate("features") },
+                        onOpenCommunity = { nav.navigate("community") },
                         onAddContact = { nav.navigate("contacts?new=true") },
                         onOpenReminders = { nav.navigate("reminders") },
                     )
@@ -330,6 +331,7 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                         onOpenBlocklist = { nav.navigate("block") },
                         onOpenRecordings = { nav.navigate("recordings") },
                         onOpenFeatures = { nav.navigate("features") },
+                        onOpenCommunity = { nav.navigate("community") },
                         onOpenDiagnostics = { nav.navigate("diagnostics") },
                         onOpenSelfTest = { nav.navigate("selftest") },
                         onOpenAccount = { nav.navigate("account") },
@@ -341,6 +343,11 @@ private fun KavachMain(settingsVm: SettingsViewModel) {
                 composable("assistant") { AssistantScreen(onBack = { nav.popBackStack() }) }
                 composable("recordings") { RecordingsScreen(onBack = { nav.popBackStack() }) }
                 composable("features") { FeaturesScreen(onBack = { nav.popBackStack() }) }
+                composable("community") {
+                    com.kavach.caller.ui.screens.community.CommunitySpamScreen(
+                        onBack = { nav.popBackStack() },
+                    )
+                }
                 composable("diagnostics") { DiagnosticsScreen(onBack = { nav.popBackStack() }) }
                 composable("selftest") { SelfTestScreen(onBack = { nav.popBackStack() }) }
                 composable("account") { AccountScreen(onBack = { nav.popBackStack() }) }

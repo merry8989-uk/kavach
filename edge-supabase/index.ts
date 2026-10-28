@@ -43,6 +43,14 @@ const CATEGORIES = [
 /** Old reports fade rather than accumulate into a permanent sentence. */
 const REPORT_WINDOW_DAYS = 180;
 
+/**
+ * How many numbers one batch may carry.
+ *
+ * The app checks a page of recent callers, not the whole log, so this is far
+ * above what it sends. It exists so one request cannot turn into a table scan.
+ */
+const MAX_BATCH = 100;
+
 // ------------------------------------------------------------------ helpers --
 
 function json(body: unknown, status = 200): Response {
@@ -358,6 +366,67 @@ Deno.serve(async (req: Request) => {
       },
       202,
     );
+  }
+
+  // ------------------------------------------------------- batch scores --
+  //
+  // "Which of the numbers that called me have other people reported?"
+  //
+  // **A leaderboard of top spam numbers cannot exist on this server, and that is
+  // by design.** Every row keys on a hash, so the server does not know any number
+  // and cannot rank them. What it can do is the reverse: the app sends the numbers
+  // it already has, and the server answers with scores. The numbers are hashed on
+  // arrival and never stored, so this leaks nothing the app did not already know.
+  if (url.pathname.endsWith('/scores') && req.method === 'POST') {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: 'body must be JSON' }, 400);
+    }
+
+    const raw = Array.isArray(body?.numbers) ? body.numbers : [];
+    if (raw.length === 0) return json({ error: 'numbers must be a non-empty array' }, 422);
+    if (raw.length > MAX_BATCH) {
+      // Bounded rather than truncated: a caller sending 500 should learn the limit
+      // rather than silently get 50 answers.
+      return json({ error: `at most ${MAX_BATCH} numbers per request` }, 422);
+    }
+
+    const cleaned: { number: string; digest: string }[] = [];
+    for (const candidate of raw) {
+      const number = normaliseNumber(candidate);
+      if (!number) continue;
+      cleaned.push({ number, digest: await hashValue(number, PHONE_PEPPER) });
+    }
+    if (cleaned.length === 0) return json({ error: 'no valid phone numbers' }, 422);
+
+    const { data: rows } = await db
+      .from('kavach_scores')
+      .select('number_hash, score, report_count, updated_at')
+      .in('number_hash', cleaned.map((c) => c.digest));
+
+    const byHash = new Map((rows ?? []).map((r: any) => [r.number_hash, r]));
+
+    return json({
+      results: cleaned.map(({ number, digest }) => {
+        const row: any = byHash.get(digest);
+        const count = row?.report_count ?? 0;
+        return {
+          number,
+          spamRisk: row?.score ?? 0,
+          reports: count,
+          // An absence is reported as an absence. Zero reports and "we have never
+          // heard of this number" are different answers, and collapsing them would
+          // make an unknown number look clean.
+          known: row !== undefined,
+        };
+      }),
+      detail:
+        'Scores come from community reports, which are one person\u2019s report ' +
+        'each and not a finding. A number with no score has simply not been ' +
+        'reported yet.',
+    });
   }
 
   return json({ error: 'not found' }, 404);
